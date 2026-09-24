@@ -86,6 +86,8 @@
   .g-kopf { fill: #f1f3f5; stroke: #495057; stroke-width: 1.2; }
   .g-label { font-size: 12px; font-weight: 700; fill: #1f2328; pointer-events: none; }
   .g-typ { font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .g-feld { font-size: 10px; fill: #1f2328; pointer-events: none; }
+  .g-feld-name { fill: var(--muted); }
   .g-port-text { font-size: 9.5px; fill: #343a40; pointer-events: none; dominant-baseline: middle; }
   .g-warn { font-size: 10px; fill: var(--warn); pointer-events: none; }
   .geraet.sel .g-body, .geraet.sel .g-kopf { stroke: var(--accent); stroke-width: 2.5; }
@@ -201,11 +203,14 @@ const KONFIG = {
   API_BASIS_URL: null,          // z.B. 'http://rex-server/api' – null = Demodaten
   NAS_BASIS_URL: '',            // Präfix für relative Grafikpfade aus der DB
   SPEICHER_SCHLUESSEL: 'signalplaner.plan.v1',
+  // Zwei frei nutzbare Felder je Gerät im Plan (z.B. IP-Adresse, ID, Standort)
+  FREIE_FELDER: ['Feld 1', 'Feld 2'],
 };
 
 // Zeichen-Geometrie
 const BREITE = 190;   // Breite eines Geräteblocks
 const KOPF = 38;      // Kopfbereich (Bezeichnung + Gerätetyp)
+const FELD_ZEILE = 13; // zusätzliche Kopfhöhe je ausgefülltem freien Feld
 const ZEILE = 15;     // Höhe je Anschlusszeile
 const FUSS = 8;
 const RASTER = 10;
@@ -475,6 +480,12 @@ const farbe = (typ) => S.signaltypen.get(typ)?.farbe || FALLBACK_FARBE;
 
 const instanz = (u) => S.plan.geraete.find((g) => g.uid === u);
 const typVon = (inst) => S.geraete.get(inst.geraetId);
+/** Ausgefüllte freie Felder eines Geräts im Plan: [[Name, Wert], …] */
+const felderVon = (inst) => KONFIG.FREIE_FELDER
+  .map((name, i) => [name, (inst.felder?.[i] || '').trim()])
+  .filter(([, wert]) => wert);
+const kopfVon = (inst) => { const n = felderVon(inst).length; return KOPF + (n ? n * FELD_ZEILE + 2 : 0); };
+const hoeheVon = (inst) => typVon(inst).hoehe + kopfVon(inst) - KOPF;
 const portVon = (inst, portId) => typVon(inst).anschluesse.find((p) => p.id === portId);
 
 function speichern() {
@@ -572,9 +583,10 @@ function aenderung() {
 function portPos(inst, portId) {
   const typ = typVon(inst);
   let i = typ.links.findIndex((p) => p.id === portId);
-  if (i >= 0) return { x: inst.x, y: inst.y + KOPF + i * ZEILE + ZEILE / 2, dir: -1 };
+  const kopf = kopfVon(inst);
+  if (i >= 0) return { x: inst.x, y: inst.y + kopf + i * ZEILE + ZEILE / 2, dir: -1 };
   i = typ.rechts.findIndex((p) => p.id === portId);
-  return { x: inst.x + BREITE, y: inst.y + KOPF + i * ZEILE + ZEILE / 2, dir: 1 };
+  return { x: inst.x + BREITE, y: inst.y + kopf + i * ZEILE + ZEILE / 2, dir: 1 };
 }
 
 /** Automatische orthogonale Leitungsführung zwischen zwei Anschlusspunkten.
@@ -727,18 +739,22 @@ function renderGeraete() {
 function geraetSvg(inst) {
   const typ = typVon(inst);
   const sel = S.auswahl?.art === 'geraet' && S.auswahl.id === inst.uid;
+  const kopf = kopfVon(inst);
   const teile = [
-    `<rect class="g-body" width="${BREITE}" height="${typ.hoehe}" rx="2"/>`,
-    `<rect class="g-kopf" width="${BREITE}" height="${KOPF}" rx="2"/>`,
+    `<rect class="g-body" width="${BREITE}" height="${hoeheVon(inst)}" rx="2"/>`,
+    `<rect class="g-kopf" width="${BREITE}" height="${kopf}" rx="2"/>`,
     `<text class="g-label" x="8" y="16">${esc(kuerze(inst.label, typ.grafik ? 22 : 26))}</text>`,
     `<text class="g-typ" x="8" y="30">${esc(kuerze(typ.name, typ.grafik ? 28 : 32))}</text>`,
+    // Freie Felder unter dem Gerätetyp
+    ...felderVon(inst).map(([name, wert], i) =>
+      `<text class="g-feld" x="8" y="${30 + (i + 1) * FELD_ZEILE}"><tspan class="g-feld-name">${esc(name)}:</tspan> ${esc(kuerze(wert, 30 - name.length))}</text>`),
   ];
   // Grafik (NAS) optional – ohne Grafik bleibt der Block ein generischer Platzhalter
   const bild = grafikUrl(typ.grafik);
   if (bild) teile.push(`<image href="${esc(bild)}" x="${BREITE - 32}" y="6" width="26" height="26" onerror="this.remove()"/>`);
 
   const port = (p, i, seite) => {
-    const y = KOPF + i * ZEILE + ZEILE / 2;
+    const y = kopf + i * ZEILE + ZEILE / 2;
     const x = seite < 0 ? 0 : BREITE;
     const belegt = portBelegt(inst.uid, p.id);
     const c = farbe(p.typ);
@@ -749,7 +765,7 @@ function geraetSvg(inst) {
   };
   typ.links.forEach((p, i) => teile.push(port(p, i, -1)));
   typ.rechts.forEach((p, i) => teile.push(port(p, i, 1)));
-  if (!typ.anschluesse.length) teile.push(`<text class="g-warn" x="8" y="${KOPF + 11}">⚠ keine Anschlüsse hinterlegt</text>`);
+  if (!typ.anschluesse.length) teile.push(`<text class="g-warn" x="8" y="${kopf + 11}">⚠ keine Anschlüsse hinterlegt</text>`);
 
   return `<g class="geraet${sel ? ' sel' : ''}" data-geraet="${inst.uid}" transform="translate(${inst.x},${inst.y})">${teile.join('')}</g>`;
 }
@@ -815,6 +831,9 @@ function renderInfo() {
       <div class="info-block">
         <label for="inp-label">Bezeichnung im Plan</label>
         <input id="inp-label" value="${esc(inst.label)}">
+        ${KONFIG.FREIE_FELDER.map((name, i) => `
+          <label for="inp-feld-${i}">${esc(name)}</label>
+          <input id="inp-feld-${i}" data-feld="${i}" value="${esc(inst.felder?.[i] || '')}" placeholder="frei nutzbar">`).join('')}
         <div class="hinweis">${esc(typ.name)}</div>
         ${stammdaten(typ)}
         ${typ.warnungen.map((w) => `<div class="warnung">⚠ ${esc(w)}</div>`).join('')}
@@ -907,7 +926,7 @@ function zoomen(faktor, clientX, clientY) {
 
 function einpassen() {
   const boxen = [
-    ...S.plan.geraete.map((g) => ({ x: g.x, y: g.y, b: BREITE, h: typVon(g).hoehe })),
+    ...S.plan.geraete.map((g) => ({ x: g.x, y: g.y, b: BREITE, h: hoeheVon(g) })),
     ...S.plan.gruppen,
   ];
   if (!boxen.length) { S.ansicht = { tx: 40, ty: 40, k: 1 }; renderAnsicht(); return; }
@@ -961,7 +980,7 @@ $('#zeichnung').addEventListener('pointerdown', (ev) => {
     const g = S.plan.gruppen.find((x) => x.uid === gruppeEl.dataset.gruppe);
     // Geräte, deren Mitte in der Gruppe liegt, werden mitgenommen
     const mit = S.plan.geraete.filter((i) => {
-      const mx = i.x + BREITE / 2, my = i.y + typVon(i).hoehe / 2;
+      const mx = i.x + BREITE / 2, my = i.y + hoeheVon(i) / 2;
       return mx >= g.x && mx <= g.x + g.b && my >= g.y && my <= g.y + g.h;
     }).map((i) => ({ inst: i, x0: i.x, y0: i.y }));
     S.drag = { ...basis, art: 'gruppe', gruppe: g, x0: g.x, y0: g.y, w0: w, mit };
@@ -1124,12 +1143,16 @@ $('#info').addEventListener('input', (ev) => {
   if (ev.target.id === 'inp-label') {
     instanz(S.auswahl.id).label = ev.target.value;
     renderGeraete(); speichern();
+  } else if (ev.target.dataset.feld !== undefined) {
+    const inst = instanz(S.auswahl.id);
+    inst.felder = [...(inst.felder || [])];
+    inst.felder[Number(ev.target.dataset.feld)] = ev.target.value;
+    renderKabel(); renderGeraete(); speichern();   // Kopfhöhe kann sich ändern
   } else if (ev.target.id === 'inp-gruppe') {
     S.plan.gruppen.find((g) => g.uid === S.auswahl.id).titel = ev.target.value;
     renderGruppen(); speichern();
   }
 });
-$('#info').addEventListener('change', () => renderInfo());   // Port-Tabelle mit neuer Bezeichnung
 $('#info').addEventListener('click', (ev) => {
   if (ev.target.closest('[data-aktion="loeschen"]')) auswahlLoeschen();
   if (ev.target.closest('[data-aktion="route-reset"]')) {
@@ -1242,10 +1265,13 @@ function beispielPlan() {
     v('amp', 'Out 1', 'spk1', 'NL4 In'),
     v('amp', 'Out 2', 'spk2', 'NL4 In'),
   ];
+  // Freie Felder als Beispiel
+  geraete.find((x) => x.uid === 'p20').felder = ['192.168.10.20', 'Regie Rack 1'];
+
   // Gruppenrahmen aus den enthaltenen Geräten berechnen
   const gruppe = (id, titel, ...uids) => {
     const boxen = geraete.filter((x) => uids.includes(x.uid))
-      .map((x) => ({ x: x.x, y: x.y, b: BREITE, h: S.geraete.get(x.geraetId).hoehe }));
+      .map((x) => ({ x: x.x, y: x.y, b: BREITE, h: hoeheVon(x) }));
     const x1 = Math.min(...boxen.map((b) => b.x)) - 20, y1 = Math.min(...boxen.map((b) => b.y)) - 40;
     const x2 = Math.max(...boxen.map((b) => b.x + b.b)) + 20, y2 = Math.max(...boxen.map((b) => b.y + b.h)) + 20;
     return { uid: id, titel, x: x1, y: y1, b: x2 - x1, h: y2 - y1 };
