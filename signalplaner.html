@@ -132,6 +132,28 @@
   .knopfzeile { display: flex; gap: 6px; margin-top: 6px; }
   .knopfzeile button { flex: 1; }
 
+  /* Dialog "Plan & Einstellungen" */
+  dialog#einstellungen {
+    width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+    padding: 0; border: 1px solid var(--line); border-radius: 10px;
+    color: var(--text); background: var(--panel); box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  dialog#einstellungen::backdrop { background: rgba(20,24,28,.35); }
+  .dlg-kopf { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); margin: 0; }
+  .dlg-kopf h2 { margin: 0; font-size: 16px; }
+  .dlg-inhalt { padding: 4px 16px 16px; overflow-y: auto; max-height: calc(100vh - 110px); }
+  .dlg-inhalt h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 8px; }
+  .dlg-inhalt h4 { font-size: 13px; margin: 14px 0 6px; }
+  .formgitter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .formgitter label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .formgitter label.breit { grid-column: 1 / -1; }
+  .formgitter label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+  .formgitter input:not([type="checkbox"]), .formgitter select { width: 100%; }
+  .knopfgitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .knopfgitter button { text-align: left; padding: 8px 10px; }
+  .knopfgitter button small { display: block; color: var(--muted); font-size: 11px; }
+  @media (max-width: 560px) { .formgitter { grid-template-columns: 1fr; } }
+
   @media (max-width: 1000px) {
     body {
       grid-template-columns: 1fr;
@@ -147,7 +169,7 @@
 <body>
 
 <header>
-  <h1>Signalfluss-Planer</h1>
+  <h1>Signalfluss-Planer <span id="plan-titel" class="hinweis"></span></h1>
   <button id="btn-gruppe" title="Gruppe (Bereich) anlegen">+ Gruppe</button>
   <button id="btn-zoom-aus" title="Verkleinern">−</button>
   <button id="btn-zoom-ein" title="Vergrößern">+</button>
@@ -155,8 +177,7 @@
   <span id="meldung"></span>
   <span class="spacer"></span>
   <span class="hinweis" id="datenquelle-hinweis"></span>
-  <button id="btn-beispiel">Beispiel laden</button>
-  <button id="btn-neu" class="gefahr">Neuer Plan</button>
+  <button id="btn-einstellungen" title="Plan-Einstellungen, Speichern, Laden, Export">⚙ Plan &amp; Einstellungen</button>
 </header>
 
 <aside id="bibliothek">
@@ -191,6 +212,60 @@
 
 <aside id="info"></aside>
 
+<dialog id="einstellungen">
+  <form method="dialog" class="dlg-kopf">
+    <h2>Plan &amp; Einstellungen</h2>
+    <button title="Schließen">✕</button>
+  </form>
+  <div class="dlg-inhalt">
+    <h3>Plan</h3>
+    <div class="formgitter">
+      <label class="breit">Titel<input data-einst="titel" placeholder="z.B. Signal Auditorium"></label>
+      <label>Projekt / Veranstaltung<input data-einst="projekt"></label>
+      <label>Kunde<input data-einst="kunde"></label>
+      <label>Ersteller<input data-einst="ersteller"></label>
+      <label>Firma<input data-einst="firma"></label>
+      <label>Revision<input data-einst="revision"></label>
+      <label>Datum<input data-einst="datum" type="date"></label>
+      <label class="breit">Notizen<input data-einst="notizen"></label>
+    </div>
+
+    <h3>Darstellung</h3>
+    <div class="formgitter">
+      <label class="check"><input type="checkbox" data-einst="rasterAnzeigen"> Raster anzeigen</label>
+      <label>Rasterweite (Einrasten)
+        <select data-einst="raster">
+          <option value="5">5 px – fein</option>
+          <option value="10">10 px – normal</option>
+          <option value="20">20 px – grob</option>
+        </select>
+      </label>
+      <label>Name freies Feld 1<input data-einst="feldname0"></label>
+      <label>Name freies Feld 2<input data-einst="feldname1"></label>
+    </div>
+
+    <h3>Datei</h3>
+    <div class="knopfgitter">
+      <button data-datei="speichern">💾 Plan speichern<small>als .json-Datei</small></button>
+      <button data-datei="laden">📂 Plan laden<small>.json-Datei öffnen</small></button>
+      <button data-datei="neu">📄 Neuer Plan<small>leeren Plan beginnen</small></button>
+      <button data-datei="beispiel">✨ Beispiel laden<small>Demo-Veranstaltung</small></button>
+    </div>
+    <input type="file" id="datei-laden" accept=".json,application/json" hidden>
+
+    <h4>Exportieren</h4>
+    <div class="knopfgitter">
+      <button data-datei="pdf">PDF / Drucken<small>mit Schriftfeld</small></button>
+      <button data-datei="png">Bild (PNG)<small>hohe Auflösung</small></button>
+      <button data-datei="svg">Vektorgrafik (SVG)<small>verlustfrei skalierbar</small></button>
+      <button data-datei="kabel">Kabelliste<small>CSV für Excel</small></button>
+      <button data-datei="geraete">Geräteliste<small>CSV, jedes Gerät einzeln</small></button>
+      <button data-datei="stueckliste">Stückliste<small>CSV, nach Artikel summiert</small></button>
+    </div>
+    <p class="hinweis">Der aktuelle Stand wird zusätzlich automatisch im Browser gespeichert. Zum Weitergeben oder Archivieren „Plan speichern“ nutzen. Tastenkürzel: <kbd>Strg</kbd>+<kbd>S</kbd>.</p>
+  </div>
+</dialog>
+
 <script>
 'use strict';
 
@@ -213,7 +288,6 @@ const KOPF = 38;      // Kopfbereich (Bezeichnung + Gerätetyp)
 const FELD_ZEILE = 13; // zusätzliche Kopfhöhe je ausgefülltem freien Feld
 const ZEILE = 15;     // Höhe je Anschlusszeile
 const FUSS = 8;
-const RASTER = 10;
 const FALLBACK_FARBE = '#adb5bd';
 
 /* =====================================================================
@@ -459,13 +533,25 @@ function normalisiereGeraet(e) {
    Plan = {
      geraete:     [{ uid, geraetId, x, y, label }],
      verbindungen:[{ uid, von: { uid, port }, nach: { uid, port } }],   von = Quelle
-     gruppen:     [{ uid, titel, x, y, b, h }]
+     gruppen:     [{ uid, titel, x, y, b, h }],
+     einstellungen: { titel, projekt, …, feldnamen, raster, rasterAnzeigen }
    }
    ===================================================================== */
+function standardEinstellungen() {
+  return {
+    titel: '', projekt: '', kunde: '', ersteller: '', firma: '', revision: '1.0',
+    datum: new Date().toISOString().slice(0, 10), notizen: '',
+    feldnamen: [...KONFIG.FREIE_FELDER],
+    raster: 10,
+    rasterAnzeigen: true,
+  };
+}
+const leererPlan = () => ({ geraete: [], verbindungen: [], gruppen: [], einstellungen: standardEinstellungen() });
+
 const S = {
   signaltypen: new Map(),
   geraete: new Map(),
-  plan: { geraete: [], verbindungen: [], gruppen: [] },
+  plan: leererPlan(),
   ansicht: { tx: 40, ty: 40, k: 1 },
   auswahl: null,        // { art: 'geraet'|'kabel'|'gruppe'|'bib', id }
   drag: null,
@@ -475,13 +561,14 @@ const $ = (sel) => document.querySelector(sel);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const kuerze = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
-const rastern = (v) => Math.round(v / RASTER) * RASTER;
+const E = () => S.plan.einstellungen;
+const rastern = (v) => Math.round(v / E().raster) * E().raster;
 const farbe = (typ) => S.signaltypen.get(typ)?.farbe || FALLBACK_FARBE;
 
 const instanz = (u) => S.plan.geraete.find((g) => g.uid === u);
 const typVon = (inst) => S.geraete.get(inst.geraetId);
 /** Ausgefüllte freie Felder eines Geräts im Plan: [[Name, Wert], …] */
-const felderVon = (inst) => KONFIG.FREIE_FELDER
+const felderVon = (inst) => E().feldnamen
   .map((name, i) => [name, (inst.felder?.[i] || '').trim()])
   .filter(([, wert]) => wert);
 const kopfVon = (inst) => { const n = felderVon(inst).length; return KOPF + (n ? n * FELD_ZEILE + 2 : 0); };
@@ -511,6 +598,7 @@ function uebernehmePlan(plan) {
     geraete,
     verbindungen: (plan?.verbindungen || []).filter((v) => portOk(v.von) && portOk(v.nach)),
     gruppen: plan?.gruppen || [],
+    einstellungen: { ...standardEinstellungen(), ...(plan?.einstellungen || {}) },
   };
 }
 
@@ -688,6 +776,7 @@ function versatzFuer(id) {
 }
 
 function render() {
+  einstellungenAnwenden();
   renderAnsicht();
   renderGruppen();
   renderKabel();
@@ -831,7 +920,7 @@ function renderInfo() {
       <div class="info-block">
         <label for="inp-label">Bezeichnung im Plan</label>
         <input id="inp-label" value="${esc(inst.label)}">
-        ${KONFIG.FREIE_FELDER.map((name, i) => `
+        ${E().feldnamen.map((name, i) => `
           <label for="inp-feld-${i}">${esc(name)}</label>
           <input id="inp-feld-${i}" data-feld="${i}" value="${esc(inst.felder?.[i] || '')}" placeholder="frei nutzbar">`).join('')}
         <div class="hinweis">${esc(typ.name)}</div>
@@ -924,14 +1013,24 @@ function zoomen(faktor, clientX, clientY) {
   speichern();
 }
 
-function einpassen() {
+/** Umgebendes Rechteck aller Geräte, Gruppen und Kabel (mit Rand) – oder null bei leerem Plan */
+function planGrenzen(rand = 40) {
   const boxen = [
     ...S.plan.geraete.map((g) => ({ x: g.x, y: g.y, b: BREITE, h: hoeheVon(g) })),
     ...S.plan.gruppen,
+    ...S.plan.verbindungen.flatMap((v) => kabelPunkte(v).map(([x, y]) => ({ x, y, b: 0, h: 0 }))),
   ];
-  if (!boxen.length) { S.ansicht = { tx: 40, ty: 40, k: 1 }; renderAnsicht(); return; }
-  const x1 = Math.min(...boxen.map((b) => b.x)) - 40, y1 = Math.min(...boxen.map((b) => b.y)) - 40;
-  const x2 = Math.max(...boxen.map((b) => b.x + b.b)) + 40, y2 = Math.max(...boxen.map((b) => b.y + b.h)) + 40;
+  if (!boxen.length) return null;
+  return {
+    x1: Math.min(...boxen.map((b) => b.x)) - rand, y1: Math.min(...boxen.map((b) => b.y)) - rand,
+    x2: Math.max(...boxen.map((b) => b.x + b.b)) + rand, y2: Math.max(...boxen.map((b) => b.y + b.h)) + rand,
+  };
+}
+
+function einpassen() {
+  const g = planGrenzen();
+  if (!g) { S.ansicht = { tx: 40, ty: 40, k: 1 }; renderAnsicht(); return; }
+  const { x1, y1, x2, y2 } = g;
   const r = $('#zeichnung').getBoundingClientRect();
   const k = Math.min(1.5, r.width / (x2 - x1), r.height / (y2 - y1));
   S.ansicht = { k, tx: (r.width - (x2 - x1) * k) / 2 - x1 * k, ty: (r.height - (y2 - y1) * k) / 2 - y1 * k };
@@ -1174,25 +1273,306 @@ $('#btn-zoom-ein').addEventListener('click', () => zoomen(1.2));
 $('#btn-zoom-aus').addEventListener('click', () => zoomen(1 / 1.2));
 $('#btn-einpassen').addEventListener('click', einpassen);
 
-$('#btn-neu').addEventListener('click', () => {
-  if (S.plan.geraete.length && !confirm('Aktuellen Plan verwerfen?')) return;
-  S.plan = { geraete: [], verbindungen: [], gruppen: [] };
-  S.auswahl = null;
-  aenderung();
-});
-
-$('#btn-beispiel').addEventListener('click', () => {
-  if (S.plan.geraete.length && !confirm('Aktuellen Plan durch das Beispiel ersetzen?')) return;
-  uebernehmePlan(beispielPlan());
-  S.auswahl = null;
-  aenderung();
-  einpassen();
-});
-
 document.addEventListener('keydown', (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { ev.preventDefault(); planSpeichern(); return; }
   if (ev.target.matches('input, select, textarea')) return;
   if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); auswahlLoeschen(); }
   if (ev.key === 'Escape' && S.auswahl) { S.auswahl = null; render(); }
+});
+
+/* =====================================================================
+   PLAN & EINSTELLUNGEN
+   ===================================================================== */
+function einstellungenAnwenden() {
+  const e = E();
+  const muster = $('#raster');
+  muster.setAttribute('width', e.raster * 2);
+  muster.setAttribute('height', e.raster * 2);
+  $('#hintergrund').style.display = e.rasterAnzeigen ? '' : 'none';
+  $('#plan-titel').textContent = e.titel ? `– ${e.titel}` : '';
+  document.title = e.titel ? `${e.titel} – Signalfluss-Planer` : 'Signalfluss-Planer';
+}
+
+function dialogFuellen() {
+  const e = E();
+  for (const el of document.querySelectorAll('#einstellungen [data-einst]')) {
+    const k = el.dataset.einst;
+    const wert = k.startsWith('feldname') ? e.feldnamen[Number(k.slice(-1))] : e[k];
+    if (el.type === 'checkbox') el.checked = !!wert; else el.value = wert ?? '';
+  }
+}
+
+$('#btn-einstellungen').addEventListener('click', () => { dialogFuellen(); $('#einstellungen').showModal(); });
+// Klick auf den abgedunkelten Hintergrund schließt den Dialog
+$('#einstellungen').addEventListener('click', (ev) => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); });
+
+$('#einstellungen').addEventListener('input', (ev) => {
+  const k = ev.target.dataset.einst;
+  if (!k) return;
+  const e = E();
+  if (k.startsWith('feldname')) {
+    e.feldnamen = [...e.feldnamen];
+    e.feldnamen[Number(k.slice(-1))] = ev.target.value;
+  } else if (ev.target.type === 'checkbox') e[k] = ev.target.checked;
+  else if (k === 'raster') e[k] = Number(ev.target.value);
+  else e[k] = ev.target.value;
+  aenderung();
+});
+
+/* ----- Datei: Speichern / Laden ----- */
+function dateiname(endung) {
+  const basis = (E().titel || 'signalplan').replace(/[\\/:*?"<>|]/g, '').trim().replace(/\s+/g, '_');
+  return `${basis || 'signalplan'}${endung}`;
+}
+
+function herunterladen(inhalt, name, typ) {
+  const blob = inhalt instanceof Blob ? inhalt : new Blob([inhalt], { type: typ });
+  const url = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function planSpeichern() {
+  const daten = { format: 'rex-signalplan', version: 1, gespeichert: new Date().toISOString(), plan: S.plan };
+  herunterladen(JSON.stringify(daten, null, 2), dateiname('.signalplan.json'), 'application/json');
+  melde('Plan gespeichert', 'ok');
+}
+
+async function planLaden(datei) {
+  try {
+    const daten = JSON.parse(await datei.text());
+    const plan = daten.format === 'rex-signalplan' ? daten.plan : daten;
+    if (!plan || !Array.isArray(plan.geraete)) throw new Error('keine Signalplan-Datei');
+    if (S.plan.geraete.length && !confirm('Aktuellen Plan durch die Datei ersetzen?')) return;
+    const vorher = plan.geraete.length;
+    uebernehmePlan(plan);
+    const fehlend = vorher - S.plan.geraete.length;
+    S.auswahl = null;
+    aenderung();
+    einpassen();
+    dialogFuellen();
+    melde(fehlend ? `Plan geladen – ${fehlend} Gerät(e) nicht in der Library, ausgelassen` : 'Plan geladen', fehlend ? 'bad' : 'ok');
+  } catch (err) {
+    melde(`Datei konnte nicht geladen werden: ${err.message}`, 'bad');
+  }
+}
+
+$('#datei-laden').addEventListener('change', (ev) => {
+  const datei = ev.target.files[0];
+  ev.target.value = '';
+  if (datei) planLaden(datei);
+});
+
+/* ----- Export: Grafik ----- */
+const EXPORT_CSS = `
+  text { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
+  .g-body { fill: #fff; stroke: #495057; stroke-width: 1.2; }
+  .g-kopf { fill: #f1f3f5; stroke: #495057; stroke-width: 1.2; }
+  .g-label { font-size: 12px; font-weight: 700; fill: #1f2328; }
+  .g-typ, .g-feld-name { font-size: 10px; fill: #68717b; }
+  .g-feld { font-size: 10px; fill: #1f2328; }
+  .g-port-text { font-size: 9.5px; fill: #343a40; dominant-baseline: middle; }
+  .g-warn { font-size: 10px; fill: #b7791f; }
+  .port { stroke-width: 2; }
+  .port-hit, .gr-kopf { fill: none; }
+  .kabel { fill: none; stroke-width: 1.6; }
+  .kabel-seg, .kabel-griff, .gr-griff { display: none; }
+  .gr-rahmen { fill: none; stroke: #868e96; stroke-width: 1; stroke-dasharray: 5 4; }
+  .gr-titel { font-size: 14px; font-weight: 700; fill: #1f2328; }
+  .sf-rahmen { fill: #fff; stroke: #495057; stroke-width: 1; }
+  .sf-linie { stroke: #adb5bd; stroke-width: .8; }
+  .sf-k { font-size: 8.5px; fill: #68717b; }
+  .sf-w { font-size: 11px; fill: #1f2328; }
+  .sf-titel { font-size: 15px; font-weight: 700; fill: #1f2328; }
+`;
+
+const datumDE = (iso) => (iso ? new Date(iso + 'T00:00').toLocaleDateString('de-DE') : '');
+
+/** Schriftfeld (unten rechts) und Legende der verwendeten Signaltypen */
+function schriftfeldSvg(x, y) {
+  const e = E();
+  const B = 360, H = 118;
+  const zelle = (zx, zy, schluessel, wert) =>
+    `<text class="sf-k" x="${zx + 6}" y="${zy + 11}">${esc(schluessel)}</text><text class="sf-w" x="${zx + 6}" y="${zy + 25}">${esc(kuerze(String(wert || '–'), 28))}</text>`;
+  const teile = [
+    `<rect class="sf-rahmen" x="${x}" y="${y}" width="${B}" height="${H}"/>`,
+    `<text class="sf-k" x="${x + 6}" y="${y + 12}">Titel</text>`,
+    `<text class="sf-titel" x="${x + 6}" y="${y + 30}">${esc(kuerze(e.titel || 'Signalplan', 40))}</text>`,
+    `<line class="sf-linie" x1="${x}" y1="${y + 38}" x2="${x + B}" y2="${y + 38}"/>`,
+    `<line class="sf-linie" x1="${x}" y1="${y + 78}" x2="${x + B}" y2="${y + 78}"/>`,
+    `<line class="sf-linie" x1="${x + B / 2}" y1="${y + 38}" x2="${x + B / 2}" y2="${y + H}"/>`,
+    zelle(x, y + 40, 'Projekt / Veranstaltung', e.projekt),
+    zelle(x + B / 2, y + 40, 'Kunde', e.kunde),
+    zelle(x, y + 80, 'Ersteller / Firma', [e.ersteller, e.firma].filter(Boolean).join(', ')),
+    zelle(x + B / 2, y + 80, 'Revision · Datum', `${e.revision || '–'} · ${datumDE(e.datum)}`),
+  ];
+  // Legende nur mit den im Plan verwendeten Signaltypen
+  const genutzt = [...new Set(S.plan.verbindungen.map((v) => portVon(instanz(v.von.uid), v.von.port).typ))];
+  if (genutzt.length) {
+    const LB = 150, LH = 22 + genutzt.length * 15, lx = x - LB - 10, ly = y + H - LH;
+    teile.push(`<rect class="sf-rahmen" x="${lx}" y="${ly}" width="${LB}" height="${LH}"/>`,
+      `<text class="sf-k" x="${lx + 6}" y="${ly + 13}">Legende</text>`,
+      ...genutzt.map((t, i) => {
+        const zy = ly + 26 + i * 15;
+        return `<line x1="${lx + 8}" y1="${zy - 3}" x2="${lx + 34}" y2="${zy - 3}" stroke="${farbe(t)}" stroke-width="2.5"/>` +
+          `<text class="sf-w" x="${lx + 42}" y="${zy + 1}" style="font-size:10px">${esc(S.signaltypen.get(t)?.name || t)}</text>`;
+      }));
+  }
+  return { svg: teile.join(''), breite: B + (genutzt.length ? 160 : 0), hoehe: Math.max(H, genutzt.length ? 22 + genutzt.length * 15 : 0) };
+}
+
+/** Plan als eigenständiges SVG (ohne Auswahl, Raster und Bedienelemente) */
+function exportSvg() {
+  const g = planGrenzen(30);
+  if (!g) { melde('Der Plan ist leer – nichts zu exportieren', 'bad'); return null; }
+  const alt = S.auswahl;
+  S.auswahl = null;
+  renderGruppen(); renderKabel(); renderGeraete();
+  const inhalt = ['#ebene-gruppen', '#ebene-kabel', '#ebene-geraete'].map((sel) => $(sel).innerHTML).join('');
+  S.auswahl = alt;
+  render();
+
+  let { x1, y1, x2, y2 } = g;
+  const probe = schriftfeldSvg(0, 0);
+  x2 = Math.max(x2, x1 + probe.breite + 20);
+  y2 += probe.hoehe + 20;
+  const sf = schriftfeldSvg(x2 - 360 - 10, y2 - 118 - 10);
+  const b = Math.ceil(x2 - x1), h = Math.ceil(y2 - y1);
+  const text = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x1} ${y1} ${b} ${h}" width="${b}" height="${h}">` +
+    `<style>${EXPORT_CSS}</style><rect x="${x1}" y="${y1}" width="${b}" height="${h}" fill="#fff"/>${inhalt}${sf.svg}</svg>`;
+  return { text, b, h };
+}
+
+function exportSvgDatei() {
+  const e = exportSvg();
+  if (e) { herunterladen(e.text, dateiname('.svg'), 'image/svg+xml'); melde('SVG exportiert', 'ok'); }
+}
+
+async function exportPng() {
+  const e = exportSvg();
+  if (!e) return;
+  try {
+    const url = URL.createObjectURL(new Blob([e.text], { type: 'image/svg+xml' }));
+    const bild = new Image();
+    await new Promise((ok, fehler) => { bild.onload = ok; bild.onerror = () => fehler(new Error('Grafik konnte nicht gerendert werden')); bild.src = url; });
+    const skala = Math.min(3, 8000 / Math.max(e.b, e.h));   // hohe Auflösung, aber innerhalb der Canvas-Grenzen
+    const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(e.b * skala), height: Math.round(e.h * skala) });
+    const ctx = canvas.getContext('2d');
+    ctx.scale(skala, skala);
+    ctx.drawImage(bild, 0, 0, e.b, e.h);
+    URL.revokeObjectURL(url);
+    canvas.toBlob((blob) => {
+      if (!blob) { melde('PNG-Export fehlgeschlagen', 'bad'); return; }
+      herunterladen(blob, dateiname('.png'));
+      melde('PNG exportiert', 'ok');
+    }, 'image/png');
+  } catch (err) {
+    melde(`PNG-Export fehlgeschlagen: ${err.message}`, 'bad');
+  }
+}
+
+function exportPdf() {
+  const e = exportSvg();
+  if (!e) return;
+  const quer = e.b >= e.h;
+  const rahmen = document.createElement('iframe');
+  rahmen.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(rahmen);
+  const doc = rahmen.contentDocument;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(E().titel || 'Signalplan')}</title>
+    <style>@page { size: A3 ${quer ? 'landscape' : 'portrait'}; margin: 8mm; } html, body { margin: 0; }
+    svg { display: block; width: 100%; height: auto; max-height: 100vh; }</style></head><body>${e.text}</body></html>`);
+  doc.close();
+  rahmen.contentWindow.onafterprint = () => rahmen.remove();
+  setTimeout(() => { rahmen.contentWindow.focus(); rahmen.contentWindow.print(); }, 250);
+  setTimeout(() => rahmen.isConnected && rahmen.remove(), 60000);
+  melde('Druckdialog geöffnet – für PDF „Als PDF speichern“ wählen', 'ok');
+}
+
+/* ----- Export: Listen (CSV, Semikolon, UTF-8 mit BOM für Excel) ----- */
+function csv(zeilen) {
+  const zelle = (w) => {
+    const t = String(w ?? '');
+    return /[;"\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  return '\ufeff' + zeilen.map((z) => z.map(zelle).join(';')).join('\r\n');
+}
+const zahlCsv = (n, stellen = 2) => (n ? Number(n).toLocaleString('de-DE', { maximumFractionDigits: stellen, useGrouping: false }) : '');
+
+function exportKabelliste() {
+  if (!S.plan.verbindungen.length) { melde('Keine Verbindungen im Plan', 'bad'); return; }
+  const zeilen = [['Nr.', 'Signaltyp', 'Von Gerät', 'Von Artikel-Nr.', 'Von Anschluss', 'Nach Gerät', 'Nach Artikel-Nr.', 'Nach Anschluss']];
+  S.plan.verbindungen.forEach((v, i) => {
+    const von = instanz(v.von.uid), nach = instanz(v.nach.uid);
+    const typ = portVon(von, v.von.port).typ;
+    zeilen.push([i + 1, S.signaltypen.get(typ)?.name || typ, von.label, von.geraetId, v.von.port, nach.label, nach.geraetId, v.nach.port]);
+  });
+  herunterladen(csv(zeilen), dateiname('_Kabelliste.csv'), 'text/csv;charset=utf-8');
+  melde('Kabelliste exportiert', 'ok');
+}
+
+function exportGeraeteliste() {
+  if (!S.plan.geraete.length) { melde('Keine Geräte im Plan', 'bad'); return; }
+  const [f1, f2] = E().feldnamen;
+  const zeilen = [['Bezeichnung im Plan', 'Artikel-Nr.', 'Artikel', 'Hersteller', 'Kategorie', f1, f2,
+    'Gewicht (kg)', 'Leistung (W)', 'Anschlüsse belegt', 'Anschlüsse gesamt']];
+  for (const inst of S.plan.geraete) {
+    const t = typVon(inst);
+    const belegt = t.anschluesse.filter((p) => portBelegt(inst.uid, p.id)).length;
+    zeilen.push([inst.label, t.id, t.name, t.hersteller, t.kategorie, inst.felder?.[0] || '', inst.felder?.[1] || '',
+      zahlCsv(t.gewicht), zahlCsv(t.stromverbrauch, 0), belegt, t.anschluesse.length]);
+  }
+  herunterladen(csv(zeilen), dateiname('_Geraeteliste.csv'), 'text/csv;charset=utf-8');
+  melde('Geräteliste exportiert', 'ok');
+}
+
+function exportStueckliste() {
+  if (!S.plan.geraete.length) { melde('Keine Geräte im Plan', 'bad'); return; }
+  const summen = new Map();
+  for (const inst of S.plan.geraete) summen.set(inst.geraetId, (summen.get(inst.geraetId) || 0) + 1);
+  const zeilen = [['Artikel-Nr.', 'Artikel', 'Hersteller', 'Kategorie', 'Anzahl', 'Gewicht gesamt (kg)', 'Leistung gesamt (W)']];
+  for (const [id, anzahl] of [...summen].sort(([a], [b]) => a.localeCompare(b, 'de', { numeric: true }))) {
+    const t = S.geraete.get(id);
+    zeilen.push([id, t.name, t.hersteller, t.kategorie, anzahl, zahlCsv(t.gewicht * anzahl), zahlCsv(t.stromverbrauch * anzahl, 0)]);
+  }
+  herunterladen(csv(zeilen), dateiname('_Stueckliste.csv'), 'text/csv;charset=utf-8');
+  melde('Stückliste exportiert', 'ok');
+}
+
+$('#einstellungen').addEventListener('click', (ev) => {
+  const aktion = ev.target.closest('[data-datei]')?.dataset.datei;
+  if (!aktion) return;
+  const dialog = $('#einstellungen');
+  switch (aktion) {
+    case 'speichern': planSpeichern(); break;
+    case 'laden': $('#datei-laden').click(); break;
+    case 'neu':
+      if (S.plan.geraete.length && !confirm('Aktuellen Plan verwerfen?')) return;
+      S.plan = leererPlan();
+      S.auswahl = null;
+      aenderung();
+      dialogFuellen();
+      break;
+    case 'beispiel':
+      if (S.plan.geraete.length && !confirm('Aktuellen Plan durch das Beispiel ersetzen?')) return;
+      uebernehmePlan(beispielPlan());
+      S.auswahl = null;
+      aenderung();
+      einpassen();
+      dialogFuellen();
+      dialog.close();
+      break;
+    case 'pdf': dialog.close(); exportPdf(); break;
+    case 'png': exportPng(); break;
+    case 'svg': exportSvgDatei(); break;
+    case 'kabel': exportKabelliste(); break;
+    case 'geraete': exportGeraeteliste(); break;
+    case 'stueckliste': exportStueckliste(); break;
+  }
 });
 
 /* =====================================================================
@@ -1285,7 +1665,12 @@ function beispielPlan() {
     gruppe('gr6', 'Licht', 'ma', 'node', 'fx1', 'fx2'),
     gruppe('gr7', 'Ton', 'tf1', 'amp', 'spk1', 'spk2'),
   ];
-  return { geraete, verbindungen, gruppen };
+  const einstellungen = {
+    ...standardEinstellungen(),
+    titel: 'Signal Auditorium (Beispiel)', projekt: 'Demo-Veranstaltung', firma: 'Rex Solution',
+    feldnamen: ['IP', 'Standort'],
+  };
+  return { geraete, verbindungen, gruppen, einstellungen };
 }
 
 /* =====================================================================
