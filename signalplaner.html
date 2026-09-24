@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signalfluss-Planer</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel2: #f1f3f5;
+    --line: #d5d9de;
+    --text: #1f2328;
+    --muted: #68717b;
+    --accent: #1c7ed6;
+    --ok: #2f9e44;
+    --bad: #e03131;
+    --warn: #b7791f;
+    --paper: #ffffff;
+    --grid: #e3e6ea;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "kopf kopf kopf" "bib flaeche info";
+    overflow: hidden;
+  }
+  body.ziehen, body.ziehen * { cursor: grabbing !important; user-select: none; }
+
+  header {
+    grid-area: kopf;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0 10px 0 0; }
+  header .spacer { flex: 1; }
+  #meldung { font-size: 13px; color: var(--muted); min-height: 1em; }
+  #meldung.bad { color: var(--bad); }
+  #meldung.ok { color: var(--ok); }
+
+  button, select, input {
+    font: inherit; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.gefahr:hover { border-color: var(--bad); color: var(--bad); }
+
+  aside { background: var(--panel); overflow-y: auto; padding: 12px; }
+  #bibliothek { grid-area: bib; border-right: 1px solid var(--line); }
+  #info { grid-area: info; border-left: 1px solid var(--line); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  #suche { width: 100%; margin-bottom: 6px; }
+
+  .kat { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .bib-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; margin-bottom: 4px;
+    background: var(--panel2); border: 1px solid transparent; border-radius: 6px;
+    cursor: grab; touch-action: none; user-select: none;
+  }
+  .bib-item:hover { border-color: var(--accent); }
+  .bib-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: var(--line); color: var(--muted); white-space: nowrap; }
+  .badge.warn { background: #fff3bf; color: var(--warn); }
+  .hinweis { font-size: 12px; color: var(--muted); }
+
+  #flaeche { grid-area: flaeche; position: relative; overflow: hidden; background: var(--paper); }
+  #zeichnung { width: 100%; height: 100%; display: block; touch-action: none; cursor: default; }
+  #zeichnung.pan { cursor: grab; }
+
+  /* Geräte */
+  .geraet { cursor: move; }
+  .g-body { fill: #fff; stroke: #495057; stroke-width: 1.2; }
+  .g-kopf { fill: #f1f3f5; stroke: #495057; stroke-width: 1.2; }
+  .g-label { font-size: 12px; font-weight: 700; fill: #1f2328; pointer-events: none; }
+  .g-typ { font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .g-port-text { font-size: 9.5px; fill: #343a40; pointer-events: none; dominant-baseline: middle; }
+  .g-warn { font-size: 10px; fill: var(--warn); pointer-events: none; }
+  .geraet.sel .g-body, .geraet.sel .g-kopf { stroke: var(--accent); stroke-width: 2.5; }
+  .port { stroke-width: 2; cursor: crosshair; }
+  .port-hit { fill: transparent; cursor: crosshair; }
+  .port.passend { r: 6; }
+  .port.unpassend { opacity: .25; }
+
+  /* Verbindungen */
+  .kabel { fill: none; stroke-width: 1.6; }
+  .kabel-hit { fill: none; stroke: transparent; stroke-width: 10; cursor: pointer; }
+  .kabel.sel { stroke-width: 3.5; }
+  .kabel-temp { fill: none; stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+
+  /* Gruppen */
+  .gr-rahmen { fill: rgba(0,0,0,.015); stroke: #868e96; stroke-width: 1; stroke-dasharray: 5 4; }
+  .gr-kopf { fill: transparent; cursor: move; }
+  .gr-titel { font-size: 14px; font-weight: 700; fill: #1f2328; pointer-events: none; }
+  .gr-griff { fill: #adb5bd; cursor: nwse-resize; }
+  .gruppe.sel .gr-rahmen { stroke: var(--accent); stroke-width: 2; }
+
+  .ghost {
+    position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none;
+    padding: 4px 10px; border-radius: 6px; background: var(--accent); color: #fff;
+    font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+
+  .info-block { background: var(--panel2); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .info-block h3 { margin: 0 0 8px; font-size: 14px; }
+  .info-block label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .info-block input { width: 100%; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td { padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.frei { color: var(--muted); }
+  .punkt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .legende { display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .legende .strich { display: inline-block; width: 26px; height: 3px; margin-right: 8px; vertical-align: middle; border-radius: 2px; }
+  .warnung { font-size: 12px; color: var(--warn); margin-top: 4px; }
+  .knopfzeile { display: flex; gap: 6px; margin-top: 6px; }
+  .knopfzeile button { flex: 1; }
+
+  @media (max-width: 1000px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 60vh auto;
+      grid-template-areas: "kopf" "bib" "flaeche" "info";
+      overflow: auto; height: auto;
+    }
+    #bibliothek { max-height: 35vh; border-right: 0; border-bottom: 1px solid var(--line); }
+    #info { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Signalfluss-Planer</h1>
+  <button id="btn-gruppe" title="Gruppe (Bereich) anlegen">+ Gruppe</button>
+  <button id="btn-zoom-aus" title="Verkleinern">−</button>
+  <button id="btn-zoom-ein" title="Vergrößern">+</button>
+  <button id="btn-einpassen" title="Alles anzeigen">Einpassen</button>
+  <span id="meldung"></span>
+  <span class="spacer"></span>
+  <span class="hinweis" id="datenquelle-hinweis"></span>
+  <button id="btn-beispiel">Beispiel laden</button>
+  <button id="btn-neu" class="gefahr">Neuer Plan</button>
+</header>
+
+<aside id="bibliothek">
+  <h2>Geräte-Library</h2>
+  <input id="suche" type="search" placeholder="Suchen …">
+  <div id="geraete-liste"></div>
+  <p class="hinweis">
+    Geräte auf die Zeichenfläche ziehen.<br>
+    Verbindung: vom Anschluss-Punkt eines Geräts zu einem anderen ziehen.<br>
+    Löschen: auswählen und <kbd>Entf</kbd>.<br>
+    Verschieben der Ansicht: leere Fläche ziehen, Zoom per Mausrad.
+  </p>
+</aside>
+
+<main id="flaeche">
+  <svg id="zeichnung">
+    <defs>
+      <pattern id="raster" width="20" height="20" patternUnits="userSpaceOnUse">
+        <circle cx="1" cy="1" r="1" fill="var(--grid)"/>
+      </pattern>
+    </defs>
+    <g id="welt">
+      <rect x="-50000" y="-50000" width="100000" height="100000" fill="url(#raster)" id="hintergrund"/>
+      <g id="ebene-gruppen"></g>
+      <g id="ebene-kabel"></g>
+      <g id="ebene-geraete"></g>
+      <g id="ebene-temp"></g>
+    </g>
+  </svg>
+</main>
+
+<aside id="info"></aside>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   KONFIGURATION
+   Später: API_BASIS_URL auf den Datenbank-Agent (REST, Hauptgruppe
+   "Material") und NAS_BASIS_URL auf die Grafik-Freigabe des NAS setzen.
+   ===================================================================== */
+const KONFIG = {
+  API_BASIS_URL: null,          // z.B. 'http://rex-server/api' – null = Demodaten
+  NAS_BASIS_URL: '',            // Präfix für relative Grafikpfade aus der DB
+  SPEICHER_SCHLUESSEL: 'signalplaner.plan.v1',
+};
+
+// Zeichen-Geometrie
+const BREITE = 190;   // Breite eines Geräteblocks
+const KOPF = 38;      // Kopfbereich (Bezeichnung + Gerätetyp)
+const ZEILE = 15;     // Höhe je Anschlusszeile
+const FUSS = 8;
+const RASTER = 10;
+const FALLBACK_FARBE = '#adb5bd';
+
+/* =====================================================================
+   DEMODATEN – bilden Einträge der Hauptgruppe "Material" nach
+   (id, name, kategorie, attribute = flexibles JSON-Feld).
+   anschluesse: [{ name, typ, richtung: 'in' | 'out' | 'bidi' }]
+   ===================================================================== */
+const DEMO_SIGNALTYPEN = [
+  { id: 'SDI',   name: 'SDI',          farbe: '#2f9e44' },
+  { id: 'HDMI',  name: 'HDMI / DVI',   farbe: '#3b5bdb' },
+  { id: 'DP',    name: 'DisplayPort',  farbe: '#c2255c' },
+  { id: 'Fiber', name: 'Fiber',        farbe: '#e8590c' },
+  { id: 'LAN',   name: 'LAN / RJ45',   farbe: '#868e96' },
+  { id: 'USB',   name: 'USB',          farbe: '#1098ad' },
+  { id: 'Audio', name: 'Audio',        farbe: '#e0a800' },
+];
+
+const a = (name, typ, richtung) => ({ name, typ, richtung });
+const reihe = (praefix, typ, richtung, anzahl) =>
+  Array.from({ length: anzahl }, (_, i) => a(`${praefix} ${i + 1}`, typ, richtung));
+
+const DEMO_SYMBOL_DISPLAY = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26"><rect x="2" y="4" width="22" height="14" rx="1.5" fill="none" stroke="#495057" stroke-width="2"/><path d="M9 22h8M13 18v4" stroke="#495057" stroke-width="2"/></svg>');
+
+const DEMO_MATERIAL = [
+  { id: 'G-201', name: 'Panasonic AK-UC500', kategorie: 'Kamera',
+    attribute: { anschluesse: [a('REF In', 'SDI', 'in'), a('Fiber', 'Fiber', 'bidi'), a('12G-SDI Out', 'SDI', 'out'),
+      ...reihe('HD-SDI Out', 'SDI', 'out', 2), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-202', name: 'Dome-Kamera PTZ', kategorie: 'Kamera',
+    attribute: { anschluesse: [a('HD-SDI Out', 'SDI', 'out'), a('HDMI Out', 'HDMI', 'out'), a('LAN / PoE', 'LAN', 'bidi')] } },
+  { id: 'G-203', name: 'ATEM 1 M/E Constellation HD', kategorie: 'Bildmischer',
+    attribute: { anschluesse: [...reihe('SDI In', 'SDI', 'in', 10), ...reihe('SDI Out', 'SDI', 'out', 6),
+      a('SDI Multiview', 'SDI', 'out'), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-204', name: 'Aquilon RS4', kategorie: 'Videoprozessor',
+    attribute: { anschluesse: [...reihe('HDMI In', 'HDMI', 'in', 8), ...reihe('SDI In', 'SDI', 'in', 4), ...reihe('DP In', 'DP', 'in', 4),
+      ...reihe('HDMI Out', 'HDMI', 'out', 8), a('MV 1', 'HDMI', 'out'), a('MV 2', 'HDMI', 'out'), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-205', name: 'BMD Converter SDI→HDMI', kategorie: 'Konverter',
+    attribute: { anschluesse: [a('SDI In', 'SDI', 'in'), a('SDI Loop', 'SDI', 'out'), a('HDMI Out', 'HDMI', 'out')] } },
+  { id: 'G-206', name: 'BMD Converter HDMI→SDI', kategorie: 'Konverter',
+    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('SDI Out', 'SDI', 'out')] } },
+  { id: 'G-207', name: 'Display HDMI/DP', kategorie: 'Display',
+    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('DP In', 'DP', 'in')], grafik: DEMO_SYMBOL_DISPLAY } },
+  { id: 'G-208', name: 'HyperDeck Studio', kategorie: 'Recording',
+    attribute: { anschluesse: [a('SDI In', 'SDI', 'in'), a('HDMI In', 'HDMI', 'in'), a('SDI Out', 'SDI', 'out'),
+      a('HDMI Out', 'HDMI', 'out'), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-209', name: 'Notebook USB-C', kategorie: 'Zuspieler',
+    attribute: { anschluesse: [a('HDMI Out', 'HDMI', 'out'), a('Audio Out', 'Audio', 'out'), a('USB-C', 'USB', 'bidi'), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-210', name: 'Roland UVC-01', kategorie: 'Konverter',
+    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('Audio In', 'Audio', 'in'), a('USB 3.0', 'USB', 'bidi')] } },
+  { id: 'G-211', name: 'Novastar MCTRL4K', kategorie: 'LED',
+    attribute: { anschluesse: [a('HDMI 2.0 In', 'HDMI', 'in'), a('DP 1.2 In', 'DP', 'in'), ...reihe('Out', 'LAN', 'out', 4), a('Control', 'LAN', 'bidi')] } },
+  { id: 'G-212', name: 'Streaming-PC (vMix)', kategorie: 'Streaming',
+    attribute: { anschluesse: [...reihe('SDI In', 'SDI', 'in', 4), ...reihe('HDMI Out', 'HDMI', 'out', 2), ...reihe('DP Out', 'DP', 'out', 2),
+      a('LAN', 'LAN', 'bidi'), a('USB', 'USB', 'bidi')] } },
+  { id: 'G-213', name: 'Watchout Server', kategorie: 'Media Server',
+    attribute: { anschluesse: [...reihe('DP Out', 'DP', 'out', 4), a('LAN', 'LAN', 'bidi')] } },
+  { id: 'G-214', name: '8-Port Switch', kategorie: 'Netzwerk',
+    attribute: { anschluesse: reihe('LAN', 'LAN', 'bidi', 8) } },
+  { id: 'G-215', name: 'Multiviewer (Daten unvollständig)', kategorie: 'Bildmischer',
+    attribute: {} },
+];
+
+/* =====================================================================
+   DATENQUELLE – einzige Stelle, die später auf den Datenbank-Agent
+   umgestellt wird.
+   ===================================================================== */
+const Datenquelle = {
+  async ladeMaterial() {
+    if (KONFIG.API_BASIS_URL) {
+      // TODO: Route/Antwortformat an den Datenbank-Agent anpassen.
+      const antwort = await fetch(`${KONFIG.API_BASIS_URL}/material`);
+      if (!antwort.ok) throw new Error(`Datenbank-Agent: HTTP ${antwort.status}`);
+      return antwort.json();
+    }
+    return DEMO_MATERIAL;
+  },
+  async ladeSignaltypen() {
+    // TODO: ebenfalls aus der Datenbank laden, sobald dort hinterlegt.
+    return DEMO_SIGNALTYPEN;
+  },
+};
+
+/** Grafikpfad aus der DB → ladbare URL (NAS). */
+function grafikUrl(pfad) {
+  if (!pfad) return null;
+  if (/^(data:|https?:|file:|\/)/.test(pfad)) return pfad;
+  return KONFIG.NAS_BASIS_URL + pfad;
+}
+
+/* =====================================================================
+   NORMALISIERUNG – fängt fehlende/ungültige Attribute ab
+   ===================================================================== */
+function normalisiereGeraet(e) {
+  const attr = e.attribute || {};
+  const warnungen = [];
+  const roh = Array.isArray(attr.anschluesse) ? attr.anschluesse : [];
+  if (!roh.length) warnungen.push('Keine Anschlüsse hinterlegt');
+
+  const namen = new Set();
+  const anschluesse = [];
+  roh.forEach((p, i) => {
+    let name = String(p?.name || `Anschluss ${i + 1}`);
+    while (namen.has(name)) name += '′';          // Anschlussnamen eindeutig machen
+    namen.add(name);
+    const richtung = ['in', 'out', 'bidi'].includes(p?.richtung) ? p.richtung : 'bidi';
+    const typ = String(p?.typ || '?');
+    if (!S.signaltypen.has(typ)) warnungen.push(`Unbekannter Signaltyp „${typ}“ (${name})`);
+    anschluesse.push({ id: name, name, typ, richtung });
+  });
+
+  const links = anschluesse.filter((p) => p.richtung === 'in');
+  const rechts = anschluesse.filter((p) => p.richtung !== 'in');
+  const hoehe = KOPF + Math.max(links.length, rechts.length, 1) * ZEILE + FUSS;
+
+  return {
+    id: e.id, name: e.name || e.id, kategorie: e.kategorie || 'Ohne Kategorie',
+    anschluesse, links, rechts, hoehe,
+    grafik: attr.grafik || null,
+    warnungen,
+  };
+}
+
+/* =====================================================================
+   ZUSTAND
+   Plan = {
+     geraete:     [{ uid, geraetId, x, y, label }],
+     verbindungen:[{ uid, von: { uid, port }, nach: { uid, port } }],   von = Quelle
+     gruppen:     [{ uid, titel, x, y, b, h }]
+   }
+   ===================================================================== */
+const S = {
+  signaltypen: new Map(),
+  geraete: new Map(),
+  plan: { geraete: [], verbindungen: [], gruppen: [] },
+  ansicht: { tx: 40, ty: 40, k: 1 },
+  auswahl: null,        // { art: 'geraet'|'kabel'|'gruppe'|'bib', id }
+  drag: null,
+};
+
+const $ = (sel) => document.querySelector(sel);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const kuerze = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+const rastern = (v) => Math.round(v / RASTER) * RASTER;
+const farbe = (typ) => S.signaltypen.get(typ)?.farbe || FALLBACK_FARBE;
+
+const instanz = (u) => S.plan.geraete.find((g) => g.uid === u);
+const typVon = (inst) => S.geraete.get(inst.geraetId);
+const portVon = (inst, portId) => typVon(inst).anschluesse.find((p) => p.id === portId);
+
+function speichern() {
+  try { localStorage.setItem(KONFIG.SPEICHER_SCHLUESSEL, JSON.stringify({ plan: S.plan, ansicht: S.ansicht })); } catch (_) { /* egal */ }
+}
+
+function laden() {
+  try {
+    const roh = localStorage.getItem(KONFIG.SPEICHER_SCHLUESSEL);
+    if (!roh) return;
+    const { plan, ansicht } = JSON.parse(roh);
+    uebernehmePlan(plan);
+    if (ansicht) S.ansicht = ansicht;
+  } catch (_) { /* ungültiger Speicherstand wird ignoriert */ }
+}
+
+/** Plan übernehmen – nur Einträge, deren Gerät/Anschluss es (noch) in der DB gibt */
+function uebernehmePlan(plan) {
+  const geraete = (plan?.geraete || []).filter((g) => S.geraete.has(g.geraetId));
+  const vorhanden = new Map(geraete.map((g) => [g.uid, g]));
+  const portOk = (e) => vorhanden.has(e?.uid) && portVon(vorhanden.get(e.uid), e.port);
+  S.plan = {
+    geraete,
+    verbindungen: (plan?.verbindungen || []).filter((v) => portOk(v.von) && portOk(v.nach)),
+    gruppen: plan?.gruppen || [],
+  };
+}
+
+function melde(text, art = '') {
+  const el = $('#meldung');
+  el.textContent = text;
+  el.className = art;
+  clearTimeout(melde.t);
+  if (text) melde.t = setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+/* =====================================================================
+   PLAN-LOGIK
+   ===================================================================== */
+function portBelegt(uidGeraet, port, ausser) {
+  return S.plan.verbindungen.some((v) => v !== ausser &&
+    ((v.von.uid === uidGeraet && v.von.port === port) || (v.nach.uid === uidGeraet && v.nach.port === port)));
+}
+
+function verbindungVon(uidGeraet, port) {
+  return S.plan.verbindungen.find((v) =>
+    (v.von.uid === uidGeraet && v.von.port === port) || (v.nach.uid === uidGeraet && v.nach.port === port));
+}
+
+/** Prüft, ob zwei Anschlüsse verbunden werden dürfen. Liefert Quelle/Ziel in Signalrichtung. */
+function pruefeVerbindung(a, b) {
+  if (a.uid === b.uid) return { ok: false, grund: 'Anschlüsse desselben Geräts' };
+  const pa = portVon(instanz(a.uid), a.port);
+  const pb = portVon(instanz(b.uid), b.port);
+  if (portBelegt(a.uid, a.port) || portBelegt(b.uid, b.port)) return { ok: false, grund: 'Anschluss ist bereits belegt' };
+  if (pa.typ !== pb.typ) return { ok: false, grund: `${pa.typ} ↔ ${pb.typ} passt nicht – Konverter einplanen` };
+  if (pa.richtung === 'in' && pb.richtung === 'in') return { ok: false, grund: 'Zwei Eingänge können nicht verbunden werden' };
+  if (pa.richtung === 'out' && pb.richtung === 'out') return { ok: false, grund: 'Zwei Ausgänge können nicht verbunden werden' };
+  const umdrehen = pa.richtung === 'in' || pb.richtung === 'out';
+  return { ok: true, von: umdrehen ? b : a, nach: umdrehen ? a : b };
+}
+
+function geraetHinzufuegen(geraetId, x, y) {
+  const typ = S.geraete.get(geraetId);
+  const gleiche = S.plan.geraete.filter((g) => g.geraetId === geraetId).length;
+  const inst = { uid: uid(), geraetId, x: rastern(x), y: rastern(y), label: gleiche ? `${typ.name} #${gleiche + 1}` : typ.name };
+  S.plan.geraete.push(inst);
+  S.auswahl = { art: 'geraet', id: inst.uid };
+  aenderung();
+}
+
+function auswahlLoeschen() {
+  const aw = S.auswahl;
+  if (!aw) return;
+  if (aw.art === 'geraet') {
+    S.plan.geraete = S.plan.geraete.filter((g) => g.uid !== aw.id);
+    S.plan.verbindungen = S.plan.verbindungen.filter((v) => v.von.uid !== aw.id && v.nach.uid !== aw.id);
+  } else if (aw.art === 'kabel') {
+    S.plan.verbindungen = S.plan.verbindungen.filter((v) => v.uid !== aw.id);
+  } else if (aw.art === 'gruppe') {
+    S.plan.gruppen = S.plan.gruppen.filter((g) => g.uid !== aw.id);
+  } else return;
+  S.auswahl = null;
+  aenderung();
+}
+
+function aenderung() {
+  speichern();
+  render();
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+function portPos(inst, portId) {
+  const typ = typVon(inst);
+  let i = typ.links.findIndex((p) => p.id === portId);
+  if (i >= 0) return { x: inst.x, y: inst.y + KOPF + i * ZEILE + ZEILE / 2, dir: -1 };
+  i = typ.rechts.findIndex((p) => p.id === portId);
+  return { x: inst.x + BREITE, y: inst.y + KOPF + i * ZEILE + ZEILE / 2, dir: 1 };
+}
+
+/** Orthogonale Leitungsführung zwischen zwei Anschlusspunkten */
+function kabelPfad(a, b, versatz = 0) {
+  const ABST = 16;
+  const ax = a.x + a.dir * ABST, bx = b.x + b.dir * ABST;
+  let pkt;
+  if ((a.dir === 1 && b.dir === -1 && ax <= bx) || (a.dir === -1 && b.dir === 1 && ax >= bx)) {
+    const mx = Math.round((ax + bx) / 2) + versatz;
+    pkt = [[a.x, a.y], [mx, a.y], [mx, b.y], [b.x, b.y]];
+  } else if (a.dir === b.dir) {
+    const x = (a.dir === 1 ? Math.max(ax, bx) : Math.min(ax, bx)) + a.dir * Math.abs(versatz);
+    pkt = [[a.x, a.y], [x, a.y], [x, b.y], [b.x, b.y]];
+  } else {
+    const my = Math.round((a.y + b.y) / 2) + versatz;
+    pkt = [[a.x, a.y], [ax, a.y], [ax, my], [bx, my], [bx, b.y], [b.x, b.y]];
+  }
+  return 'M' + pkt.map((p) => p.join(',')).join(' L');
+}
+
+function versatzFuer(id) {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return ((h % 7) - 3) * 4;   // leichte Staffelung, damit parallele Kabel nicht aufeinander liegen
+}
+
+function render() {
+  renderAnsicht();
+  renderGruppen();
+  renderKabel();
+  renderGeraete();
+  renderInfo();
+}
+
+function renderAnsicht() {
+  const { tx, ty, k } = S.ansicht;
+  $('#welt').setAttribute('transform', `translate(${tx},${ty}) scale(${k})`);
+}
+
+function renderGruppen() {
+  $('#ebene-gruppen').innerHTML = S.plan.gruppen.map((g) => `
+    <g class="gruppe${S.auswahl?.art === 'gruppe' && S.auswahl.id === g.uid ? ' sel' : ''}" data-gruppe="${g.uid}">
+      <rect class="gr-rahmen" x="${g.x}" y="${g.y}" width="${g.b}" height="${g.h}"/>
+      <rect class="gr-kopf" x="${g.x}" y="${g.y}" width="${g.b}" height="28"/>
+      <text class="gr-titel" x="${g.x + 10}" y="${g.y + 19}">${esc(g.titel)}</text>
+      <rect class="gr-griff" data-griff="1" x="${g.x + g.b - 12}" y="${g.y + g.h - 12}" width="12" height="12"/>
+    </g>`).join('');
+}
+
+function renderKabel() {
+  $('#ebene-kabel').innerHTML = S.plan.verbindungen.map((v) => {
+    const a = portPos(instanz(v.von.uid), v.von.port);
+    const b = portPos(instanz(v.nach.uid), v.nach.port);
+    const typ = portVon(instanz(v.von.uid), v.von.port).typ;
+    const d = kabelPfad(a, b, versatzFuer(v.uid));
+    const sel = S.auswahl?.art === 'kabel' && S.auswahl.id === v.uid;
+    return `<g data-kabel="${v.uid}">
+      <path class="kabel${sel ? ' sel' : ''}" d="${d}" stroke="${farbe(typ)}"/>
+      <path class="kabel-hit" d="${d}"/>
+    </g>`;
+  }).join('');
+}
+
+function renderGeraete() {
+  $('#ebene-geraete').innerHTML = S.plan.geraete.map(geraetSvg).join('');
+}
+
+function geraetSvg(inst) {
+  const typ = typVon(inst);
+  const sel = S.auswahl?.art === 'geraet' && S.auswahl.id === inst.uid;
+  const teile = [
+    `<rect class="g-body" width="${BREITE}" height="${typ.hoehe}" rx="2"/>`,
+    `<rect class="g-kopf" width="${BREITE}" height="${KOPF}" rx="2"/>`,
+    `<text class="g-label" x="8" y="16">${esc(kuerze(inst.label, typ.grafik ? 22 : 26))}</text>`,
+    `<text class="g-typ" x="8" y="30">${esc(kuerze(typ.name, typ.grafik ? 28 : 32))}</text>`,
+  ];
+  // Grafik (NAS) optional – ohne Grafik bleibt der Block ein generischer Platzhalter
+  const bild = grafikUrl(typ.grafik);
+  if (bild) teile.push(`<image href="${esc(bild)}" x="${BREITE - 32}" y="6" width="26" height="26" onerror="this.remove()"/>`);
+
+  const port = (p, i, seite) => {
+    const y = KOPF + i * ZEILE + ZEILE / 2;
+    const x = seite < 0 ? 0 : BREITE;
+    const belegt = portBelegt(inst.uid, p.id);
+    const c = farbe(p.typ);
+    return `
+      <text class="g-port-text" x="${seite < 0 ? 8 : BREITE - 8}" y="${y}" text-anchor="${seite < 0 ? 'start' : 'end'}">${esc(kuerze(p.name, 15))}</text>
+      <circle class="port-hit" data-port="${esc(p.id)}" cx="${x}" cy="${y}" r="8"/>
+      <circle class="port" data-port="${esc(p.id)}" cx="${x}" cy="${y}" r="4" stroke="${c}" fill="${belegt ? c : '#fff'}" pointer-events="none"/>`;
+  };
+  typ.links.forEach((p, i) => teile.push(port(p, i, -1)));
+  typ.rechts.forEach((p, i) => teile.push(port(p, i, 1)));
+  if (!typ.anschluesse.length) teile.push(`<text class="g-warn" x="8" y="${KOPF + 11}">⚠ keine Anschlüsse hinterlegt</text>`);
+
+  return `<g class="geraet${sel ? ' sel' : ''}" data-geraet="${inst.uid}" transform="translate(${inst.x},${inst.y})">${teile.join('')}</g>`;
+}
+
+function renderBibliothek() {
+  const filter = $('#suche').value.trim().toLowerCase();
+  const gruppen = new Map();
+  for (const g of S.geraete.values()) {
+    if (filter && !`${g.name} ${g.kategorie}`.toLowerCase().includes(filter)) continue;
+    if (!gruppen.has(g.kategorie)) gruppen.set(g.kategorie, []);
+    gruppen.get(g.kategorie).push(g);
+  }
+  $('#geraete-liste').innerHTML = [...gruppen.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'de'))
+    .map(([kat, liste]) => `<div class="kat">${esc(kat)}</div>` + liste
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+      .map((g) => `
+        <div class="bib-item" data-bib="${esc(g.id)}" title="${esc(g.name)}">
+          <span class="name">${esc(g.name)}</span>
+          ${g.warnungen.length ? '<span class="badge warn" title="Daten unvollständig">!</span>' : ''}
+          <span class="badge">${g.anschluesse.length} Ansch.</span>
+        </div>`).join(''))
+    .join('') || '<p class="hinweis">Keine Treffer.</p>';
+}
+
+function portTabelle(inst) {
+  const typ = typVon(inst);
+  if (!typ.anschluesse.length) return '<p class="hinweis">Keine Anschlüsse hinterlegt.</p>';
+  const zeilen = typ.anschluesse.map((p) => {
+    const v = verbindungVon(inst.uid, p.id);
+    let ziel = 'frei';
+    if (v) {
+      const gegen = v.von.uid === inst.uid && v.von.port === p.id ? v.nach : v.von;
+      ziel = `${v.von.uid === inst.uid && v.von.port === p.id ? '→' : '←'} ${esc(instanz(gegen.uid).label)} · ${esc(gegen.port)}`;
+    }
+    return `<tr><td><span class="punkt" style="background:${farbe(p.typ)}"></span>${esc(p.name)}</td><td class="${v ? '' : 'frei'}">${ziel}</td></tr>`;
+  }).join('');
+  return `<table>${zeilen}</table>`;
+}
+
+function renderInfo() {
+  const aw = S.auswahl;
+  let html = '';
+
+  if (aw?.art === 'geraet' && instanz(aw.id)) {
+    const inst = instanz(aw.id);
+    const typ = typVon(inst);
+    html += `<h2>Gerät</h2>
+      <div class="info-block">
+        <label for="inp-label">Bezeichnung im Plan</label>
+        <input id="inp-label" value="${esc(inst.label)}">
+        <div class="hinweis">${esc(typ.name)} · ${esc(typ.kategorie)} · ${esc(typ.id)}</div>
+        ${typ.warnungen.map((w) => `<div class="warnung">⚠ ${esc(w)}</div>`).join('')}
+      </div>
+      <div class="info-block"><h3>Anschlüsse</h3>${portTabelle(inst)}</div>
+      <div class="knopfzeile"><button class="gefahr" data-aktion="loeschen">Gerät entfernen</button></div>`;
+  } else if (aw?.art === 'kabel') {
+    const v = S.plan.verbindungen.find((x) => x.uid === aw.id);
+    if (v) {
+      const typ = portVon(instanz(v.von.uid), v.von.port).typ;
+      html += `<h2>Verbindung</h2>
+        <div class="info-block">
+          <h3><span class="punkt" style="background:${farbe(typ)}"></span>${esc(S.signaltypen.get(typ)?.name || typ)}</h3>
+          <table>
+            <tr><td>Von</td><td>${esc(instanz(v.von.uid).label)} · ${esc(v.von.port)}</td></tr>
+            <tr><td>Nach</td><td>${esc(instanz(v.nach.uid).label)} · ${esc(v.nach.port)}</td></tr>
+          </table>
+        </div>
+        <div class="knopfzeile"><button class="gefahr" data-aktion="loeschen">Verbindung entfernen</button></div>`;
+    }
+  } else if (aw?.art === 'gruppe') {
+    const g = S.plan.gruppen.find((x) => x.uid === aw.id);
+    if (g) {
+      html += `<h2>Gruppe</h2>
+        <div class="info-block">
+          <label for="inp-gruppe">Titel</label>
+          <input id="inp-gruppe" value="${esc(g.titel)}">
+          <div class="hinweis">Geräte innerhalb der Gruppe werden beim Verschieben mitgenommen.</div>
+        </div>
+        <div class="knopfzeile"><button class="gefahr" data-aktion="loeschen">Gruppe entfernen</button></div>`;
+    }
+  } else if (aw?.art === 'bib') {
+    const typ = S.geraete.get(aw.id);
+    html += `<h2>Library</h2>
+      <div class="info-block">
+        <h3>${esc(typ.name)}</h3>
+        <div class="hinweis">${esc(typ.kategorie)} · ${esc(typ.id)}</div>
+        ${typ.warnungen.map((w) => `<div class="warnung">⚠ ${esc(w)}</div>`).join('')}
+      </div>
+      <div class="info-block"><h3>Anschlüsse</h3>${typ.anschluesse.length
+        ? `<table>${typ.anschluesse.map((p) => `<tr><td><span class="punkt" style="background:${farbe(p.typ)}"></span>${esc(p.name)}</td><td>${esc(p.typ)} · ${p.richtung === 'in' ? 'Eingang' : p.richtung === 'out' ? 'Ausgang' : 'bidirektional'}</td></tr>`).join('')}</table>`
+        : '<p class="hinweis">Keine Anschlüsse hinterlegt.</p>'}</div>`;
+  }
+
+  // Legende mit Anzahl Verbindungen je Signaltyp
+  const anzahl = new Map();
+  for (const v of S.plan.verbindungen) {
+    const t = portVon(instanz(v.von.uid), v.von.port).typ;
+    anzahl.set(t, (anzahl.get(t) || 0) + 1);
+  }
+  html += `<h2>Legende</h2><div class="info-block">${[...S.signaltypen.values()].map((t) => `
+    <div class="legende"><span><span class="strich" style="background:${t.farbe}"></span>${esc(t.name)}</span><span class="hinweis">${anzahl.get(t.id) || 0}</span></div>`).join('')}
+  </div>
+  <h2>Übersicht</h2>
+  <div class="info-block">
+    <div class="legende"><span>Geräte</span><span>${S.plan.geraete.length}</span></div>
+    <div class="legende"><span>Verbindungen</span><span>${S.plan.verbindungen.length}</span></div>
+    <div class="legende"><span>Gruppen</span><span>${S.plan.gruppen.length}</span></div>
+  </div>`;
+
+  $('#info').innerHTML = html;
+}
+
+/* =====================================================================
+   KOORDINATEN & ANSICHT
+   ===================================================================== */
+function weltPunkt(clientX, clientY) {
+  const r = $('#zeichnung').getBoundingClientRect();
+  const { tx, ty, k } = S.ansicht;
+  return { x: (clientX - r.left - tx) / k, y: (clientY - r.top - ty) / k };
+}
+
+function zoomen(faktor, clientX, clientY) {
+  const r = $('#zeichnung').getBoundingClientRect();
+  const cx = clientX ?? r.left + r.width / 2;
+  const cy = clientY ?? r.top + r.height / 2;
+  const vorher = weltPunkt(cx, cy);
+  S.ansicht.k = Math.min(3, Math.max(0.15, S.ansicht.k * faktor));
+  S.ansicht.tx = cx - r.left - vorher.x * S.ansicht.k;
+  S.ansicht.ty = cy - r.top - vorher.y * S.ansicht.k;
+  renderAnsicht();
+  speichern();
+}
+
+function einpassen() {
+  const boxen = [
+    ...S.plan.geraete.map((g) => ({ x: g.x, y: g.y, b: BREITE, h: typVon(g).hoehe })),
+    ...S.plan.gruppen,
+  ];
+  if (!boxen.length) { S.ansicht = { tx: 40, ty: 40, k: 1 }; renderAnsicht(); return; }
+  const x1 = Math.min(...boxen.map((b) => b.x)) - 40, y1 = Math.min(...boxen.map((b) => b.y)) - 40;
+  const x2 = Math.max(...boxen.map((b) => b.x + b.b)) + 40, y2 = Math.max(...boxen.map((b) => b.y + b.h)) + 40;
+  const r = $('#zeichnung').getBoundingClientRect();
+  const k = Math.min(1.5, r.width / (x2 - x1), r.height / (y2 - y1));
+  S.ansicht = { k, tx: (r.width - (x2 - x1) * k) / 2 - x1 * k, ty: (r.height - (y2 - y1) * k) / 2 - y1 * k };
+  renderAnsicht();
+  speichern();
+}
+
+/* =====================================================================
+   INTERAKTION (Pointer-Events → Maus, Stift und Touch)
+   drag.art: 'bib' | 'geraet' | 'kabel' | 'gruppe' | 'groesse' | 'pan'
+   ===================================================================== */
+const SCHWELLE = 4;
+
+function passendeAnschluesseMarkieren(von) {
+  for (const el of document.querySelectorAll('#ebene-geraete circle.port')) {
+    const u = el.closest('.geraet').dataset.geraet;
+    const ergebnis = pruefeVerbindung(von, { uid: u, port: el.dataset.port });
+    el.classList.toggle('passend', ergebnis.ok);
+    el.classList.toggle('unpassend', !ergebnis.ok && !(u === von.uid && el.dataset.port === von.port));
+  }
+}
+
+$('#zeichnung').addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0) return;
+  const t = ev.target;
+  const w = weltPunkt(ev.clientX, ev.clientY);
+  const basis = { startX: ev.clientX, startY: ev.clientY, aktiv: false };
+
+  const portEl = t.closest('.port-hit');
+  const geraetEl = t.closest('.geraet');
+  const kabelEl = t.closest('[data-kabel]');
+  const gruppeEl = t.closest('.gruppe');
+
+  if (portEl && geraetEl) {
+    S.drag = { ...basis, art: 'kabel', von: { uid: geraetEl.dataset.geraet, port: portEl.dataset.port } };
+  } else if (geraetEl) {
+    const inst = instanz(geraetEl.dataset.geraet);
+    S.drag = { ...basis, art: 'geraet', inst, dx: w.x - inst.x, dy: w.y - inst.y };
+  } else if (kabelEl) {
+    S.drag = { ...basis, art: 'klick', auswahl: { art: 'kabel', id: kabelEl.dataset.kabel } };
+  } else if (gruppeEl && t.dataset.griff) {
+    const g = S.plan.gruppen.find((x) => x.uid === gruppeEl.dataset.gruppe);
+    S.drag = { ...basis, art: 'groesse', gruppe: g, b0: g.b, h0: g.h, w0: w };
+  } else if (gruppeEl && t.classList.contains('gr-kopf')) {
+    const g = S.plan.gruppen.find((x) => x.uid === gruppeEl.dataset.gruppe);
+    // Geräte, deren Mitte in der Gruppe liegt, werden mitgenommen
+    const mit = S.plan.geraete.filter((i) => {
+      const mx = i.x + BREITE / 2, my = i.y + typVon(i).hoehe / 2;
+      return mx >= g.x && mx <= g.x + g.b && my >= g.y && my <= g.y + g.h;
+    }).map((i) => ({ inst: i, x0: i.x, y0: i.y }));
+    S.drag = { ...basis, art: 'gruppe', gruppe: g, x0: g.x, y0: g.y, w0: w, mit };
+  } else {
+    S.drag = { ...basis, art: 'pan', tx0: S.ansicht.tx, ty0: S.ansicht.ty };
+  }
+  ev.preventDefault();
+});
+
+$('#geraete-liste').addEventListener('pointerdown', (ev) => {
+  const item = ev.target.closest('.bib-item');
+  if (!item || ev.button !== 0) return;
+  ev.preventDefault();
+  S.drag = { art: 'bib', geraetId: item.dataset.bib, startX: ev.clientX, startY: ev.clientY, aktiv: false };
+});
+
+document.addEventListener('pointermove', (ev) => {
+  const d = S.drag;
+  if (!d) return;
+  if (!d.aktiv) {
+    if (Math.hypot(ev.clientX - d.startX, ev.clientY - d.startY) < SCHWELLE) return;
+    d.aktiv = true;
+    document.body.classList.add('ziehen');
+    if (d.art === 'bib') {
+      d.ghost = document.createElement('div');
+      d.ghost.className = 'ghost';
+      d.ghost.textContent = S.geraete.get(d.geraetId).name;
+      document.body.appendChild(d.ghost);
+    }
+    if (d.art === 'kabel') passendeAnschluesseMarkieren(d.von);
+  }
+
+  const w = weltPunkt(ev.clientX, ev.clientY);
+  switch (d.art) {
+    case 'bib':
+      d.ghost.style.transform = `translate(${ev.clientX + 14}px, ${ev.clientY + 14}px)`;
+      break;
+    case 'geraet':
+      d.inst.x = rastern(w.x - d.dx);
+      d.inst.y = rastern(w.y - d.dy);
+      renderKabel();
+      $(`[data-geraet="${d.inst.uid}"]`).setAttribute('transform', `translate(${d.inst.x},${d.inst.y})`);
+      break;
+    case 'gruppe': {
+      const dx = rastern(w.x - d.w0.x), dy = rastern(w.y - d.w0.y);
+      d.gruppe.x = d.x0 + dx; d.gruppe.y = d.y0 + dy;
+      for (const m of d.mit) { m.inst.x = m.x0 + dx; m.inst.y = m.y0 + dy; }
+      renderGruppen(); renderKabel(); renderGeraete();
+      break;
+    }
+    case 'groesse':
+      d.gruppe.b = Math.max(120, rastern(d.b0 + w.x - d.w0.x));
+      d.gruppe.h = Math.max(60, rastern(d.h0 + w.y - d.w0.y));
+      renderGruppen();
+      break;
+    case 'kabel': {
+      const a = portPos(instanz(d.von.uid), d.von.port);
+      const typ = portVon(instanz(d.von.uid), d.von.port).typ;
+      $('#ebene-temp').innerHTML = `<path class="kabel-temp" stroke="${farbe(typ)}" d="${kabelPfad(a, { x: w.x, y: w.y, dir: w.x >= a.x ? -1 : 1 })}"/>`;
+      break;
+    }
+    case 'pan':
+      S.ansicht.tx = d.tx0 + ev.clientX - d.startX;
+      S.ansicht.ty = d.ty0 + ev.clientY - d.startY;
+      renderAnsicht();
+      break;
+  }
+});
+
+document.addEventListener('pointerup', (ev) => {
+  const d = S.drag;
+  if (!d) return;
+  S.drag = null;
+  document.body.classList.remove('ziehen');
+  d.ghost?.remove();
+  $('#ebene-temp').innerHTML = '';
+
+  if (!d.aktiv) {
+    // Klick ohne Ziehen → Auswahl
+    if (d.art === 'geraet') S.auswahl = { art: 'geraet', id: d.inst.uid };
+    else if (d.art === 'kabel') S.auswahl = { art: 'geraet', id: d.von.uid };
+    else if (d.art === 'klick') S.auswahl = d.auswahl;
+    else if (d.art === 'gruppe' || d.art === 'groesse') S.auswahl = { art: 'gruppe', id: d.gruppe.uid };
+    else if (d.art === 'bib') S.auswahl = { art: 'bib', id: d.geraetId };
+    else if (d.art === 'pan') S.auswahl = null;
+    render();
+    return;
+  }
+
+  switch (d.art) {
+    case 'bib':
+      if (document.elementFromPoint(ev.clientX, ev.clientY)?.closest('#zeichnung')) {
+        const w = weltPunkt(ev.clientX, ev.clientY);
+        geraetHinzufuegen(d.geraetId, w.x - BREITE / 2, w.y - KOPF / 2);
+      }
+      break;
+    case 'kabel': {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const portEl = el?.closest('.port-hit');
+      const geraetEl = el?.closest('.geraet');
+      if (portEl && geraetEl) {
+        const ergebnis = pruefeVerbindung(d.von, { uid: geraetEl.dataset.geraet, port: portEl.dataset.port });
+        if (ergebnis.ok) {
+          const v = { uid: uid(), von: ergebnis.von, nach: ergebnis.nach };
+          S.plan.verbindungen.push(v);
+          S.auswahl = { art: 'kabel', id: v.uid };
+          melde('Verbindung angelegt', 'ok');
+        } else {
+          melde(ergebnis.grund, 'bad');
+        }
+      }
+      aenderung();
+      break;
+    }
+    case 'geraet':
+    case 'gruppe':
+    case 'groesse':
+      aenderung();
+      break;
+    case 'pan':
+      speichern();
+      break;
+  }
+});
+
+document.addEventListener('pointercancel', () => {
+  if (!S.drag) return;
+  S.drag.ghost?.remove();
+  S.drag = null;
+  document.body.classList.remove('ziehen');
+  $('#ebene-temp').innerHTML = '';
+  render();
+});
+
+$('#zeichnung').addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  zoomen(Math.exp(-ev.deltaY * 0.0015), ev.clientX, ev.clientY);
+}, { passive: false });
+
+$('#suche').addEventListener('input', renderBibliothek);
+
+$('#info').addEventListener('input', (ev) => {
+  if (ev.target.id === 'inp-label') {
+    instanz(S.auswahl.id).label = ev.target.value;
+    renderGeraete(); speichern();
+  } else if (ev.target.id === 'inp-gruppe') {
+    S.plan.gruppen.find((g) => g.uid === S.auswahl.id).titel = ev.target.value;
+    renderGruppen(); speichern();
+  }
+});
+$('#info').addEventListener('change', () => renderInfo());   // Port-Tabelle mit neuer Bezeichnung
+$('#info').addEventListener('click', (ev) => {
+  if (ev.target.closest('[data-aktion="loeschen"]')) auswahlLoeschen();
+});
+
+$('#btn-gruppe').addEventListener('click', () => {
+  const r = $('#zeichnung').getBoundingClientRect();
+  const m = weltPunkt(r.left + r.width / 2, r.top + r.height / 2);
+  const g = { uid: uid(), titel: 'Neue Gruppe', x: rastern(m.x - 200), y: rastern(m.y - 120), b: 400, h: 240 };
+  S.plan.gruppen.push(g);
+  S.auswahl = { art: 'gruppe', id: g.uid };
+  aenderung();
+  $('#inp-gruppe')?.select();
+});
+$('#btn-zoom-ein').addEventListener('click', () => zoomen(1.2));
+$('#btn-zoom-aus').addEventListener('click', () => zoomen(1 / 1.2));
+$('#btn-einpassen').addEventListener('click', einpassen);
+
+$('#btn-neu').addEventListener('click', () => {
+  if (S.plan.geraete.length && !confirm('Aktuellen Plan verwerfen?')) return;
+  S.plan = { geraete: [], verbindungen: [], gruppen: [] };
+  S.auswahl = null;
+  aenderung();
+});
+
+$('#btn-beispiel').addEventListener('click', () => {
+  if (S.plan.geraete.length && !confirm('Aktuellen Plan durch das Beispiel ersetzen?')) return;
+  uebernehmePlan(beispielPlan());
+  S.auswahl = null;
+  aenderung();
+  einpassen();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.matches('input, select, textarea')) return;
+  if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); auswahlLoeschen(); }
+  if (ev.key === 'Escape' && S.auswahl) { S.auswahl = null; render(); }
+});
+
+/* =====================================================================
+   BEISPIEL – kleiner Auszug im Stil eines Auditorium-Signalplans
+   ===================================================================== */
+function beispielPlan() {
+  const g = (id, geraetId, x, y, label) => ({ uid: id, geraetId, x, y, label });
+  const v = (vu, vp, nu, np) => ({ uid: uid(), von: { uid: vu, port: vp }, nach: { uid: nu, port: np } });
+  return {
+    gruppen: [
+      { uid: 'gr1', titel: 'Wired Cams', x: 0, y: 0, b: 250, h: 330 },
+      { uid: 'gr2', titel: 'Recording', x: 560, y: 380, b: 250, h: 140 },
+      { uid: 'gr3', titel: 'Displays', x: 1180, y: 0, b: 250, h: 230 },
+    ],
+    geraete: [
+      g('k1', 'G-201', 30, 40, 'Total #1'),
+      g('k2', 'G-201', 30, 190, 'Total #2'),
+      g('atem', 'G-203', 300, 40, 'ATEM 1 M/E'),
+      g('conv1', 'G-205', 590, 40, 'BMD Converter PGM'),
+      g('conv2', 'G-205', 590, 170, 'BMD Converter MV'),
+      g('hd1', 'G-208', 590, 420, 'PGM Main'),
+      g('nb1', 'G-209', 590, 580, 'PPT Main'),
+      g('aq', 'G-204', 880, 40, 'Aquilon RS4'),
+      g('d1', 'G-207', 1210, 40, 'FoH'),
+      g('d2', 'G-207', 1210, 130, 'Backstage'),
+    ],
+    verbindungen: [
+      v('k1', 'HD-SDI Out 1', 'atem', 'SDI In 1'),
+      v('k2', 'HD-SDI Out 1', 'atem', 'SDI In 2'),
+      v('atem', 'SDI Out 1', 'conv1', 'SDI In'),
+      v('atem', 'SDI Multiview', 'conv2', 'SDI In'),
+      v('atem', 'SDI Out 2', 'hd1', 'SDI In'),
+      v('conv1', 'HDMI Out', 'aq', 'HDMI In 1'),
+      v('conv2', 'HDMI Out', 'aq', 'HDMI In 2'),
+      v('nb1', 'HDMI Out', 'aq', 'HDMI In 3'),
+      v('aq', 'HDMI Out 1', 'd1', 'HDMI In'),
+      v('aq', 'HDMI Out 2', 'd2', 'HDMI In'),
+    ],
+  };
+}
+
+/* =====================================================================
+   START
+   ===================================================================== */
+(async function start() {
+  try {
+    for (const t of await Datenquelle.ladeSignaltypen()) S.signaltypen.set(t.id, t);
+    for (const e of await Datenquelle.ladeMaterial()) {
+      const g = normalisiereGeraet(e);
+      S.geraete.set(g.id, g);
+    }
+    $('#datenquelle-hinweis').textContent = KONFIG.API_BASIS_URL ? 'Datenbank-Agent' : 'Demodaten';
+  } catch (err) {
+    melde(`Material konnte nicht geladen werden: ${err.message}`, 'bad');
+    return;
+  }
+  laden();
+  renderBibliothek();
+  render();
+})();
+</script>
+</body>
+</html>
