@@ -208,18 +208,25 @@ const RASTER = 10;
 const FALLBACK_FARBE = '#adb5bd';
 
 /* =====================================================================
-   DEMODATEN – bilden Einträge der Hauptgruppe "Material" nach
-   (id, name, kategorie, attribute = flexibles JSON-Feld).
+   DEMODATEN – Auszug aus der Stammdatenliste (articlelist), aufbereitet
+   als Einträge der Hauptgruppe "Material":
+   id = Artikelnummer, attribute = flexibles JSON-Feld.
    anschluesse: [{ name, typ, richtung: 'in' | 'out' | 'bidi' }]
+   Die Anschlussbelegungen sind aus Herstellerangaben abgeleitet und
+   müssen beim Pflegen in der Datenbank geprüft werden.
    ===================================================================== */
 const DEMO_SIGNALTYPEN = [
-  { id: 'SDI',   name: 'SDI',          farbe: '#2f9e44' },
-  { id: 'HDMI',  name: 'HDMI / DVI',   farbe: '#3b5bdb' },
-  { id: 'DP',    name: 'DisplayPort',  farbe: '#c2255c' },
-  { id: 'Fiber', name: 'Fiber',        farbe: '#e8590c' },
-  { id: 'LAN',   name: 'LAN / RJ45',   farbe: '#868e96' },
-  { id: 'USB',   name: 'USB',          farbe: '#1098ad' },
-  { id: 'Audio', name: 'Audio',        farbe: '#e0a800' },
+  { id: 'SDI',      name: 'SDI',               farbe: '#2f9e44' },
+  { id: 'HDMI',     name: 'HDMI / DVI',        farbe: '#3b5bdb' },
+  { id: 'DP',       name: 'DisplayPort',       farbe: '#c2255c' },
+  { id: 'Fiber',    name: 'Fiber / SFP',       farbe: '#e8590c' },
+  { id: 'LAN',      name: 'LAN / RJ45',        farbe: '#868e96' },
+  { id: 'USB',      name: 'USB',               farbe: '#1098ad' },
+  { id: 'Audio',    name: 'Audio analog',      farbe: '#e0a800' },
+  { id: 'AES',      name: 'AES/EBU',           farbe: '#9c36b5' },
+  { id: 'Speaker',  name: 'Lautsprecher (NL4)', farbe: '#5c3d2e' },
+  { id: 'DMX',      name: 'DMX',               farbe: '#0ca678' },
+  { id: 'Intercom', name: 'Intercom',          farbe: '#d6336c' },
 ];
 
 const a = (name, typ, richtung) => ({ name, typ, richtung });
@@ -230,41 +237,148 @@ const DEMO_SYMBOL_DISPLAY = 'data:image/svg+xml;charset=utf-8,' + encodeURICompo
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26"><rect x="2" y="4" width="22" height="14" rx="1.5" fill="none" stroke="#495057" stroke-width="2"/><path d="M9 22h8M13 18v4" stroke="#495057" stroke-width="2"/></svg>');
 
 const DEMO_MATERIAL = [
-  { id: 'G-201', name: 'Panasonic AK-UC500', kategorie: 'Kamera',
-    attribute: { anschluesse: [a('REF In', 'SDI', 'in'), a('Fiber', 'Fiber', 'bidi'), a('12G-SDI Out', 'SDI', 'out'),
-      ...reihe('HD-SDI Out', 'SDI', 'out', 2), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-202', name: 'Dome-Kamera PTZ', kategorie: 'Kamera',
-    attribute: { anschluesse: [a('HD-SDI Out', 'SDI', 'out'), a('HDMI Out', 'HDMI', 'out'), a('LAN / PoE', 'LAN', 'bidi')] } },
-  { id: 'G-203', name: 'ATEM 1 M/E Constellation HD', kategorie: 'Bildmischer',
-    attribute: { anschluesse: [...reihe('SDI In', 'SDI', 'in', 10), ...reihe('SDI Out', 'SDI', 'out', 6),
-      a('SDI Multiview', 'SDI', 'out'), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-204', name: 'Aquilon RS4', kategorie: 'Videoprozessor',
-    attribute: { anschluesse: [...reihe('HDMI In', 'HDMI', 'in', 8), ...reihe('SDI In', 'SDI', 'in', 4), ...reihe('DP In', 'DP', 'in', 4),
-      ...reihe('HDMI Out', 'HDMI', 'out', 8), a('MV 1', 'HDMI', 'out'), a('MV 2', 'HDMI', 'out'), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-205', name: 'BMD Converter SDI→HDMI', kategorie: 'Konverter',
-    attribute: { anschluesse: [a('SDI In', 'SDI', 'in'), a('SDI Loop', 'SDI', 'out'), a('HDMI Out', 'HDMI', 'out')] } },
-  { id: 'G-206', name: 'BMD Converter HDMI→SDI', kategorie: 'Konverter',
-    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('SDI Out', 'SDI', 'out')] } },
-  { id: 'G-207', name: 'Display HDMI/DP', kategorie: 'Display',
-    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('DP In', 'DP', 'in')], grafik: DEMO_SYMBOL_DISPLAY } },
-  { id: 'G-208', name: 'HyperDeck Studio', kategorie: 'Recording',
-    attribute: { anschluesse: [a('SDI In', 'SDI', 'in'), a('HDMI In', 'HDMI', 'in'), a('SDI Out', 'SDI', 'out'),
-      a('HDMI Out', 'HDMI', 'out'), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-209', name: 'Notebook USB-C', kategorie: 'Zuspieler',
-    attribute: { anschluesse: [a('HDMI Out', 'HDMI', 'out'), a('Audio Out', 'Audio', 'out'), a('USB-C', 'USB', 'bidi'), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-210', name: 'Roland UVC-01', kategorie: 'Konverter',
-    attribute: { anschluesse: [a('HDMI In', 'HDMI', 'in'), a('Audio In', 'Audio', 'in'), a('USB 3.0', 'USB', 'bidi')] } },
-  { id: 'G-211', name: 'Novastar MCTRL4K', kategorie: 'LED',
-    attribute: { anschluesse: [a('HDMI 2.0 In', 'HDMI', 'in'), a('DP 1.2 In', 'DP', 'in'), ...reihe('Out', 'LAN', 'out', 4), a('Control', 'LAN', 'bidi')] } },
-  { id: 'G-212', name: 'Streaming-PC (vMix)', kategorie: 'Streaming',
-    attribute: { anschluesse: [...reihe('SDI In', 'SDI', 'in', 4), ...reihe('HDMI Out', 'HDMI', 'out', 2), ...reihe('DP Out', 'DP', 'out', 2),
-      a('LAN', 'LAN', 'bidi'), a('USB', 'USB', 'bidi')] } },
-  { id: 'G-213', name: 'Watchout Server', kategorie: 'Media Server',
-    attribute: { anschluesse: [...reihe('DP Out', 'DP', 'out', 4), a('LAN', 'LAN', 'bidi')] } },
-  { id: 'G-214', name: '8-Port Switch', kategorie: 'Netzwerk',
-    attribute: { anschluesse: reihe('LAN', 'LAN', 'bidi', 8) } },
-  { id: 'G-215', name: 'Multiviewer (Daten unvollständig)', kategorie: 'Bildmischer',
-    attribute: {} },
+  { id: '1912', name: "Atem Mini Pro", kategorie: 'Video · Bildmischer',
+    attribute: { anschluesse: [...reihe('HDMI In','HDMI','in',4), a('HDMI Out','HDMI','out'), a('Mic In 1','Audio','in'), a('Mic In 2','Audio','in'), a('USB-C Webcam','USB','bidi'), a('LAN','LAN','bidi')], hersteller: "Blackmagic Design", warengruppe: "Videotechnik/System/Bildmischer/" } },
+  { id: '1578', name: "Pixelhue P20", kategorie: 'Video · Bildmischer',
+    attribute: { anschluesse: [...reihe('HDMI In','HDMI','in',4), ...reihe('DP In','DP','in',4), ...reihe('SDI In','SDI','in',4), ...reihe('HDMI Out','HDMI','out',8), ...reihe('AUX Out','HDMI','out',4), a('Multiview Out','HDMI','out'), a('Line In','Audio','in'), a('Line Out','Audio','out'), ...reihe('LAN','LAN','bidi',2)], gewicht: 10.66, stromverbrauch: 140, hersteller: "Pixelhue", warengruppe: "Videotechnik/System/Grafikmischer/" } },
+  { id: '1789', name: "Pixelhue P20 DS", kategorie: 'Video · Bildmischer',
+    attribute: { anschluesse: [...reihe('HDMI In','HDMI','in',4), ...reihe('DP In','DP','in',4), ...reihe('SDI In','SDI','in',4), ...reihe('HDMI Out','HDMI','out',8), ...reihe('SDI Out','SDI','out',4), ...reihe('AUX Out','HDMI','out',4), a('Multiview Out','HDMI','out'), a('Line In','Audio','in'), a('Line Out','Audio','out'), ...reihe('LAN','LAN','bidi',2)], gewicht: 10.2, stromverbrauch: 140, hersteller: "Pixelhue", warengruppe: "Videotechnik/System/Grafikmischer/" } },
+  { id: '1612', name: "Pixelhue ViewPro 4K", kategorie: 'Video · Bildmischer',
+    attribute: { gewicht: 4.65, stromverbrauch: 55, hersteller: "Pixelhue", warengruppe: "Videotechnik/System/" } },
+  { id: '1758', name: "Videohub 20x20 12G", kategorie: 'Video · Kreuzschiene',
+    attribute: { anschluesse: [...reihe('SDI In','SDI','in',20), ...reihe('SDI Out','SDI','out',20), a('LAN','LAN','bidi'), a('USB','USB','bidi')], gewicht: 3.6, stromverbrauch: 28, hersteller: "Blackmagic Design", warengruppe: "Videotechnik/System/" } },
+  { id: '1842', name: "8x8 HDMI 4K60 Matrix", kategorie: 'Video · Kreuzschiene',
+    attribute: { anschluesse: [...reihe('HDMI In','HDMI','in',8), ...reihe('HDMI Out','HDMI','out',8), a('LAN','LAN','bidi')], gewicht: 2.85, stromverbrauch: 43, hersteller: "Lindy", warengruppe: "Videotechnik/System/Kreuzschiene/" } },
+  { id: '1181', name: "BiDirectional SDI/HDMI 3G", kategorie: 'Video · Konverter',
+    attribute: { anschluesse: [a('SDI In','SDI','in'), a('HDMI In','HDMI','in'), a('HDMI Out','HDMI','out'), a('SDI Out','SDI','out'), a('USB-C','USB','bidi')], gewicht: 0.174, stromverbrauch: 2.5, hersteller: "Blackmagic Design", warengruppe: "Videotechnik/Zubehör/Converter/" } },
+  { id: '1564', name: "BiDirectional SDI/HDMI 12G", kategorie: 'Video · Konverter',
+    attribute: { anschluesse: [a('12G-SDI In','SDI','in'), a('HDMI In','HDMI','in'), a('HDMI Out','HDMI','out'), a('12G-SDI Out','SDI','out'), a('USB-C','USB','bidi')], gewicht: 0.174, stromverbrauch: 5, hersteller: "Blackmagic Design", warengruppe: "Videotechnik/Zubehör/Converter/" } },
+  { id: '1430', name: "HDMI / SDI Cross Converter", kategorie: 'Video · Konverter',
+    attribute: { anschluesse: [a('SDI In','SDI','in'), a('HDMI In','HDMI','in'), a('SDI Out 1','SDI','out'), a('SDI Out 2','SDI','out'), a('HDMI Out','HDMI','out'), a('USB','USB','bidi')], hersteller: "Decimator Design", warengruppe: "Videotechnik/Zubehör/Converter/" } },
+  { id: '1759', name: "2110 IP Mini BiDirect 12G SFP", kategorie: 'Video · Konverter',
+    attribute: { anschluesse: [a('12G-SDI In','SDI','in'), a('12G-SDI Out','SDI','out'), a('SFP (2110)','Fiber','bidi'), a('LAN','LAN','bidi')], hersteller: "Blackmagic Design", warengruppe: "Videotechnik/Zubehör/Converter/" } },
+  { id: '1760', name: "2110 IP Mini IP to HDMI SFP", kategorie: 'Video · Konverter',
+    attribute: { anschluesse: [a('SFP (2110)','Fiber','bidi'), a('HDMI Out','HDMI','out'), a('LAN','LAN','bidi')], hersteller: "Blackmagic Design", warengruppe: "Videotechnik/Zubehör/Converter/" } },
+  { id: '1171', name: "ATEN Displayport Splitter", kategorie: 'Video · Splitter',
+    attribute: { anschluesse: [a('DP In','DP','in'), ...reihe('DP Out','DP','out',2)], hersteller: "ATEN", warengruppe: "Videotechnik/Zubehör/Splitter/" } },
+  { id: '1172', name: "DeLock DP 1x2 Hub", kategorie: 'Video · Splitter',
+    attribute: { anschluesse: [a('DP In','DP','in'), ...reihe('DP Out','DP','out',2)], hersteller: "DeLock", warengruppe: "Videotechnik/Zubehör/Splitter/" } },
+  { id: '1173', name: "SGCYR HDMI 1x4 Splitter", kategorie: 'Video · Splitter',
+    attribute: { anschluesse: [a('HDMI In','HDMI','in'), ...reihe('HDMI Out','HDMI','out',4)], hersteller: "", warengruppe: "Videotechnik/Zubehör/Splitter/" } },
+  { id: '1627', name: "Elgato Game Capture HD60 X", kategorie: 'Video · Capture',
+    attribute: { anschluesse: [a('HDMI In','HDMI','in'), a('HDMI Passthrough','HDMI','out'), a('USB-C','USB','bidi')], hersteller: "Elgato", warengruppe: "Videotechnik/Zubehör/Capture Card/" } },
+  { id: '1864', name: "Video Capture Karte 1080p HDMI zu USB", kategorie: 'Video · Capture',
+    attribute: { anschluesse: [a('HDMI In','HDMI','in'), a('USB','USB','bidi')], gewicht: 0.06, hersteller: "XUIGORT", warengruppe: "Videotechnik/Zubehör/Capture Card/" } },
+  { id: '1333', name: "BenQ GW2480", kategorie: 'Video · Monitor',
+    attribute: { grafik: DEMO_SYMBOL_DISPLAY, anschluesse: [a('HDMI In','HDMI','in'), a('DP In','DP','in')], gewicht: 5.6, hersteller: "BenQ", warengruppe: "Videotechnik/Bildschirme/Monitore/" } },
+  { id: '1879', name: "ViewFinity S70D 4K-Monitor 27 Zoll", kategorie: 'Video · Monitor',
+    attribute: { grafik: DEMO_SYMBOL_DISPLAY, anschluesse: [a('HDMI In','HDMI','in'), a('DP In','DP','in')], gewicht: 5.3, stromverbrauch: 23, hersteller: "Samsung", warengruppe: "Videotechnik/Bildschirme/Monitore/" } },
+  { id: '1880', name: "ViewFinity S70D 4K-Monitor 32 Zoll", kategorie: 'Video · Monitor',
+    attribute: { grafik: DEMO_SYMBOL_DISPLAY, anschluesse: [a('HDMI In','HDMI','in'), a('DP In','DP','in')], gewicht: 6.1, stromverbrauch: 31, hersteller: "Samsung", warengruppe: "Videotechnik/Bildschirme/Monitore/" } },
+  { id: '1831', name: "HT231HPB 23\" Touch Monitor", kategorie: 'Video · Monitor',
+    attribute: { grafik: DEMO_SYMBOL_DISPLAY, anschluesse: [a('HDMI In','HDMI','in'), a('USB Touch','USB','bidi')], gewicht: 5.1, stromverbrauch: 26, hersteller: "Hannspree", warengruppe: "Videotechnik/Bildschirme/Touch Monitore/" } },
+  { id: '1617', name: "SmartScope Duo 4K 2", kategorie: 'Video · Monitor',
+    attribute: { grafik: DEMO_SYMBOL_DISPLAY, anschluesse: [a('SDI In A','SDI','in'), a('SDI In B','SDI','in'), a('SDI Loop A','SDI','out'), a('SDI Loop B','SDI','out'), a('LAN','LAN','bidi')], gewicht: 1.53, stromverbrauch: 25, hersteller: "Blackmagic Design", warengruppe: "Videotechnik/Bildschirme/Kamera Monitore/" } },
+  { id: '1605', name: "AIDA Imaging HD-100A", kategorie: 'Video · Kamera',
+    attribute: { anschluesse: [a('HDMI Out','HDMI','out')], gewicht: 0.18, stromverbrauch: 6, hersteller: "AIDA", warengruppe: "Videotechnik/Kamera/Fingercam/" } },
+  { id: '1004', name: "Rex Solution Medienserver", kategorie: 'Video · Medienserver',
+    attribute: { anschluesse: [...reihe('DP Out','DP','out',4), a('Audio Out','Audio','out'), a('LAN','LAN','bidi'), ...reihe('USB','USB','bidi',2)], gewicht: 15.1, stromverbrauch: 850, hersteller: "Rex Solution", warengruppe: "Videotechnik/Computer/Medienserver/" } },
+  { id: '1616', name: "Medienserver Klein", kategorie: 'Video · Medienserver',
+    attribute: { anschluesse: [a('HDMI Out','HDMI','out'), ...reihe('DP Out','DP','out',3), a('Audio Out','Audio','out'), a('LAN','LAN','bidi'), ...reihe('USB','USB','bidi',2)], hersteller: "Rex Solution", warengruppe: "Videotechnik/Computer/Medienserver/" } },
+  { id: '1843', name: "AM06 Pro", kategorie: 'Video · Medienserver',
+    attribute: { anschluesse: [...reihe('HDMI Out','HDMI','out',2), a('DP Out','DP','out'), a('USB-C','USB','bidi'), ...reihe('LAN','LAN','bidi',2)], gewicht: 0.4, stromverbrauch: 65, hersteller: "NiPoGi", warengruppe: "Videotechnik/Computer/Medienserver/" } },
+  { id: '1183', name: "Lenovo ThinkPad T470", kategorie: 'Video · Laptop',
+    attribute: { anschluesse: [a('HDMI Out','HDMI','out'), a('Audio Out','Audio','out'), a('USB-C','USB','bidi'), a('USB','USB','bidi'), a('LAN','LAN','bidi')], gewicht: 2.3, stromverbrauch: 45, hersteller: "Lenovo", warengruppe: "Videotechnik/Computer/Laptop/" } },
+  { id: '1764', name: "Lenovo V15 G4 AMN", kategorie: 'Video · Laptop',
+    attribute: { anschluesse: [a('HDMI Out','HDMI','out'), a('Audio Out','Audio','out'), a('USB-C','USB','bidi'), a('USB','USB','bidi'), a('LAN','LAN','bidi')], gewicht: 2.1, stromverbrauch: 65, hersteller: "Lenovo", warengruppe: "Videotechnik/Computer/Laptop/" } },
+  { id: '1169', name: "Elgato StreamDeck", kategorie: 'Video · Steuerung',
+    attribute: { anschluesse: [a('USB','USB','bidi')], hersteller: "Elgato", warengruppe: "Videotechnik/Computer/Zubehör/" } },
+  { id: '1541', name: "Novastar MCTRL4K", kategorie: 'Video · LED',
+    attribute: { anschluesse: [a('HDMI 2.0 In','HDMI','in'), a('DP 1.2 In','DP','in'), ...reihe('Out','LAN','out',16), a('USB Control','USB','bidi')], hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
+  { id: '1545', name: "Novastar VX4S", kategorie: 'Video · LED',
+    attribute: { anschluesse: [a('HDMI In','HDMI','in'), a('DVI In','HDMI','in'), a('3G-SDI In','SDI','in'), ...reihe('Out','LAN','out',4), a('USB Control','USB','bidi')], hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
+  { id: '1552', name: "Novastar CVT10", kategorie: 'Video · LED',
+    attribute: { anschluesse: [...reihe('Fiber','Fiber','bidi',2), ...reihe('LAN','LAN','bidi',10)], gewicht: 2.35, stromverbrauch: 140, hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
+  { id: '1562', name: "LedTek P2+ WH", kategorie: 'Video · LED',
+    attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "LedTek", warengruppe: "Videotechnik/LED/LedTek/P2+/" } },
+  { id: '1539', name: "LedTek P4+ WH V3", kategorie: 'Video · LED',
+    attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "LedTek", warengruppe: "Videotechnik/LED/LedTek/P4+/" } },
+  { id: '1466', name: "Yamaha CL5", kategorie: 'Ton · Mischpult',
+    attribute: { anschluesse: [...reihe('Omni In','Audio','in',8), ...reihe('Omni Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi'), a('Network','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Digital/Yamaha/" } },
+  { id: '1470', name: "Yamaha QL1", kategorie: 'Ton · Mischpult',
+    attribute: { anschluesse: [...reihe('In','Audio','in',16), ...reihe('Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi'), a('Network','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Digital/Yamaha/" } },
+  { id: '1473', name: "Yamaha TF1", kategorie: 'Ton · Mischpult',
+    attribute: { anschluesse: [...reihe('In','Audio','in',16), ...reihe('Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi'), a('Network','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Digital/Yamaha/" } },
+  { id: '1475', name: "Soundcraft UI16", kategorie: 'Ton · Mischpult',
+    attribute: { anschluesse: [...reihe('In','Audio','in',12), ...reihe('Aux Out','Audio','out',4), a('Main L','Audio','out'), a('Main R','Audio','out'), a('LAN','LAN','bidi'), a('USB','USB','bidi')], gewicht: 3.8, stromverbrauch: 35, hersteller: "Soundcraft", warengruppe: "Tontechnik/Pulte/Digital/Soundcraft/" } },
+  { id: '1427', name: "Yamaha MG06", kategorie: 'Ton · Mischpult',
+    attribute: { anschluesse: [...reihe('In','Audio','in',6), a('Main L','Audio','out'), a('Main R','Audio','out')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Analog/Yamaha/" } },
+  { id: '1477', name: "Yamaha RIO3224-D", kategorie: 'Ton · Stagebox',
+    attribute: { anschluesse: [...reihe('In','Audio','in',32), ...reihe('Out','Audio','out',16), ...reihe('AES Out','AES','out',4), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Stage Box/Yamaha/" } },
+  { id: '1478', name: "Yamaha RIO1608-D", kategorie: 'Ton · Stagebox',
+    attribute: { anschluesse: [...reihe('In','Audio','in',16), ...reihe('Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Stage Box/Yamaha/" } },
+  { id: '1479', name: "Yamaha TIO1608-D", kategorie: 'Ton · Stagebox',
+    attribute: { anschluesse: [...reihe('In','Audio','in',16), ...reihe('Out','Audio','out',8), a('Dante','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Stage Box/Yamaha/" } },
+  { id: '1461', name: "Lexa L1000QX", kategorie: 'Ton · Endstufe',
+    attribute: { anschluesse: [...reihe('In','Audio','in',4), ...reihe('Out','Speaker','out',4)], hersteller: "Lexa", warengruppe: "Tontechnik/Endstufen/Lexa/" } },
+  { id: '1462', name: "Lexa L5000X", kategorie: 'Ton · Endstufe',
+    attribute: { anschluesse: [...reihe('In','Audio','in',2), ...reihe('Out','Speaker','out',2)], hersteller: "Lexa", warengruppe: "Tontechnik/Endstufen/Lexa/" } },
+  { id: '1110', name: "TW Audio M12", kategorie: 'Ton · Lautsprecher',
+    attribute: { anschluesse: [a('NL4 In','Speaker','in'), a('NL4 Link','Speaker','out')], gewicht: 20.2, hersteller: "TW Audio", warengruppe: "Tontechnik/Lautsprecher/Point Source/TW Audio/" } },
+  { id: '1111', name: "TW Audio M15", kategorie: 'Ton · Lautsprecher',
+    attribute: { anschluesse: [a('NL4 In','Speaker','in'), a('NL4 Link','Speaker','out')], gewicht: 20.2, hersteller: "TW Audio", warengruppe: "Tontechnik/Lautsprecher/Point Source/TW Audio/" } },
+  { id: '1182', name: "IEM-75T InEar System", kategorie: 'Ton · Funk / In-Ear',
+    attribute: { anschluesse: [a('Audio In L','Audio','in'), a('Audio In R','Audio','in')], hersteller: "t.bone", warengruppe: "Tontechnik/System/In Ear System/" } },
+  { id: '1589', name: "AKG HT 40 Mini Pro", kategorie: 'Ton · Funk / In-Ear',
+    attribute: { anschluesse: [a('Audio Out XLR','Audio','out')], hersteller: "AKG", warengruppe: "Tontechnik/Mikrofone/UHF/" } },
+  { id: '1640', name: "Focusrite Scarlett 4i4 3rd Gen", kategorie: 'Ton · Interface',
+    attribute: { anschluesse: [...reihe('In','Audio','in',4), ...reihe('Out','Audio','out',4), a('USB-C','USB','bidi')], hersteller: "Focusrite", warengruppe: "Tontechnik/System/Interface/" } },
+  { id: '1481', name: "Pioneer DJM 900 NXS II", kategorie: 'Ton · DJ',
+    attribute: { anschluesse: [...reihe('CD/Line In','Audio','in',4), ...reihe('Mic In','Audio','in',2), a('Master L','Audio','out'), a('Master R','Audio','out'), a('Booth L','Audio','out'), a('Booth R','Audio','out'), a('LAN (Pro DJ Link)','LAN','bidi'), a('USB','USB','bidi')], hersteller: "Pioneer", warengruppe: "Tontechnik/DJ Equipment/Controller/Pioneer/" } },
+  { id: '1484', name: "Pioneer CDJ 2000 NXS2", kategorie: 'Ton · DJ',
+    attribute: { anschluesse: [a('Audio Out L','Audio','out'), a('Audio Out R','Audio','out'), a('LAN (Pro DJ Link)','LAN','bidi'), a('USB','USB','bidi')], hersteller: "Pioneer", warengruppe: "Tontechnik/DJ Equipment/Zuspieler/Pioneer/" } },
+  { id: '1487', name: "Axxent MS2000", kategorie: 'Ton · Intercom',
+    attribute: { anschluesse: [a('Linie A','Intercom','bidi'), a('Linie B','Intercom','bidi'), a('Program In','Audio','in')], hersteller: "Axxent", warengruppe: "Tontechnik/Intercom/Axxent/" } },
+  { id: '1488', name: "Axxent BP-100", kategorie: 'Ton · Intercom',
+    attribute: { anschluesse: [a('Linie In','Intercom','bidi'), a('Linie Loop','Intercom','bidi')], hersteller: "Axxent", warengruppe: "Tontechnik/Intercom/Axxent/" } },
+  { id: '1221', name: "GrandMA3 Light", kategorie: 'Licht · Pult',
+    attribute: { anschluesse: [...reihe('DMX','DMX','out',4), ...reihe('LAN','LAN','bidi',2), a('LTC In','Audio','in')], gewicht: 33, hersteller: "MA Lighting", warengruppe: "Lichttechnik/Pulte/MA Lighting/" } },
+  { id: '1224', name: "GrandMA3 Tourpack", kategorie: 'Licht · Pult',
+    attribute: { anschluesse: [...reihe('DMX','DMX','out',4), ...reihe('LAN','LAN','bidi',2), a('LTC In','Audio','in')], gewicht: 34.5, hersteller: "MA Lighting", warengruppe: "Lichttechnik/Pulte/MA Lighting/" } },
+  { id: '1680', name: "MagicQ MQ500M", kategorie: 'Licht · Pult',
+    attribute: { anschluesse: [...reihe('DMX','DMX','out',4), a('LAN','LAN','bidi')], hersteller: "Chamsys", warengruppe: "Lichttechnik/Pulte/Chamsys/" } },
+  { id: '1498', name: "Showtec Lampy 20 2U", kategorie: 'Licht · Pult',
+    attribute: { anschluesse: [...reihe('DMX','DMX','out',2)], hersteller: "Showtec", warengruppe: "Lichttechnik/Pulte/Showtec/" } },
+  { id: '1603', name: "Botex DC-2448 Light Operator", kategorie: 'Licht · Pult',
+    attribute: { anschluesse: [a('DMX Out','DMX','out')], gewicht: 6.7, hersteller: "Botex", warengruppe: "Lichttechnik/Pulte/Showtec/" } },
+  { id: '1189', name: "Showtec Net 8/5", kategorie: 'Licht · Node',
+    attribute: { anschluesse: [a('LAN','LAN','bidi'), ...reihe('DMX','DMX','out',8)], hersteller: "Showtec", warengruppe: "Lichttechnik/System/Node/" } },
+  { id: '1308', name: "ELC dmXLAN Node8GBx", kategorie: 'Licht · Node',
+    attribute: { anschluesse: [a('LAN','LAN','bidi'), ...reihe('DMX','DMX','out',8)], hersteller: "ELC", warengruppe: "Lichttechnik/System/Node/" } },
+  { id: '1752', name: "Luminode 12", kategorie: 'Licht · Node',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',2), ...reihe('DMX','DMX','out',12)], gewicht: 1.96, stromverbrauch: 13, hersteller: "Luminex", warengruppe: "Lichttechnik/System/Node/" } },
+  { id: '1753', name: "LumiSplit 2.10", kategorie: 'Licht · Splitter',
+    attribute: { anschluesse: [...reihe('DMX In','DMX','in',2), ...reihe('DMX Out','DMX','out',10)], gewicht: 2.54, stromverbrauch: 13, hersteller: "Luminex", warengruppe: "Lichttechnik/System/Splitter/" } },
+  { id: '1832', name: "Time Core", kategorie: 'Licht · Timecode',
+    attribute: { anschluesse: [a('LTC In','Audio','in'), a('LTC Out','Audio','out'), a('LAN','LAN','bidi')], gewicht: 0.3, stromverbrauch: 10, hersteller: "Visual Productions", warengruppe: "Lichttechnik/System/Timecode/" } },
+  { id: '1001', name: "Elation ACL360i", kategorie: 'Licht · Scheinwerfer',
+    attribute: { anschluesse: [a('DMX In','DMX','in'), a('DMX Out','DMX','out')], gewicht: 5.2, stromverbrauch: 110, hersteller: "Elation", warengruppe: "Lichttechnik/Scheinwerfer/MovingHead/Beam/" } },
+  { id: '1002', name: "Elation ACL360 Bar", kategorie: 'Licht · Scheinwerfer',
+    attribute: { anschluesse: [a('DMX In','DMX','in'), a('DMX Out','DMX','out')], gewicht: 10, stromverbrauch: 135, hersteller: "Elation", warengruppe: "Lichttechnik/Scheinwerfer/MovingHead/Bar/" } },
+  { id: '1884', name: "GigaCore 10i", kategorie: 'Netzwerk · Switch',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',8), ...reihe('SFP+','Fiber','bidi',2)], gewicht: 2.2, stromverbrauch: 13.5, hersteller: "Luminex", warengruppe: "Netzwerktechnik/Switch/Luminex/" } },
+  { id: '1886', name: "GigaCore 16i", kategorie: 'Netzwerk · Switch',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',12), ...reihe('SFP+','Fiber','bidi',4)], gewicht: 2.4, stromverbrauch: 25, hersteller: "Luminex", warengruppe: "Netzwerktechnik/Switch/Luminex/" } },
+  { id: '1746', name: "M4250-10G2F-PoE+", kategorie: 'Netzwerk · Switch',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',10), ...reihe('SFP','Fiber','bidi',2)], gewicht: 2.85, stromverbrauch: 125, hersteller: "Netgear", warengruppe: "Netzwerktechnik/Switch/Netgear/" } },
+  { id: '1648', name: "Netgear GS308", kategorie: 'Netzwerk · Switch',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',8)], hersteller: "Netgear", warengruppe: "Netzwerktechnik/Switch/Netgear/" } },
+  { id: '1177', name: "TP Link 5port PoE Switch", kategorie: 'Netzwerk · Switch',
+    attribute: { anschluesse: [...reihe('LAN','LAN','bidi',5)], hersteller: "TP-Link", warengruppe: "Netzwerktechnik/Switch/TP Link/" } },
+  { id: '1898', name: "Dream Machine Pro Special Edition", kategorie: 'Netzwerk · Router',
+    attribute: { anschluesse: [a('WAN','LAN','bidi'), ...reihe('LAN','LAN','bidi',8), a('SFP+ WAN','Fiber','bidi'), a('SFP+ LAN','Fiber','bidi')], hersteller: "Ubiquiti", warengruppe: "Netzwerktechnik/Router/" } },
+  { id: '1812', name: "fiber box 4-way QSeal", kategorie: 'Netzwerk · Fiber',
+    attribute: { anschluesse: [...reihe('QSEAL','Fiber','bidi',2), ...reihe('LC','Fiber','bidi',4)], gewicht: 2.45, hersteller: "Motionfiber", warengruppe: "Netzwerktechnik/Fiber Box/" } },
 ];
 
 /* =====================================================================
@@ -323,6 +437,10 @@ function normalisiereGeraet(e) {
     id: e.id, name: e.name || e.id, kategorie: e.kategorie || 'Ohne Kategorie',
     anschluesse, links, rechts, hoehe,
     grafik: attr.grafik || null,
+    hersteller: attr.hersteller || '',
+    warengruppe: attr.warengruppe || '',
+    gewicht: Number(attr.gewicht) || 0,
+    stromverbrauch: Number(attr.stromverbrauch) || 0,
     warnungen,
   };
 }
@@ -554,7 +672,7 @@ function renderBibliothek() {
   const filter = $('#suche').value.trim().toLowerCase();
   const gruppen = new Map();
   for (const g of S.geraete.values()) {
-    if (filter && !`${g.name} ${g.kategorie}`.toLowerCase().includes(filter)) continue;
+    if (filter && !`${g.id} ${g.name} ${g.kategorie} ${g.hersteller}`.toLowerCase().includes(filter)) continue;
     if (!gruppen.has(g.kategorie)) gruppen.set(g.kategorie, []);
     gruppen.get(g.kategorie).push(g);
   }
@@ -586,6 +704,20 @@ function portTabelle(inst) {
   return `<table>${zeilen}</table>`;
 }
 
+const zahlDE = (n, stellen = 1) => Number(n).toLocaleString('de-DE', { maximumFractionDigits: stellen });
+
+function stammdaten(typ) {
+  const zeilen = [
+    ['Artikel-Nr.', typ.id],
+    ['Hersteller', typ.hersteller],
+    ['Kategorie', typ.kategorie],
+    ['Warengruppe', typ.warengruppe.replace(/\/$/, '').replaceAll('/', ' › ')],
+    ['Gewicht', typ.gewicht ? `${zahlDE(typ.gewicht, 2)} kg` : ''],
+    ['Leistung', typ.stromverbrauch ? `${zahlDE(typ.stromverbrauch, 0)} W` : ''],
+  ].filter(([, w]) => w);
+  return `<table style="margin-top:6px">${zeilen.map(([k, w]) => `<tr><td class="frei">${k}</td><td>${esc(w)}</td></tr>`).join('')}</table>`;
+}
+
 function renderInfo() {
   const aw = S.auswahl;
   let html = '';
@@ -597,7 +729,8 @@ function renderInfo() {
       <div class="info-block">
         <label for="inp-label">Bezeichnung im Plan</label>
         <input id="inp-label" value="${esc(inst.label)}">
-        <div class="hinweis">${esc(typ.name)} · ${esc(typ.kategorie)} · ${esc(typ.id)}</div>
+        <div class="hinweis">${esc(typ.name)}</div>
+        ${stammdaten(typ)}
         ${typ.warnungen.map((w) => `<div class="warnung">⚠ ${esc(w)}</div>`).join('')}
       </div>
       <div class="info-block"><h3>Anschlüsse</h3>${portTabelle(inst)}</div>
@@ -632,7 +765,7 @@ function renderInfo() {
     html += `<h2>Library</h2>
       <div class="info-block">
         <h3>${esc(typ.name)}</h3>
-        <div class="hinweis">${esc(typ.kategorie)} · ${esc(typ.id)}</div>
+        ${stammdaten(typ)}
         ${typ.warnungen.map((w) => `<div class="warnung">⚠ ${esc(w)}</div>`).join('')}
       </div>
       <div class="info-block"><h3>Anschlüsse</h3>${typ.anschluesse.length
@@ -654,6 +787,8 @@ function renderInfo() {
     <div class="legende"><span>Geräte</span><span>${S.plan.geraete.length}</span></div>
     <div class="legende"><span>Verbindungen</span><span>${S.plan.verbindungen.length}</span></div>
     <div class="legende"><span>Gruppen</span><span>${S.plan.gruppen.length}</span></div>
+    <div class="legende"><span>Gewicht</span><span>${zahlDE(S.plan.geraete.reduce((s, g) => s + typVon(g).gewicht, 0))} kg</span></div>
+    <div class="legende"><span>Leistung</span><span>${zahlDE(S.plan.geraete.reduce((s, g) => s + typVon(g).stromverbrauch, 0), 0)} W</span></div>
   </div>`;
 
   $('#info').innerHTML = html;
@@ -926,42 +1061,93 @@ document.addEventListener('keydown', (ev) => {
 });
 
 /* =====================================================================
-   BEISPIEL – kleiner Auszug im Stil eines Auditorium-Signalplans
+   BEISPIEL – Veranstaltung mit Geräten aus der Stammdatenliste
    ===================================================================== */
 function beispielPlan() {
   const g = (id, geraetId, x, y, label) => ({ uid: id, geraetId, x, y, label });
   const v = (vu, vp, nu, np) => ({ uid: uid(), von: { uid: vu, port: vp }, nach: { uid: nu, port: np } });
-  return {
-    gruppen: [
-      { uid: 'gr1', titel: 'Wired Cams', x: 0, y: 0, b: 250, h: 330 },
-      { uid: 'gr2', titel: 'Recording', x: 560, y: 380, b: 250, h: 140 },
-      { uid: 'gr3', titel: 'Displays', x: 1180, y: 0, b: 250, h: 230 },
-    ],
-    geraete: [
-      g('k1', 'G-201', 30, 40, 'Total #1'),
-      g('k2', 'G-201', 30, 190, 'Total #2'),
-      g('atem', 'G-203', 300, 40, 'ATEM 1 M/E'),
-      g('conv1', 'G-205', 590, 40, 'BMD Converter PGM'),
-      g('conv2', 'G-205', 590, 170, 'BMD Converter MV'),
-      g('hd1', 'G-208', 590, 420, 'PGM Main'),
-      g('nb1', 'G-209', 590, 580, 'PPT Main'),
-      g('aq', 'G-204', 880, 40, 'Aquilon RS4'),
-      g('d1', 'G-207', 1210, 40, 'FoH'),
-      g('d2', 'G-207', 1210, 130, 'Backstage'),
-    ],
-    verbindungen: [
-      v('k1', 'HD-SDI Out 1', 'atem', 'SDI In 1'),
-      v('k2', 'HD-SDI Out 1', 'atem', 'SDI In 2'),
-      v('atem', 'SDI Out 1', 'conv1', 'SDI In'),
-      v('atem', 'SDI Multiview', 'conv2', 'SDI In'),
-      v('atem', 'SDI Out 2', 'hd1', 'SDI In'),
-      v('conv1', 'HDMI Out', 'aq', 'HDMI In 1'),
-      v('conv2', 'HDMI Out', 'aq', 'HDMI In 2'),
-      v('nb1', 'HDMI Out', 'aq', 'HDMI In 3'),
-      v('aq', 'HDMI Out 1', 'd1', 'HDMI In'),
-      v('aq', 'HDMI Out 2', 'd2', 'HDMI In'),
-    ],
+  const geraete = [
+    // Zuspieler
+    g('nb1', '1183', 30, 50, 'PPT Main'),
+    g('nb2', '1764', 30, 190, 'PPT Backup'),
+    g('ms1', '1004', 30, 330, 'Medienserver'),
+    // Kamera
+    g('cam', '1605', 30, 580, 'Fingercam Pult'),
+    g('conv', '1181', 330, 580, 'Converter Cam'),
+    // Signalverteilung
+    g('hub', '1758', 620, 60, 'Videohub'),
+    g('p20', '1578', 940, 60, 'Pixelhue P20'),
+    // LED
+    g('mctrl', '1541', 1270, 60, 'LED Controller'),
+    g('led1', '1562', 1540, 60, 'LED Modul 1'),
+    g('led2', '1562', 1540, 150, 'LED Modul 2'),
+    // Monitoring
+    g('mon1', '1879', 1270, 420, 'Confidence'),
+    g('mon2', '1333', 1270, 520, 'Multiview'),
+    g('scope', '1617', 940, 460, 'SmartScope Regie'),
+    // Streaming
+    g('cap', '1627', 1270, 680, 'Capture Stream'),
+    g('spc', '1843', 1540, 680, 'Streaming-PC'),
+    // Netzwerk
+    g('sw', '1884', 330, 330, 'Netzwerk Regie'),
+    // Licht
+    g('ma', '1221', 30, 780, 'grandMA3 light'),
+    g('node', '1752', 620, 760, 'Luminode'),
+    g('fx1', '1001', 940, 760, 'Beam 1'),
+    g('fx2', '1001', 940, 850, 'Beam 2'),
+    // Ton
+    g('tf1', '1473', 30, 1100, 'FoH Pult'),
+    g('amp', '1461', 330, 1100, 'Endstufe'),
+    g('spk1', '1110', 620, 1100, 'PA links'),
+    g('spk2', '1110', 620, 1190, 'PA rechts'),
+  ];
+  const verbindungen = [
+    v('nb1', 'HDMI Out', 'p20', 'HDMI In 1'),
+    v('nb2', 'HDMI Out', 'p20', 'HDMI In 2'),
+    v('ms1', 'DP Out 1', 'p20', 'DP In 1'),
+    v('ms1', 'DP Out 2', 'p20', 'DP In 2'),
+    v('cam', 'HDMI Out', 'conv', 'HDMI In'),
+    v('conv', 'SDI Out', 'hub', 'SDI In 1'),
+    v('hub', 'SDI Out 1', 'p20', 'SDI In 1'),
+    v('hub', 'SDI Out 2', 'scope', 'SDI In A'),
+    v('p20', 'HDMI Out 1', 'mctrl', 'HDMI 2.0 In'),
+    v('mctrl', 'Out 1', 'led1', 'Data In'),
+    v('led1', 'Data Out', 'led2', 'Data In'),
+    v('p20', 'HDMI Out 2', 'mon1', 'HDMI In'),
+    v('p20', 'Multiview Out', 'mon2', 'HDMI In'),
+    v('p20', 'HDMI Out 3', 'cap', 'HDMI In'),
+    v('cap', 'USB-C', 'spc', 'USB-C'),
+    v('sw', 'LAN 1', 'p20', 'LAN 1'),
+    v('sw', 'LAN 2', 'ms1', 'LAN'),
+    v('sw', 'LAN 3', 'ma', 'LAN 1'),
+    v('sw', 'LAN 4', 'node', 'LAN 1'),
+    v('sw', 'LAN 5', 'tf1', 'Network'),
+    v('node', 'DMX 1', 'fx1', 'DMX In'),
+    v('fx1', 'DMX Out', 'fx2', 'DMX In'),
+    v('nb1', 'Audio Out', 'tf1', 'In 15'),
+    v('tf1', 'Out 1', 'amp', 'In 1'),
+    v('tf1', 'Out 2', 'amp', 'In 2'),
+    v('amp', 'Out 1', 'spk1', 'NL4 In'),
+    v('amp', 'Out 2', 'spk2', 'NL4 In'),
+  ];
+  // Gruppenrahmen aus den enthaltenen Geräten berechnen
+  const gruppe = (id, titel, ...uids) => {
+    const boxen = geraete.filter((x) => uids.includes(x.uid))
+      .map((x) => ({ x: x.x, y: x.y, b: BREITE, h: S.geraete.get(x.geraetId).hoehe }));
+    const x1 = Math.min(...boxen.map((b) => b.x)) - 20, y1 = Math.min(...boxen.map((b) => b.y)) - 40;
+    const x2 = Math.max(...boxen.map((b) => b.x + b.b)) + 20, y2 = Math.max(...boxen.map((b) => b.y + b.h)) + 20;
+    return { uid: id, titel, x: x1, y: y1, b: x2 - x1, h: y2 - y1 };
   };
+  const gruppen = [
+    gruppe('gr1', 'Zuspieler', 'nb1', 'nb2', 'ms1'),
+    gruppe('gr2', 'Kamera', 'cam', 'conv'),
+    gruppe('gr3', 'LED Screen', 'mctrl', 'led1', 'led2'),
+    gruppe('gr4', 'Monitoring', 'mon1', 'mon2'),
+    gruppe('gr5', 'Streaming', 'cap', 'spc'),
+    gruppe('gr6', 'Licht', 'ma', 'node', 'fx1', 'fx2'),
+    gruppe('gr7', 'Ton', 'tf1', 'amp', 'spk1', 'spk2'),
+  ];
+  return { geraete, verbindungen, gruppen };
 }
 
 /* =====================================================================
