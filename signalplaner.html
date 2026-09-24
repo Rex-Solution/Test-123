@@ -635,15 +635,35 @@ function routeVorbereiten(v, i) {
   return i;
 }
 
-/** Entfernt Abschnitte ohne Länge, die beim Ziehen entstanden sind */
+const EINRASTEN = 8;   // Abstand, ab dem ein Abschnitt auf einen parallelen Nachbarn einrastet
+
+/** Zielwert beim Ziehen von Abschnitt i: im Raster, aber in der Nähe eines parallelen
+    Nachbarabschnitts (oder eines Anschlusses) genau auf dessen Linie – so können
+    zwei Abschnitte wieder zu einer Linie zusammengeführt werden. */
+function abschnittWert(v, i, roh) {
+  const pkt = kabelPunkte(v);
+  const achse = i % 2 ? 0 : 1;
+  let bester = null;
+  const kandidaten = [];
+  if (i - 2 >= 0) kandidaten.push(pkt[i - 1][achse]);             // Abschnitt i-2
+  if (i + 3 <= pkt.length - 1) kandidaten.push(pkt[i + 2][achse]); // Abschnitt i+2
+  for (const c of kandidaten) {
+    if (Math.abs(roh - c) <= EINRASTEN && (bester === null || Math.abs(roh - c) < Math.abs(roh - bester))) bester = c;
+  }
+  return bester ?? rastern(roh);
+}
+
+const gleich = (p, q) => Math.abs(p[0] - q[0]) < 0.5 && Math.abs(p[1] - q[1]) < 0.5;
+
+/** Entfernt Abschnitte ohne Länge – die angrenzenden parallelen Abschnitte werden dadurch
+    zu einer Linie zusammengeführt. */
 function routeAufraeumen(v) {
   if (!v.route) return;
   const [a, b] = kabelEnden(v);
   const pkt = kabelPunkte(v);
   let i = 1;
   while (i < pkt.length - 2) {
-    const p = pkt[i], q = pkt[i + 1];
-    if (p[0] === q[0] && p[1] === q[1]) { pkt.splice(i, 2); i = Math.max(1, i - 1); } else i++;
+    if (gleich(pkt[i], pkt[i + 1])) { pkt.splice(i, 2); i = Math.max(1, i - 1); } else i++;
   }
   v.route = pkt.slice(1, -1);
   if (!v.route.length && a.y !== b.y) delete v.route;
@@ -1009,8 +1029,10 @@ document.addEventListener('pointermove', (ev) => {
     }
     case 'segment': {
       // Waagerechte Abschnitte nach oben/unten, senkrechte nach links/rechts verschieben
+      const achse = d.seg % 2 ? 0 : 1;
+      const wert = abschnittWert(d.v, d.seg, achse ? w.y : w.x);
       const p = d.v.route[d.seg - 1], q = d.v.route[d.seg];
-      if (d.seg % 2) { p[0] = q[0] = rastern(w.x); } else { p[1] = q[1] = rastern(w.y); }
+      p[achse] = q[achse] = wert;
       renderKabel();
       break;
     }
