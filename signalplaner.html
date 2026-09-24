@@ -96,7 +96,10 @@
 
   /* Verbindungen */
   .kabel { fill: none; stroke-width: 1.6; }
-  .kabel-hit { fill: none; stroke: transparent; stroke-width: 10; cursor: pointer; }
+  .kabel-seg { stroke: transparent; stroke-width: 10; }
+  .kabel-seg.h { cursor: ns-resize; }
+  .kabel-seg.v { cursor: ew-resize; }
+  .kabel-griff { fill: #fff; stroke-width: 1.5; pointer-events: none; }
   .kabel.sel { stroke-width: 3.5; }
   .kabel-temp { fill: none; stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
 
@@ -161,6 +164,7 @@
   <p class="hinweis">
     Geräte auf die Zeichenfläche ziehen.<br>
     Verbindung: vom Anschluss-Punkt eines Geräts zu einem anderen ziehen.<br>
+    Kabelverlauf anpassen: Abschnitt einer Leitung anfassen und verschieben.<br>
     Löschen: auswählen und <kbd>Entf</kbd>.<br>
     Verschieben der Ansicht: leere Fläche ziehen, Zoom per Mausrad.
   </p>
@@ -573,8 +577,9 @@ function portPos(inst, portId) {
   return { x: inst.x + BREITE, y: inst.y + KOPF + i * ZEILE + ZEILE / 2, dir: 1 };
 }
 
-/** Orthogonale Leitungsführung zwischen zwei Anschlusspunkten */
-function kabelPfad(a, b, versatz = 0) {
+/** Automatische orthogonale Leitungsführung zwischen zwei Anschlusspunkten.
+    Liefert Punkte; Abschnitte wechseln sich ab: waagerecht, senkrecht, …, waagerecht. */
+function autoPunkte(a, b, versatz = 0) {
   const ABST = 16;
   const ax = a.x + a.dir * ABST, bx = b.x + b.dir * ABST;
   let pkt;
@@ -588,7 +593,60 @@ function kabelPfad(a, b, versatz = 0) {
     const my = Math.round((a.y + b.y) / 2) + versatz;
     pkt = [[a.x, a.y], [ax, a.y], [ax, my], [bx, my], [bx, b.y], [b.x, b.y]];
   }
-  return 'M' + pkt.map((p) => p.join(',')).join(' L');
+  return pkt;
+}
+
+const pfadAus = (pkt) => 'M' + pkt.map((p) => p.join(',')).join(' L');
+
+/** Endpunkte einer Verbindung (Quelle, Ziel) */
+function kabelEnden(v) {
+  return [portPos(instanz(v.von.uid), v.von.port), portPos(instanz(v.nach.uid), v.nach.port)];
+}
+
+/** Punkte einer Verbindung – manueller Verlauf (v.route), sonst automatisch.
+    Der erste und letzte Routenpunkt folgen der Höhe ihres Anschlusses,
+    damit die Leitung beim Verschieben von Geräten angeschlossen bleibt. */
+function kabelPunkte(v) {
+  const [a, b] = kabelEnden(v);
+  if (Array.isArray(v.route) && (v.route.length || a.y === b.y)) {
+    const r = v.route.map((p) => [...p]);
+    if (r.length) { r[0][1] = a.y; r[r.length - 1][1] = b.y; }
+    return [[a.x, a.y], ...r, [b.x, b.y]];
+  }
+  return autoPunkte(a, b, versatzFuer(v.uid));
+}
+
+/** Macht aus dem aktuellen Verlauf eine manuelle Route und bereitet Abschnitt i zum Ziehen vor.
+    Abschnitte direkt am Anschluss bekommen einen kurzen Stich, damit der Anschluss fest bleibt. */
+function routeVorbereiten(v, i) {
+  const [a, b] = kabelEnden(v);
+  const pkt = kabelPunkte(v);
+  const ABST = 16;
+  if (i === pkt.length - 2) {
+    const x = b.x + b.dir * ABST;
+    pkt.splice(pkt.length - 1, 0, [x, b.y], [x, b.y]);
+  }
+  if (i === 0) {
+    const x = a.x + a.dir * ABST;
+    pkt.splice(1, 0, [x, a.y], [x, a.y]);
+    i += 2;
+  }
+  v.route = pkt.slice(1, -1);
+  return i;
+}
+
+/** Entfernt Abschnitte ohne Länge, die beim Ziehen entstanden sind */
+function routeAufraeumen(v) {
+  if (!v.route) return;
+  const [a, b] = kabelEnden(v);
+  const pkt = kabelPunkte(v);
+  let i = 1;
+  while (i < pkt.length - 2) {
+    const p = pkt[i], q = pkt[i + 1];
+    if (p[0] === q[0] && p[1] === q[1]) { pkt.splice(i, 2); i = Math.max(1, i - 1); } else i++;
+  }
+  v.route = pkt.slice(1, -1);
+  if (!v.route.length && a.y !== b.y) delete v.route;
 }
 
 function versatzFuer(id) {
@@ -622,14 +680,22 @@ function renderGruppen() {
 
 function renderKabel() {
   $('#ebene-kabel').innerHTML = S.plan.verbindungen.map((v) => {
-    const a = portPos(instanz(v.von.uid), v.von.port);
-    const b = portPos(instanz(v.nach.uid), v.nach.port);
     const typ = portVon(instanz(v.von.uid), v.von.port).typ;
-    const d = kabelPfad(a, b, versatzFuer(v.uid));
+    const pkt = kabelPunkte(v);
     const sel = S.auswahl?.art === 'kabel' && S.auswahl.id === v.uid;
+    // Jeder Abschnitt ist einzeln greifbar (gerade Indizes = waagerecht, ungerade = senkrecht)
+    const abschnitte = pkt.slice(0, -1).map((p, i) => {
+      const q = pkt[i + 1];
+      return `<line class="kabel-seg ${i % 2 ? 'v' : 'h'}" data-seg="${i}" x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`;
+    }).join('');
+    const griffe = sel ? pkt.slice(0, -1).map((p, i) => {
+      const q = pkt[i + 1];
+      if (Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) < 12) return '';
+      return `<rect class="kabel-griff" x="${(p[0] + q[0]) / 2 - 4}" y="${(p[1] + q[1]) / 2 - 4}" width="8" height="8" stroke="${farbe(typ)}"/>`;
+    }).join('') : '';
     return `<g data-kabel="${v.uid}">
-      <path class="kabel${sel ? ' sel' : ''}" d="${d}" stroke="${farbe(typ)}"/>
-      <path class="kabel-hit" d="${d}"/>
+      <path class="kabel${sel ? ' sel' : ''}" d="${pfadAus(pkt)}" stroke="${farbe(typ)}"/>
+      ${abschnitte}${griffe}
     </g>`;
   }).join('');
 }
@@ -747,7 +813,11 @@ function renderInfo() {
             <tr><td>Nach</td><td>${esc(instanz(v.nach.uid).label)} · ${esc(v.nach.port)}</td></tr>
           </table>
         </div>
-        <div class="knopfzeile"><button class="gefahr" data-aktion="loeschen">Verbindung entfernen</button></div>`;
+        <p class="hinweis">Verlauf anpassen: einen Abschnitt der Leitung anfassen und ziehen.</p>
+        <div class="knopfzeile">
+          ${v.route ? '<button data-aktion="route-reset">Verlauf zurücksetzen</button>' : ''}
+          <button class="gefahr" data-aktion="loeschen">Verbindung entfernen</button>
+        </div>`;
     }
   } else if (aw?.art === 'gruppe') {
     const g = S.plan.gruppen.find((x) => x.uid === aw.id);
@@ -862,7 +932,8 @@ $('#zeichnung').addEventListener('pointerdown', (ev) => {
     const inst = instanz(geraetEl.dataset.geraet);
     S.drag = { ...basis, art: 'geraet', inst, dx: w.x - inst.x, dy: w.y - inst.y };
   } else if (kabelEl) {
-    S.drag = { ...basis, art: 'klick', auswahl: { art: 'kabel', id: kabelEl.dataset.kabel } };
+    const v = S.plan.verbindungen.find((x) => x.uid === kabelEl.dataset.kabel);
+    S.drag = { ...basis, art: 'segment', v, seg: Number(t.dataset.seg ?? 0) };
   } else if (gruppeEl && t.dataset.griff) {
     const g = S.plan.gruppen.find((x) => x.uid === gruppeEl.dataset.gruppe);
     S.drag = { ...basis, art: 'groesse', gruppe: g, b0: g.b, h0: g.h, w0: w };
@@ -901,6 +972,10 @@ document.addEventListener('pointermove', (ev) => {
       document.body.appendChild(d.ghost);
     }
     if (d.art === 'kabel') passendeAnschluesseMarkieren(d.von);
+    if (d.art === 'segment') {
+      d.seg = routeVorbereiten(d.v, d.seg);
+      S.auswahl = { art: 'kabel', id: d.v.uid };
+    }
   }
 
   const w = weltPunkt(ev.clientX, ev.clientY);
@@ -929,7 +1004,14 @@ document.addEventListener('pointermove', (ev) => {
     case 'kabel': {
       const a = portPos(instanz(d.von.uid), d.von.port);
       const typ = portVon(instanz(d.von.uid), d.von.port).typ;
-      $('#ebene-temp').innerHTML = `<path class="kabel-temp" stroke="${farbe(typ)}" d="${kabelPfad(a, { x: w.x, y: w.y, dir: w.x >= a.x ? -1 : 1 })}"/>`;
+      $('#ebene-temp').innerHTML = `<path class="kabel-temp" stroke="${farbe(typ)}" d="${pfadAus(autoPunkte(a, { x: w.x, y: w.y, dir: w.x >= a.x ? -1 : 1 }))}"/>`;
+      break;
+    }
+    case 'segment': {
+      // Waagerechte Abschnitte nach oben/unten, senkrechte nach links/rechts verschieben
+      const p = d.v.route[d.seg - 1], q = d.v.route[d.seg];
+      if (d.seg % 2) { p[0] = q[0] = rastern(w.x); } else { p[1] = q[1] = rastern(w.y); }
+      renderKabel();
       break;
     }
     case 'pan':
@@ -952,7 +1034,7 @@ document.addEventListener('pointerup', (ev) => {
     // Klick ohne Ziehen → Auswahl
     if (d.art === 'geraet') S.auswahl = { art: 'geraet', id: d.inst.uid };
     else if (d.art === 'kabel') S.auswahl = { art: 'geraet', id: d.von.uid };
-    else if (d.art === 'klick') S.auswahl = d.auswahl;
+    else if (d.art === 'segment') S.auswahl = { art: 'kabel', id: d.v.uid };
     else if (d.art === 'gruppe' || d.art === 'groesse') S.auswahl = { art: 'gruppe', id: d.gruppe.uid };
     else if (d.art === 'bib') S.auswahl = { art: 'bib', id: d.geraetId };
     else if (d.art === 'pan') S.auswahl = null;
@@ -990,6 +1072,10 @@ document.addEventListener('pointerup', (ev) => {
     case 'groesse':
       aenderung();
       break;
+    case 'segment':
+      routeAufraeumen(d.v);
+      aenderung();
+      break;
     case 'pan':
       speichern();
       break;
@@ -1024,6 +1110,10 @@ $('#info').addEventListener('input', (ev) => {
 $('#info').addEventListener('change', () => renderInfo());   // Port-Tabelle mit neuer Bezeichnung
 $('#info').addEventListener('click', (ev) => {
   if (ev.target.closest('[data-aktion="loeschen"]')) auswahlLoeschen();
+  if (ev.target.closest('[data-aktion="route-reset"]')) {
+    const v = S.plan.verbindungen.find((x) => x.uid === S.auswahl?.id);
+    if (v) { delete v.route; aenderung(); }
+  }
 });
 
 $('#btn-gruppe').addEventListener('click', () => {
