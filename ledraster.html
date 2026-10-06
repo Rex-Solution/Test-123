@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED-Raster-Generator</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel2: #f1f3f5;
+    --line: #d5d9de;
+    --text: #1f2328;
+    --muted: #68717b;
+    --accent: #1c7ed6;
+    --ok: #2f9e44;
+    --bad: #e03131;
+    --warn: #b7791f;
+    --warn-bg: #fff3bf;
+    --buehne: #2b2f33;
+    --sel: #ffd43b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "kopf kopf kopf" "links flaeche rechts";
+    overflow: hidden;
+  }
+
+  header {
+    grid-area: kopf;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0 10px 0 0; }
+  header .spacer { flex: 1; }
+  .trenner { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+  #meldung { font-size: 13px; color: var(--muted); min-height: 1em; }
+  #meldung.bad { color: var(--bad); }
+  #meldung.ok { color: var(--ok); }
+
+  button, select, input {
+    font: inherit; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primaer { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primaer:hover { filter: brightness(1.1); color: #fff; }
+  button.gefahr:hover { border-color: var(--bad); color: var(--bad); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:invalid { border-color: var(--bad); }
+
+  aside { background: var(--panel); overflow-y: auto; padding: 12px; }
+  #links { grid-area: links; border-right: 1px solid var(--line); }
+  #rechts { grid-area: rechts; border-left: 1px solid var(--line); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .hinweis { font-size: 12px; color: var(--muted); }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: var(--line); color: var(--muted); white-space: nowrap; }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+
+  .formgitter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+  .formgitter label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .formgitter label.breit { grid-column: 1 / -1; }
+  .formgitter label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
+  .formgitter input:not([type="checkbox"]), .formgitter select { width: 100%; min-width: 0; }
+  .knopfzeile { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .knopfzeile button { flex: 1; }
+
+  .info-block { background: var(--panel2); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .info-block h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .info-block h3 .farbe { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .werte { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .werte b { color: var(--text); font-weight: 600; }
+  .warnung { font-size: 12px; color: var(--warn); margin-top: 6px; }
+
+  #screen-liste { display: flex; flex-direction: column; gap: 4px; }
+  .screen-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 6px 8px; text-align: left;
+    background: var(--panel2); border: 1px solid transparent; border-radius: 6px;
+  }
+  .screen-item.sel { border-color: var(--accent); background: #e7f1fb; }
+  .screen-item .farbe { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .screen-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leer { padding: 14px 10px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+
+  #flaeche { grid-area: flaeche; position: relative; overflow: hidden; background: var(--buehne); }
+  #scroller { position: absolute; inset: 0; overflow: auto; }
+  #buehne { position: relative; padding: 24px; min-width: 100%; min-height: 100%; display: grid; place-items: center; }
+  #vorschau { display: block; image-rendering: pixelated; box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 8px 30px rgba(0,0,0,.4); cursor: default; touch-action: none; }
+  #vorschau.greifen { cursor: grab; }
+  #vorschau.ziehen { cursor: grabbing; }
+  #auswahl { position: absolute; pointer-events: none; outline: 2px dashed var(--sel); outline-offset: 0; display: none; }
+  #zoomanzeige { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; pointer-events: none; }
+
+  @media (max-width: 1000px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 55vh auto;
+      grid-template-areas: "kopf" "links" "flaeche" "rechts";
+      overflow: auto; height: auto;
+    }
+    #links { border-right: 0; border-bottom: 1px solid var(--line); }
+    #rechts { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LED-Raster-Generator</h1>
+  <button id="btn-neu" title="Standard-Raster laden (verwirft die aktuelle Leinwand)">Neu</button>
+  <button id="btn-laden" title="Projekt (.ledraster.json) öffnen">Öffnen …</button>
+  <button id="btn-speichern" title="Projekt als .ledraster.json speichern">Speichern</button>
+  <input id="datei" type="file" accept=".json,application/json" hidden>
+  <span class="trenner"></span>
+  <button id="btn-zoom-aus" title="Verkleinern (Strg + Mausrad)">−</button>
+  <button id="btn-zoom-ein" title="Vergrößern (Strg + Mausrad)">+</button>
+  <button id="btn-einpassen" title="Leinwand einpassen">Einpassen</button>
+  <button id="btn-1zu1" title="1 Pixel = 1 Bildschirmpixel">1:1</button>
+  <span id="meldung" role="status"></span>
+  <span class="spacer"></span>
+  <button id="btn-png" title="Gesamte Leinwand als PNG in Originalauflösung">PNG exportieren</button>
+  <button id="btn-live" class="primaer" title="Ausgabefenster mit 1:1-Testbild und wandernden Cursorn öffnen">▶ Live-Ausgabe</button>
+</header>
+
+<aside id="links">
+  <h2>Leinwand (Ausgang)</h2>
+  <div class="formgitter">
+    <label class="breit">Vorlage
+      <select id="lw-vorlage">
+        <option value="">– eigene Größe –</option>
+        <option value="1280x720">HD 720p · 1280 × 720</option>
+        <option value="1920x1080">Full HD · 1920 × 1080</option>
+        <option value="1920x1200">WUXGA · 1920 × 1200</option>
+        <option value="2560x1440">QHD · 2560 × 1440</option>
+        <option value="3840x2160">UHD · 3840 × 2160</option>
+        <option value="4096x2160">DCI 4K · 4096 × 2160</option>
+        <option value="7680x1080">4 × HD nebeneinander · 7680 × 1080</option>
+        <option value="7680x4320">8K · 7680 × 4320</option>
+      </select>
+    </label>
+    <label>Breite (px)<input id="lw-b" type="number" min="16" max="16384" step="1" required></label>
+    <label>Höhe (px)<input id="lw-h" type="number" min="16" max="16384" step="1" required></label>
+    <label class="breit">Projektname<input id="lw-name" placeholder="z.B. Halle 3 · Bühnenwand"></label>
+  </div>
+  <p class="werte" id="lw-werte"></p>
+
+  <h2>LED-Wände</h2>
+  <div id="screen-liste"></div>
+  <div class="knopfzeile">
+    <button id="btn-screen-neu">+ Wand</button>
+    <button id="btn-screen-dup" title="Gewählte Wand duplizieren und rechts daneben setzen">Duplizieren</button>
+  </div>
+  <p class="hinweis">
+    Wand in der Vorschau anklicken und ziehen. Sie rastet an Leinwandrand und
+    Nachbarwänden ein (<kbd>Alt</kbd> gedrückt: frei).<br>
+    Pfeiltasten: 1 px, mit <kbd>Shift</kbd>: eine Kachel. <kbd>Entf</kbd>: löschen.
+  </p>
+
+  <h2>Standard</h2>
+  <div class="knopfzeile">
+    <button id="btn-std-setzen" title="Aktuelle Wände und Einstellungen als Standard für „Neu“ speichern">Als Standard</button>
+    <button id="btn-std-reset" class="gefahr" title="Gespeicherten Standard löschen">Zurücksetzen</button>
+  </div>
+</aside>
+
+<main id="flaeche">
+  <div id="scroller">
+    <div id="buehne">
+      <canvas id="vorschau" width="1920" height="1080" aria-label="Vorschau der Leinwand"></canvas>
+      <div id="auswahl"></div>
+    </div>
+  </div>
+  <div id="zoomanzeige"></div>
+</main>
+
+<aside id="rechts">
+  <div id="eigenschaften"></div>
+
+  <h2>Darstellung</h2>
+  <div class="formgitter">
+    <label>Palette<select data-opt="palette"></select></label>
+    <label>Farbmodus
+      <select data-opt="farbmodus">
+        <option value="schach">Schachbrett je Wand</option>
+        <option value="bunt">Jede Kachel anders</option>
+        <option value="spalten">Nach Spalten</option>
+        <option value="zeilen">Nach Zeilen</option>
+      </select>
+    </label>
+    <label>Beschriftung
+      <select data-opt="beschriftung">
+        <option value="sz">Spalte.Zeile (3.2)</option>
+        <option value="bz">Buchstabe+Zeile (C2)</option>
+        <option value="nr">Laufende Nummer</option>
+        <option value="px">Pixel-Position</option>
+        <option value="keine">keine</option>
+      </select>
+    </label>
+    <label>Nummerierung
+      <select data-opt="zaehlung">
+        <option value="oben">ab oben links</option>
+        <option value="unten">ab unten links</option>
+      </select>
+    </label>
+    <label>Linienbreite (px)<input data-opt="linie" type="number" min="0" max="20" step="1"></label>
+    <label>Linienfarbe
+      <select data-opt="linienfarbe">
+        <option value="#ffffff">Weiß</option>
+        <option value="#000000">Schwarz</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" data-opt="maske"> Leinwand-Maske</label>
+    <label class="check"><input type="checkbox" data-opt="marker"> Versatz-Marker</label>
+    <label class="check"><input type="checkbox" data-opt="info"> Wand-Info</label>
+    <label class="check"><input type="checkbox" data-opt="kreis"> Kreis</label>
+    <label class="check"><input type="checkbox" data-opt="kreuz"> Mittelkreuz</label>
+    <label class="check"><input type="checkbox" data-opt="diagonalen"> Diagonalen</label>
+  </div>
+  <p class="hinweis">Maske aus: ungenutzte Leinwand wird schraffiert statt schwarz.</p>
+
+  <h2>Live-Cursor</h2>
+  <div class="formgitter">
+    <label class="check breit"><input type="checkbox" data-opt="cursor.an"> Wandernde Cursor</label>
+    <label>Richtung
+      <select data-opt="cursor.richtung">
+        <option value="beide">waagrecht + senkrecht</option>
+        <option value="x">nur senkrechte Linie →</option>
+        <option value="y">nur waagrechte Linie ↓</option>
+      </select>
+    </label>
+    <label>Bereich
+      <select data-opt="cursor.bereich">
+        <option value="wand">je Wand</option>
+        <option value="leinwand">ganze Leinwand</option>
+      </select>
+    </label>
+    <label>Tempo (px/s)<input data-opt="cursor.tempo" type="number" min="1" max="5000" step="1"></label>
+    <label>Breite (px)<input data-opt="cursor.breite" type="number" min="1" max="64" step="1"></label>
+  </div>
+  <div class="knopfzeile" id="bildschirm-zeile" hidden>
+    <button id="btn-bildschirme" title="Browser fragt einmalig nach Erlaubnis, die angeschlossenen Bildschirme zu sehen">Bildschirme erkennen</button>
+    <select id="bildschirm-wahl" style="flex:1" title="Bildschirm für die Live-Ausgabe" hidden></select>
+  </div>
+
+  <h2>Export</h2>
+  <div class="knopfzeile">
+    <button id="btn-png-wand" title="Nur die gewählte Wand, in ihrer eigenen Auflösung">PNG dieser Wand</button>
+    <button id="btn-png-maske" title="Weiße Wandflächen auf Schwarz">Masken-PNG</button>
+  </div>
+  <div class="knopfzeile">
+    <button id="btn-ae" title="ExtendScript (.jsx) für After Effects: Leinwand-Komposition mit einer Unterkomposition je Wand">After-Effects-Skript</button>
+  </div>
+  <div class="knopfzeile">
+    <button id="btn-csv" title="Koordinaten aller Wände als CSV (Excel, Semikolon)">Slice-Liste CSV</button>
+    <button id="btn-json" title="Koordinaten aller Wände als JSON">Slice-Liste JSON</button>
+  </div>
+</aside>
+
+<script>
+"use strict";
+
+/* ---------- Grunddaten ---------- */
+
+const PALETTEN = {
+  regenbogen: { name: "Regenbogen", farben: ["#d94848", "#e8892b", "#d9c32b", "#4fae3f", "#2b9fb3", "#3f62d1", "#8a4fd1", "#c94a9a"] },
+  pastell:    { name: "Pastell",    farben: ["#f2a7a7", "#f6c99a", "#efe39a", "#b5dfa4", "#9fd6dd", "#a9b9ef", "#c7aaee", "#eba9cf"] },
+  neon:       { name: "Neon",       farben: ["#ff2d6f", "#ff9f1c", "#e8ff2d", "#2dff7a", "#2de1ff", "#2d6bff", "#b02dff"] },
+  erde:       { name: "Erdtöne",    farben: ["#8c5a3c", "#b5833f", "#7a8450", "#4f6f52", "#a65f4a", "#6b5b4b"] },
+  blau:       { name: "Blautöne",   farben: ["#1b3a6b", "#245a9e", "#2f7fc9", "#4fa3e0", "#7fc4ef", "#1f6f8b"] },
+  primaer:    { name: "Rot / Grün / Blau", farben: ["#ff0000", "#00ff00", "#0000ff"] },
+  grau:       { name: "Graustufen", farben: ["#3a3a3a", "#6a6a6a", "#9a9a9a", "#cacaca"] },
+  kontrast:   { name: "Schwarz / Weiß", farben: ["#ffffff", "#000000"] },
+};
+
+const SPEICHER_STANDARD = "rex-ledraster-standard";
+const SPEICHER_AKTUELL = "rex-ledraster-aktuell";
+const MAX_SEITE = 16384;
+const MAX_FLAECHE = 120e6; // Pixel – darüber werden Browser-Canvas unzuverlässig
+
+function standardOptionen() {
+  return {
+    palette: "regenbogen", farbmodus: "schach", beschriftung: "sz", zaehlung: "oben",
+    linie: 2, linienfarbe: "#ffffff",
+    maske: true, marker: true, info: true, kreis: true, kreuz: true, diagonalen: false,
+    cursor: { an: true, richtung: "beide", bereich: "wand", tempo: 240, breite: 4 },
+  };
+}
+
+function eingebauterStandard() {
+  return {
+    name: "",
+    leinwand: { b: 1920, h: 1080 },
+    optionen: standardOptionen(),
+    waende: [neueWand({ name: "Wand 1", x: 0, y: 0, kb: 128, kh: 128, spalten: 10, zeilen: 6, farbe: 0 })],
+  };
+}
+
+let uidZaehler = 1;
+function neueUid() { return "w" + Date.now().toString(36) + (uidZaehler++); }
+
+function neueWand(w = {}) {
+  return {
+    uid: w.uid || neueUid(),
+    name: w.name ?? "Wand",
+    x: zahl(w.x, 0), y: zahl(w.y, 0),
+    kb: zahl(w.kb, 128, 1), kh: zahl(w.kh, 128, 1),
+    spalten: zahl(w.spalten, 4, 0), zeilen: zahl(w.zeilen, 3, 0),
+    halbeZeile: ["keine", "oben", "unten"].includes(w.halbeZeile) ? w.halbeZeile : "keine",
+    halbeSpalte: ["keine", "links", "rechts"].includes(w.halbeSpalte) ? w.halbeSpalte : "keine",
+    farbe: zahl(w.farbe, 0, 0),
+  };
+}
+
+function zahl(v, std, min = -Infinity, max = Infinity) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : std;
+}
+
+/* Bringt geladene Daten (Datei, localStorage) in eine gültige Form. */
+function normalisiere(roh) {
+  const p = roh && roh.projekt ? roh.projekt : roh;
+  if (!p || typeof p !== "object") throw new Error("Kein LED-Raster-Projekt");
+  const o = standardOptionen();
+  const ro = p.optionen || {};
+  for (const k of Object.keys(o)) if (k !== "cursor" && ro[k] !== undefined && typeof ro[k] === typeof o[k]) o[k] = ro[k];
+  if (ro.cursor) for (const k of Object.keys(o.cursor)) if (ro.cursor[k] !== undefined && typeof ro.cursor[k] === typeof o.cursor[k]) o.cursor[k] = ro.cursor[k];
+  if (!PALETTEN[o.palette]) o.palette = "regenbogen";
+  return {
+    name: typeof p.name === "string" ? p.name : "",
+    leinwand: {
+      b: zahl(p.leinwand?.b, 1920, 16, MAX_SEITE),
+      h: zahl(p.leinwand?.h, 1080, 16, MAX_SEITE),
+    },
+    optionen: o,
+    waende: Array.isArray(p.waende) ? p.waende.map(neueWand) : [],
+  };
+}
+
+/* ---------- Geometrie ---------- */
+
+/* Liefert Spalten/Zeilen einer Wand inklusive halber Spalte/Zeile. */
+function achsen(anzahl, groesse, halb, vorne) {
+  // vorne: halbe Kachel steht am Anfang (links/oben)
+  const halbeGroesse = Math.max(1, Math.floor(groesse / 2));
+  const liste = [];
+  let pos = 0;
+  if (halb && vorne) { liste.push({ pos, len: halbeGroesse, halb: true }); pos += halbeGroesse; }
+  for (let i = 0; i < anzahl; i++) { liste.push({ pos, len: groesse, halb: false }); pos += groesse; }
+  if (halb && !vorne) { liste.push({ pos, len: halbeGroesse, halb: true }); pos += halbeGroesse; }
+  return { liste, summe: pos };
+}
+
+function geometrie(w) {
+  const sp = achsen(w.spalten, w.kb, w.halbeSpalte !== "keine", w.halbeSpalte === "links");
+  const ze = achsen(w.zeilen, w.kh, w.halbeZeile !== "keine", w.halbeZeile === "oben");
+  return { spalten: sp.liste, zeilen: ze.liste, b: sp.summe, h: ze.summe };
+}
+
+function rechteck(w) { const g = geometrie(w); return { x: w.x, y: w.y, b: g.b, h: g.h }; }
+
+function schneiden(a, b) { return a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h; }
+
+function warnungen(w) {
+  const r = rechteck(w);
+  const lw = projekt.leinwand;
+  const liste = [];
+  if (r.b === 0 || r.h === 0) liste.push("Wand hat keine Fläche");
+  else if (r.x < 0 || r.y < 0 || r.x + r.b > lw.b || r.y + r.h > lw.h) {
+    liste.push(r.x >= lw.b || r.y >= lw.h || r.x + r.b <= 0 || r.y + r.h <= 0 ? "liegt komplett außerhalb der Leinwand" : "ragt über die Leinwand hinaus");
+  }
+  for (const andere of projekt.waende) {
+    if (andere === w) continue;
+    const ra = rechteck(andere);
+    if (r.b && r.h && ra.b && ra.h && schneiden(r, ra)) liste.push("überlappt „" + (andere.name || "ohne Namen") + "“");
+  }
+  return liste;
+}
+
+/* ---------- Farben ---------- */
+
+function hexZuRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbZuHex(r, g, b) { return "#" + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join(""); }
+function abdunkeln(hex, f) {
+  const [r, g, b] = hexZuRgb(hex);
+  // Bei sehr dunklen Farben aufhellen, damit das Schachbrett sichtbar bleibt
+  const l = helligkeit(hex);
+  if (l < 0.18) return rgbZuHex(r + (255 - r) * f * 0.6, g + (255 - g) * f * 0.6, b + (255 - b) * f * 0.6);
+  return rgbZuHex(r * (1 - f), g * (1 - f), b * (1 - f));
+}
+function helligkeit(hex) {
+  const [r, g, b] = hexZuRgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function textFarbe(hex) { return helligkeit(hex) > 0.35 ? "#000000" : "#ffffff"; }
+
+function wandFarbe(w) {
+  const f = PALETTEN[projekt.optionen.palette].farben;
+  return f[w.farbe % f.length];
+}
+
+function kachelFarbe(w, c, r, spaltenAnzahl) {
+  const o = projekt.optionen;
+  const f = PALETTEN[o.palette].farben;
+  const n = f.length;
+  const basis = w.farbe;
+  const schach = (c + r) % 2 === 1;
+  switch (o.farbmodus) {
+    case "bunt": {
+      // Nachbarn (rechts/unten) bekommen nie dieselbe Farbe, solange n >= 3
+      const i = n >= 3 ? (c + r * 2 + basis) % n : (c + r + basis) % n;
+      return f[i];
+    }
+    case "spalten": { const b = f[(c + basis) % n]; return r % 2 ? abdunkeln(b, 0.3) : b; }
+    case "zeilen":  { const b = f[(r + basis) % n]; return c % 2 ? abdunkeln(b, 0.3) : b; }
+    default: {
+      if (n === 2 && o.palette === "kontrast") return f[(c + r + basis) % 2];
+      const b = f[basis % n];
+      return schach ? abdunkeln(b, 0.35) : b;
+    }
+  }
+}
+
+/* ---------- Beschriftung ---------- */
+
+function spaltenBuchstabe(i) {
+  let s = "";
+  i += 1;
+  while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+function kachelText(w, g, c, r, x, y) {
+  const o = projekt.optionen;
+  const zeile = o.zaehlung === "unten" ? g.zeilen.length - 1 - r : r;
+  switch (o.beschriftung) {
+    case "sz": return (c + 1) + "." + (zeile + 1);
+    case "bz": return spaltenBuchstabe(c) + (zeile + 1);
+    case "nr": return String(zeile * g.spalten.length + c + 1);
+    case "px": return (w.x + x) + "," + (w.y + y);
+    default: return "";
+  }
+}
+
+/* ---------- Zeichnen ---------- */
+
+let schraffur = null;
+function schraffurMuster(ctx) {
+  if (!schraffur) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 16;
+    const k = c.getContext("2d");
+    k.fillStyle = "#141618"; k.fillRect(0, 0, 16, 16);
+    k.strokeStyle = "#2a2e33"; k.lineWidth = 3;
+    k.beginPath(); k.moveTo(-4, 20); k.lineTo(20, -4); k.moveTo(-4, 4); k.lineTo(4, -4); k.moveTo(12, 20); k.lineTo(20, 12); k.stroke();
+    schraffur = c;
+  }
+  return ctx.createPattern(schraffur, "repeat");
+}
+
+/* Rahmen innen an einem Rechteck – pixelgenau ohne Kantenglättung */
+function rahmen(ctx, x, y, b, h, d) {
+  if (d <= 0 || b <= 0 || h <= 0) return;
+  d = Math.min(d, Math.floor(b / 2), Math.floor(h / 2)) || 1;
+  ctx.fillRect(x, y, b, d);
+  ctx.fillRect(x, y + h - d, b, d);
+  ctx.fillRect(x, y + d, d, h - 2 * d);
+  ctx.fillRect(x + b - d, y + d, d, h - 2 * d);
+}
+
+function zeichneWand(ctx, w) {
+  const o = projekt.optionen;
+  const g = geometrie(w);
+  if (!g.b || !g.h) return;
+  const linie = Math.max(0, o.linie | 0);
+
+  ctx.save();
+  ctx.translate(w.x, w.y);
+  ctx.beginPath(); ctx.rect(0, 0, g.b, g.h); ctx.clip();
+
+  // Kacheln
+  const kleinste = Math.min(w.kb, w.kh);
+  const schrift = Math.max(8, Math.min(120, Math.round(kleinste * 0.2)));
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  g.zeilen.forEach((ze, r) => {
+    g.spalten.forEach((sp, c) => {
+      const farbe = kachelFarbe(w, c, r, g.spalten.length);
+      ctx.fillStyle = farbe;
+      ctx.fillRect(sp.pos, ze.pos, sp.len, ze.len);
+      if (o.diagonalen) {
+        ctx.strokeStyle = textFarbe(farbe) === "#000000" ? "rgba(0,0,0,.35)" : "rgba(255,255,255,.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sp.pos, ze.pos); ctx.lineTo(sp.pos + sp.len, ze.pos + ze.len);
+        ctx.moveTo(sp.pos + sp.len, ze.pos); ctx.lineTo(sp.pos, ze.pos + ze.len);
+        ctx.stroke();
+      }
+      const text = kachelText(w, g, c, r, sp.pos, ze.pos);
+      if (text) {
+        const fs = Math.min(schrift, Math.floor(Math.min(sp.len, ze.len) * 0.45));
+        if (fs >= 6) {
+          ctx.font = `700 ${fs}px system-ui, "Segoe UI", sans-serif`;
+          const breite = ctx.measureText(text).width;
+          if (breite < sp.len - 4) {
+            ctx.fillStyle = textFarbe(farbe);
+            // erste Kachel: Text tiefer setzen, damit der Versatz-Marker ihn nicht verdeckt
+            const tief = o.marker && c === 0 && r === 0 ? 0.72 : 0.5;
+            ctx.fillText(text, sp.pos + sp.len / 2, ze.pos + ze.len * tief + 1);
+          }
+        }
+      }
+    });
+  });
+
+  // Kachelrahmen
+  if (linie > 0) {
+    ctx.fillStyle = o.linienfarbe;
+    for (const ze of g.zeilen) for (const sp of g.spalten) rahmen(ctx, sp.pos, ze.pos, sp.len, ze.len, linie);
+  }
+
+  // Kreis und Mittelkreuz über die ganze Wand
+  const strich = Math.max(2, linie || 2);
+  if (o.kreuz) {
+    ctx.fillStyle = o.linienfarbe;
+    ctx.fillRect(Math.floor(g.b / 2 - strich / 2), 0, strich, g.h);
+    ctx.fillRect(0, Math.floor(g.h / 2 - strich / 2), g.b, strich);
+  }
+  if (o.kreis) {
+    ctx.strokeStyle = o.linienfarbe; ctx.lineWidth = strich;
+    ctx.beginPath();
+    ctx.arc(g.b / 2, g.h / 2, Math.max(1, Math.min(g.b, g.h) / 2 - strich / 2), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Versatz-Marker: Eckwinkel + Koordinaten oben links
+  if (o.marker) {
+    const len = Math.max(12, Math.min(80, Math.round(Math.min(g.b, g.h) * 0.12)));
+    const d = Math.max(3, Math.round(len / 8));
+    ctx.fillStyle = "#ffffff";
+    const ecken = [[0, 0, 1, 1], [g.b, 0, -1, 1], [0, g.h, 1, -1], [g.b, g.h, -1, -1]];
+    for (const [ex, ey, sx, sy] of ecken) {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(sx > 0 ? ex : ex - len - d, sy > 0 ? ey : ey - d * 2, len + d, d * 2);
+      ctx.fillRect(sx > 0 ? ex : ex - d * 2, sy > 0 ? ey : ey - len - d, d * 2, len + d);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(sx > 0 ? ex : ex - len, sy > 0 ? ey : ey - d, len, d);
+      ctx.fillRect(sx > 0 ? ex : ex - d, sy > 0 ? ey : ey - len, d, len);
+    }
+    const fs = Math.max(10, Math.min(28, Math.round(Math.min(g.b, g.h) * 0.045)));
+    ctx.font = `700 ${fs}px ui-monospace, Consolas, monospace`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    const t = `X ${w.x}  Y ${w.y}`;
+    const tb = ctx.measureText(t).width;
+    ctx.fillStyle = "rgba(0,0,0,.75)";
+    ctx.fillRect(d * 2 + 2, d * 2 + 2, tb + fs * 0.6, fs * 1.4);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(t, d * 2 + 2 + fs * 0.3, d * 2 + 2 + fs * 0.2);
+  }
+
+  // Wand-Info in der Mitte
+  if (o.info) {
+    const zeilen = [
+      w.name || "Wand",
+      `${g.b} × ${g.h} px`,
+      `${w.spalten}${w.halbeSpalte !== "keine" ? "½" : ""} × ${w.zeilen}${w.halbeZeile !== "keine" ? "½" : ""} Kacheln à ${w.kb} × ${w.kh}`,
+    ];
+    const fs = Math.max(10, Math.min(48, Math.round(Math.min(g.b / 16, g.h / 9))));
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const breiten = zeilen.map((z, i) => { ctx.font = `${i === 0 ? 700 : 500} ${i === 0 ? fs : Math.round(fs * 0.7)}px system-ui, "Segoe UI", sans-serif`; return ctx.measureText(z).width; });
+    const bb = Math.max(...breiten) + fs * 1.2;
+    const bh = fs * 1.2 + fs * 0.9 * 2 + fs * 0.6;
+    if (bb < g.b * 0.95 && bh < g.h * 0.9) {
+      ctx.fillStyle = "rgba(0,0,0,.72)";
+      ctx.fillRect(Math.round(g.b / 2 - bb / 2), Math.round(g.h / 2 - bh / 2), Math.round(bb), Math.round(bh));
+      ctx.fillStyle = "#ffffff";
+      let y = g.h / 2 - bh / 2 + fs * 0.3 + fs * 0.6;
+      zeilen.forEach((z, i) => {
+        ctx.font = `${i === 0 ? 700 : 500} ${i === 0 ? fs : Math.round(fs * 0.7)}px system-ui, "Segoe UI", sans-serif`;
+        ctx.fillText(z, g.b / 2, y);
+        y += i === 0 ? fs * 1.05 : fs * 0.9;
+      });
+    }
+  }
+
+  ctx.restore();
+}
+
+/* Zeichnet die ganze Leinwand (ohne Cursor). */
+function zeichneLeinwand(ctx) {
+  const lw = projekt.leinwand;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  if (projekt.optionen.maske) { ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, lw.b, lw.h); }
+  else { ctx.fillStyle = schraffurMuster(ctx); ctx.fillRect(0, 0, lw.b, lw.h); }
+  for (const w of projekt.waende) zeichneWand(ctx, w);
+  ctx.restore();
+}
+
+/* Wandernde Cursor für die Live-Ausgabe; t in Sekunden. */
+function zeichneCursor(ctx, t) {
+  const c = projekt.optionen.cursor;
+  if (!c.an) return;
+  const d = Math.max(1, c.breite | 0);
+  const bereiche = c.bereich === "leinwand"
+    ? [{ x: 0, y: 0, b: projekt.leinwand.b, h: projekt.leinwand.h }]
+    : projekt.waende.map(rechteck).filter(r => r.b > 0 && r.h > 0);
+  for (const r of bereiche) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(r.x, r.y, r.b, r.h); ctx.clip();
+    if (c.richtung !== "y") {
+      const x = r.x + Math.floor((t * c.tempo) % (r.b + d)) - d;
+      ctx.fillStyle = "#000000"; ctx.fillRect(x - 1, r.y, d + 2, r.h);
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(x, r.y, d, r.h);
+    }
+    if (c.richtung !== "x") {
+      const y = r.y + Math.floor((t * c.tempo) % (r.h + d)) - d;
+      ctx.fillStyle = "#000000"; ctx.fillRect(r.x, y - 1, r.b, d + 2);
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(r.x, y, r.b, d);
+    }
+    ctx.restore();
+  }
+}
+
+/* ---------- Zustand ---------- */
+
+let projekt = laden();
+let gewaehlt = projekt.waende[0]?.uid || null;
+let zoom = null; // null = einpassen
+
+function laden() {
+  try {
+    const a = localStorage.getItem(SPEICHER_AKTUELL);
+    if (a) return normalisiere(JSON.parse(a));
+  } catch (e) { /* ungültig oder gesperrt → Standard */ }
+  return standard();
+}
+
+function standard() {
+  try {
+    const s = localStorage.getItem(SPEICHER_STANDARD);
+    if (s) return normalisiere(JSON.parse(s));
+  } catch (e) { /* ignorieren */ }
+  return eingebauterStandard();
+}
+
+function sichern() {
+  try { localStorage.setItem(SPEICHER_AKTUELL, JSON.stringify(projekt)); } catch (e) { /* privater Modus */ }
+}
+
+function wand(uid = gewaehlt) { return projekt.waende.find(w => w.uid === uid) || null; }
+
+let aenderungGeplant = false;
+function geaendert(formular = true) {
+  if (formular) baueFormulare();
+  if (aenderungGeplant) return;
+  aenderungGeplant = true;
+  requestAnimationFrame(() => {
+    aenderungGeplant = false;
+    zeichneVorschau();
+    sichern();
+  });
+}
+
+/* ---------- Meldungen ---------- */
+
+let meldungTimer = 0;
+function melde(text, art = "") {
+  const m = document.getElementById("meldung");
+  m.textContent = text; m.className = art;
+  clearTimeout(meldungTimer);
+  meldungTimer = setTimeout(() => { m.textContent = ""; m.className = ""; }, 5000);
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+/* ---------- Vorschau ---------- */
+
+const vorschau = document.getElementById("vorschau");
+const vctx = vorschau.getContext("2d");
+const flaeche = document.getElementById("scroller");
+
+function leinwandGueltig() {
+  const { b, h } = projekt.leinwand;
+  return b * h <= MAX_FLAECHE;
+}
+
+function zeichneVorschau() {
+  const lw = projekt.leinwand;
+  if (!leinwandGueltig()) {
+    melde(`Leinwand ${lw.b} × ${lw.h} ist zu groß für den Browser (max. ${Math.round(MAX_FLAECHE / 1e6)} Mio. Pixel).`, "bad");
+    return;
+  }
+  if (vorschau.width !== lw.b || vorschau.height !== lw.h) { vorschau.width = lw.b; vorschau.height = lw.h; }
+  zeichneLeinwand(vctx);
+  wendeZoomAn();
+  live.neuZeichnen = true;
+}
+
+function einpassZoom() {
+  const lw = projekt.leinwand;
+  const b = flaeche.clientWidth - 48, h = flaeche.clientHeight - 48;
+  return Math.max(0.02, Math.min(b / lw.b, h / lw.h, 4));
+}
+
+function aktuellerZoom() { return zoom ?? einpassZoom(); }
+
+function wendeZoomAn() {
+  const z = aktuellerZoom();
+  vorschau.style.width = Math.round(projekt.leinwand.b * z) + "px";
+  vorschau.style.height = Math.round(projekt.leinwand.h * z) + "px";
+  vorschau.style.imageRendering = z >= 1 ? "pixelated" : "auto";
+  document.getElementById("zoomanzeige").textContent = Math.round(z * 100) + " %" + (zoom === null ? " · eingepasst" : "");
+  zeigeAuswahl();
+}
+
+function zeigeAuswahl() {
+  const rahmenEl = document.getElementById("auswahl");
+  const w = wand();
+  if (!w) { rahmenEl.style.display = "none"; return; }
+  const r = rechteck(w);
+  const z = aktuellerZoom();
+  const vr = vorschau.getBoundingClientRect();
+  const br = document.getElementById("buehne").getBoundingClientRect();
+  rahmenEl.style.display = "block";
+  rahmenEl.style.left = (vr.left - br.left + r.x * z) + "px";
+  rahmenEl.style.top = (vr.top - br.top + r.y * z) + "px";
+  rahmenEl.style.width = Math.max(2, r.b * z) + "px";
+  rahmenEl.style.height = Math.max(2, r.h * z) + "px";
+}
+
+function setzeZoom(z) {
+  zoom = z === null ? null : Math.max(0.02, Math.min(16, z));
+  wendeZoomAn();
+}
+
+document.getElementById("btn-einpassen").onclick = () => setzeZoom(null);
+document.getElementById("btn-1zu1").onclick = () => setzeZoom(1 / (window.devicePixelRatio || 1));
+document.getElementById("btn-zoom-ein").onclick = () => setzeZoom(aktuellerZoom() * 1.25);
+document.getElementById("btn-zoom-aus").onclick = () => setzeZoom(aktuellerZoom() / 1.25);
+flaeche.addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  setzeZoom(aktuellerZoom() * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+}, { passive: false });
+new ResizeObserver(() => { if (zoom === null) wendeZoomAn(); else zeigeAuswahl(); }).observe(flaeche);
+flaeche.addEventListener("scroll", zeigeAuswahl);
+
+/* Maus: Wand wählen und ziehen */
+function leinwandPunkt(e) {
+  const r = vorschau.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * projekt.leinwand.b / r.width, y: (e.clientY - r.top) * projekt.leinwand.h / r.height };
+}
+
+function wandUnter(p) {
+  for (let i = projekt.waende.length - 1; i >= 0; i--) {
+    const r = rechteck(projekt.waende[i]);
+    if (p.x >= r.x && p.x < r.x + r.b && p.y >= r.y && p.y < r.y + r.h) return projekt.waende[i];
+  }
+  return null;
+}
+
+/* Einrasten an Leinwandkanten und Kanten anderer Wände */
+function einrasten(w, x, y) {
+  const r = rechteck(w);
+  const toleranz = 10 / aktuellerZoom();
+  const kantenX = [0, projekt.leinwand.b], kantenY = [0, projekt.leinwand.h];
+  for (const a of projekt.waende) {
+    if (a === w) continue;
+    const ra = rechteck(a);
+    kantenX.push(ra.x, ra.x + ra.b); kantenY.push(ra.y, ra.y + ra.h);
+  }
+  const rasten = (v, laenge, kanten) => {
+    let best = v, abstand = toleranz;
+    for (const k of kanten) {
+      for (const kandidat of [k, k - laenge]) {
+        const d = Math.abs(v - kandidat);
+        if (d < abstand) { abstand = d; best = kandidat; }
+      }
+    }
+    return best;
+  };
+  return { x: rasten(x, r.b, kantenX), y: rasten(y, r.h, kantenY) };
+}
+
+let zug = null;
+vorschau.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  const p = leinwandPunkt(e);
+  const w = wandUnter(p);
+  if (!w) { if (gewaehlt) { gewaehlt = null; baueFormulare(); zeigeAuswahl(); } return; }
+  if (gewaehlt !== w.uid) { gewaehlt = w.uid; baueFormulare(); zeigeAuswahl(); }
+  zug = { uid: w.uid, dx: p.x - w.x, dy: p.y - w.y, bewegt: false };
+  vorschau.setPointerCapture(e.pointerId);
+  vorschau.classList.add("ziehen");
+});
+vorschau.addEventListener("pointermove", e => {
+  const p = leinwandPunkt(e);
+  if (!zug) { vorschau.classList.toggle("greifen", !!wandUnter(p)); return; }
+  const w = wand(zug.uid);
+  if (!w) return;
+  let x = Math.round(p.x - zug.dx), y = Math.round(p.y - zug.dy);
+  if (!e.altKey) ({ x, y } = einrasten(w, x, y));
+  if (x !== w.x || y !== w.y) { w.x = x; w.y = y; zug.bewegt = true; geaendert(false); aktualisiereWerte(); }
+});
+function zugEnde(e) {
+  if (!zug) return;
+  const bewegt = zug.bewegt;
+  zug = null;
+  vorschau.classList.remove("ziehen");
+  if (vorschau.hasPointerCapture?.(e.pointerId)) vorschau.releasePointerCapture(e.pointerId);
+  if (bewegt) baueFormulare();
+}
+vorschau.addEventListener("pointerup", zugEnde);
+vorschau.addEventListener("pointercancel", zugEnde);
+
+document.addEventListener("keydown", e => {
+  const ziel = e.target;
+  if (ziel.matches("input, select, textarea") || e.ctrlKey || e.metaKey) return;
+  const w = wand();
+  if (!w) return;
+  const schritte = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (schritte[e.key]) {
+    e.preventDefault();
+    const [sx, sy] = schritte[e.key];
+    w.x += sx * (e.shiftKey ? w.kb : 1);
+    w.y += sy * (e.shiftKey ? w.kh : 1);
+    geaendert();
+  } else if (e.key === "Delete") {
+    e.preventDefault();
+    wandLoeschen(w);
+  }
+});
+
+/* ---------- Formulare ---------- */
+
+const lwB = document.getElementById("lw-b"), lwH = document.getElementById("lw-h");
+const lwVorlage = document.getElementById("lw-vorlage"), lwName = document.getElementById("lw-name");
+
+function baueLeinwandFormular() {
+  const lw = projekt.leinwand;
+  if (document.activeElement !== lwB) lwB.value = lw.b;
+  if (document.activeElement !== lwH) lwH.value = lw.h;
+  if (document.activeElement !== lwName) lwName.value = projekt.name;
+  const key = lw.b + "x" + lw.h;
+  lwVorlage.value = [...lwVorlage.options].some(o => o.value === key) ? key : "";
+  aktualisiereWerte();
+}
+
+function aktualisiereWerte() {
+  const lw = projekt.leinwand;
+  let belegt = 0;
+  for (const w of projekt.waende) {
+    const r = rechteck(w);
+    const x0 = Math.max(0, r.x), y0 = Math.max(0, r.y);
+    const x1 = Math.min(lw.b, r.x + r.b), y1 = Math.min(lw.h, r.y + r.h);
+    if (x1 > x0 && y1 > y0) belegt += (x1 - x0) * (y1 - y0);
+  }
+  const anteil = Math.min(100, belegt / (lw.b * lw.h) * 100);
+  document.getElementById("lw-werte").innerHTML =
+    `<b>${(lw.b * lw.h / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 2 })}</b> Mio. Pixel · ` +
+    `belegt ca. <b>${anteil.toLocaleString("de-DE", { maximumFractionDigits: 1 })} %</b>`;
+  const ew = document.getElementById("ew-werte");
+  const w = wand();
+  if (ew && w) {
+    const g = geometrie(w);
+    ew.innerHTML = `Größe <b>${g.b} × ${g.h} px</b> · <b>${g.spalten.length * g.zeilen.length}</b> Kacheln<br>` +
+      `Position <b>${w.x}, ${w.y}</b> bis <b>${w.x + g.b - 1}, ${w.y + g.h - 1}</b>`;
+    const ww = document.getElementById("ew-warn");
+    if (ww) ww.innerHTML = warnungen(w).map(t => "⚠ " + esc(t)).join("<br>");
+  }
+}
+
+function setzeLeinwand(b, h) {
+  projekt.leinwand.b = zahl(b, projekt.leinwand.b, 16, MAX_SEITE);
+  projekt.leinwand.h = zahl(h, projekt.leinwand.h, 16, MAX_SEITE);
+  geaendert();
+}
+
+lwVorlage.onchange = () => {
+  if (!lwVorlage.value) return;
+  const [b, h] = lwVorlage.value.split("x");
+  setzeLeinwand(b, h);
+};
+lwB.onchange = () => { if (lwB.checkValidity()) setzeLeinwand(lwB.value, projekt.leinwand.h); else melde("Breite: 16 bis 16384 px", "bad"); };
+lwH.onchange = () => { if (lwH.checkValidity()) setzeLeinwand(projekt.leinwand.b, lwH.value); else melde("Höhe: 16 bis 16384 px", "bad"); };
+lwName.oninput = () => { projekt.name = lwName.value; sichern(); };
+
+function baueListe() {
+  const liste = document.getElementById("screen-liste");
+  if (!projekt.waende.length) {
+    liste.innerHTML = `<div class="leer">Noch keine LED-Wand.<br>Mit „+ Wand“ die erste anlegen.</div>`;
+  } else {
+    liste.innerHTML = projekt.waende.map(w => {
+      const g = geometrie(w);
+      const warn = warnungen(w).length;
+      return `<button class="screen-item${w.uid === gewaehlt ? " sel" : ""}" data-uid="${w.uid}" aria-pressed="${w.uid === gewaehlt}">
+        <span class="farbe" style="background:${wandFarbe(w)}"></span>
+        <span class="name">${esc(w.name || "ohne Namen")}</span>
+        ${warn ? `<span class="badge warn" title="${esc(warnungen(w).join(", "))}">⚠</span>` : ""}
+        <span class="badge">${g.b}×${g.h}</span>
+      </button>`;
+    }).join("");
+  }
+  document.getElementById("btn-screen-dup").disabled = !wand();
+  document.getElementById("btn-png-wand").disabled = !wand();
+}
+
+document.getElementById("screen-liste").addEventListener("click", e => {
+  const b = e.target.closest("[data-uid]");
+  if (!b) return;
+  gewaehlt = b.dataset.uid;
+  baueFormulare();
+  zeigeAuswahl();
+});
+
+const KACHEL_VORLAGEN = [[64, 64], [96, 96], [104, 104], [112, 112], [128, 128], [144, 144], [160, 160], [168, 168], [176, 176], [192, 192], [200, 200], [208, 208], [256, 256], [128, 256], [192, 384], [256, 128]];
+
+function baueEigenschaften() {
+  const el = document.getElementById("eigenschaften");
+  const w = wand();
+  if (!w) {
+    el.innerHTML = `<h2>Wand</h2><div class="leer">Keine Wand gewählt.<br>In der Vorschau oder Liste anklicken.</div>`;
+    return;
+  }
+  const f = PALETTEN[projekt.optionen.palette].farben;
+  const kachelKey = w.kb + "x" + w.kh;
+  el.innerHTML = `
+    <h2>Wand</h2>
+    <div class="info-block">
+      <h3><span class="farbe" style="background:${wandFarbe(w)}"></span>${esc(w.name || "ohne Namen")}</h3>
+      <div class="formgitter">
+        <label class="breit">Name<input data-w="name" value="${esc(w.name)}" maxlength="60"></label>
+        <label class="breit">Kachel-Vorlage
+          <select data-w="vorlage">
+            <option value="">– eigene Größe –</option>
+            ${KACHEL_VORLAGEN.map(([b, h]) => `<option value="${b}x${h}"${kachelKey === b + "x" + h ? " selected" : ""}>${b} × ${h} px</option>`).join("")}
+          </select>
+        </label>
+        <label>Kachel Breite (px)<input data-w="kb" type="number" min="1" max="4096" value="${w.kb}" required></label>
+        <label>Kachel Höhe (px)<input data-w="kh" type="number" min="1" max="4096" value="${w.kh}" required></label>
+        <label>Spalten<input data-w="spalten" type="number" min="0" max="500" value="${w.spalten}" required></label>
+        <label>Zeilen<input data-w="zeilen" type="number" min="0" max="500" value="${w.zeilen}" required></label>
+        <label>Halbe Spalte
+          <select data-w="halbeSpalte">
+            <option value="keine">keine</option><option value="links">links</option><option value="rechts">rechts</option>
+          </select>
+        </label>
+        <label>Halbe Zeile
+          <select data-w="halbeZeile">
+            <option value="keine">keine</option><option value="oben">oben</option><option value="unten">unten</option>
+          </select>
+        </label>
+        <label>Versatz X (px)<input data-w="x" type="number" min="-16384" max="16384" value="${w.x}" required></label>
+        <label>Versatz Y (px)<input data-w="y" type="number" min="-16384" max="16384" value="${w.y}" required></label>
+        <label class="breit">Farbe
+          <select data-w="farbe">
+            ${f.map((h, i) => `<option value="${i}"${w.farbe % f.length === i ? " selected" : ""}>Farbe ${i + 1} · ${h}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <p class="werte" id="ew-werte"></p>
+      <p class="warnung" id="ew-warn"></p>
+      <div class="knopfzeile">
+        <button data-aktion="zentrieren" title="Wand mittig auf die Leinwand setzen">Zentrieren</button>
+        <button data-aktion="loeschen" class="gefahr">Löschen</button>
+      </div>
+    </div>`;
+  el.querySelector('[data-w="halbeSpalte"]').value = w.halbeSpalte;
+  el.querySelector('[data-w="halbeZeile"]').value = w.halbeZeile;
+  aktualisiereWerte();
+}
+
+document.getElementById("eigenschaften").addEventListener("change", e => {
+  const w = wand();
+  const feld = e.target.dataset.w;
+  if (!w || !feld || feld === "name") return;
+  if (feld === "vorlage") {
+    if (!e.target.value) return;
+    const [b, h] = e.target.value.split("x").map(Number);
+    w.kb = b; w.kh = h;
+  } else if (feld === "halbeSpalte" || feld === "halbeZeile") {
+    w[feld] = e.target.value;
+  } else {
+    if (!e.target.checkValidity()) { melde(`Ungültiger Wert: ${e.target.min} bis ${e.target.max}`, "bad"); e.target.reportValidity(); return; }
+    w[feld] = Number(e.target.value);
+  }
+  geaendert();
+});
+document.getElementById("eigenschaften").addEventListener("input", e => {
+  const w = wand();
+  if (!w || e.target.dataset.w !== "name") return;
+  w.name = e.target.value;
+  const h3 = document.querySelector("#eigenschaften h3");
+  h3.lastChild.textContent = w.name || "ohne Namen";
+  baueListe();
+  geaendert(false);
+});
+document.getElementById("eigenschaften").addEventListener("click", e => {
+  const a = e.target.closest("[data-aktion]")?.dataset.aktion;
+  const w = wand();
+  if (!a || !w) return;
+  if (a === "loeschen") wandLoeschen(w);
+  if (a === "zentrieren") {
+    const r = rechteck(w);
+    w.x = Math.floor((projekt.leinwand.b - r.b) / 2);
+    w.y = Math.floor((projekt.leinwand.h - r.h) / 2);
+    geaendert();
+  }
+});
+
+function baueOptionen() {
+  const sel = document.querySelector('[data-opt="palette"]');
+  if (!sel.options.length) sel.innerHTML = Object.entries(PALETTEN).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join("");
+  for (const el of document.querySelectorAll("[data-opt]")) {
+    const v = holeOpt(el.dataset.opt);
+    if (el.type === "checkbox") el.checked = !!v; else if (document.activeElement !== el) el.value = v;
+  }
+}
+function holeOpt(pfad) { return pfad.split(".").reduce((o, k) => o[k], projekt.optionen); }
+function setzeOpt(pfad, v) {
+  const teile = pfad.split(".");
+  const letzter = teile.pop();
+  teile.reduce((o, k) => o[k], projekt.optionen)[letzter] = v;
+}
+document.getElementById("rechts").addEventListener("change", e => {
+  const el = e.target;
+  if (!el.dataset.opt) return;
+  let v;
+  if (el.type === "checkbox") v = el.checked;
+  else if (el.type === "number") {
+    if (!el.checkValidity()) { melde(`Ungültiger Wert: ${el.min} bis ${el.max}`, "bad"); return; }
+    v = Number(el.value);
+  } else v = el.value;
+  setzeOpt(el.dataset.opt, v);
+  geaendert();
+});
+
+function baueFormulare() {
+  if (gewaehlt && !wand()) gewaehlt = null;
+  baueLeinwandFormular();
+  baueListe();
+  baueEigenschaften();
+  baueOptionen();
+  zeigeAuswahl();
+}
+
+/* ---------- Wände anlegen / löschen ---------- */
+
+function freiePosition(r) {
+  // erste Stelle rechts neben oder unter den vorhandenen Wänden
+  const lw = projekt.leinwand;
+  const kandidaten = [{ x: 0, y: 0 }];
+  for (const a of projekt.waende) { const ra = rechteck(a); kandidaten.push({ x: ra.x + ra.b, y: ra.y }, { x: ra.x, y: ra.y + ra.h }); }
+  for (const k of kandidaten) {
+    const neu = { x: k.x, y: k.y, b: r.b, h: r.h };
+    if (k.x + r.b <= lw.b && k.y + r.h <= lw.h && !projekt.waende.some(a => schneiden(neu, rechteck(a)))) return k;
+  }
+  return kandidaten[kandidaten.length - 1];
+}
+
+document.getElementById("btn-screen-neu").onclick = () => {
+  const vorbild = wand();
+  const w = neueWand({
+    name: "Wand " + (projekt.waende.length + 1),
+    kb: vorbild?.kb ?? 128, kh: vorbild?.kh ?? 128, spalten: 4, zeilen: 3,
+    farbe: projekt.waende.length,
+  });
+  Object.assign(w, freiePosition(rechteck(w)));
+  projekt.waende.push(w);
+  gewaehlt = w.uid;
+  geaendert();
+};
+
+document.getElementById("btn-screen-dup").onclick = () => {
+  const v = wand();
+  if (!v) return;
+  const w = neueWand({ ...v, uid: null, name: v.name + " (Kopie)", farbe: v.farbe + 1 });
+  const r = rechteck(v);
+  w.x = v.x + r.b; w.y = v.y;
+  projekt.waende.push(w);
+  gewaehlt = w.uid;
+  geaendert();
+};
+
+function wandLoeschen(w) {
+  if (!confirm(`Wand „${w.name || "ohne Namen"}“ löschen?`)) return;
+  projekt.waende = projekt.waende.filter(a => a !== w);
+  gewaehlt = projekt.waende[projekt.waende.length - 1]?.uid || null;
+  geaendert();
+}
+
+/* ---------- Projekt / Standard ---------- */
+
+function exportDaten() {
+  return { format: "rex-ledraster", version: 1, gespeichert: new Date().toISOString(), projekt };
+}
+
+function dateiname(endung, zusatz = "") {
+  // Nur ASCII: manche Browser verwerfen sonst den Dateinamen und speichern als „download“
+  const ascii = t => String(t).trim()
+    .replace(/[äÄöÖüÜß]/g, c => ({ ä: "ae", Ä: "Ae", ö: "oe", Ö: "Oe", ü: "ue", Ü: "Ue", ß: "ss" }[c]))
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  const basis = ascii(projekt.name) || "ledraster";
+  return basis + (zusatz ? "_" + ascii(zusatz) : "") + endung;
+}
+
+function herunterladen(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function uebernehmen(neu, text) {
+  projekt = neu;
+  gewaehlt = projekt.waende[0]?.uid || null;
+  zoom = null;
+  geaendert();
+  melde(text, "ok");
+}
+
+document.getElementById("btn-speichern").onclick = () => {
+  herunterladen(new Blob([JSON.stringify(exportDaten(), null, 2)], { type: "application/json" }), dateiname(".ledraster.json"));
+  melde("Projekt gespeichert.", "ok");
+};
+document.getElementById("btn-laden").onclick = () => document.getElementById("datei").click();
+document.getElementById("datei").onchange = async e => {
+  const datei = e.target.files[0];
+  e.target.value = "";
+  if (!datei) return;
+  try {
+    const daten = JSON.parse(await datei.text());
+    if (daten.format && daten.format !== "rex-ledraster") throw new Error("Falsches Format: " + daten.format);
+    uebernehmen(normalisiere(daten), `„${datei.name}“ geladen.`);
+  } catch (err) {
+    melde("Datei konnte nicht geladen werden: " + err.message, "bad");
+  }
+};
+document.getElementById("btn-neu").onclick = () => {
+  if (!confirm("Aktuelle Leinwand verwerfen und den Standard laden?")) return;
+  uebernehmen(standard(), "Standard geladen.");
+};
+document.getElementById("btn-std-setzen").onclick = () => {
+  try {
+    localStorage.setItem(SPEICHER_STANDARD, JSON.stringify(projekt));
+    melde("Als Standard gespeichert – wird bei „Neu“ geladen.", "ok");
+  } catch (e) { melde("Standard konnte nicht gespeichert werden (Browser-Speicher gesperrt).", "bad"); }
+};
+document.getElementById("btn-std-reset").onclick = () => {
+  try { localStorage.removeItem(SPEICHER_STANDARD); } catch (e) { /* egal */ }
+  melde("Gespeicherter Standard gelöscht.", "ok");
+};
+
+/* ---------- Export ---------- */
+
+function canvasZuPng(canvas, name) {
+  return new Promise(res => canvas.toBlob(blob => {
+    if (!blob) { melde("PNG konnte nicht erzeugt werden (Bild zu groß?).", "bad"); return res(false); }
+    herunterladen(blob, name);
+    res(true);
+  }, "image/png"));
+}
+
+document.getElementById("btn-png").onclick = async () => {
+  if (!leinwandGueltig()) return melde("Leinwand zu groß für den Export.", "bad");
+  zeichneVorschau();
+  const { b, h } = projekt.leinwand;
+  if (await canvasZuPng(vorschau, dateiname(".png", `${b}x${h}`))) melde(`PNG ${b} × ${h} exportiert.`, "ok");
+};
+
+document.getElementById("btn-png-wand").onclick = async () => {
+  const w = wand();
+  if (!w) return;
+  const g = geometrie(w);
+  if (!g.b || !g.h) return melde("Die Wand hat keine Fläche.", "bad");
+  const c = document.createElement("canvas");
+  c.width = g.b; c.height = g.h;
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(-w.x, -w.y);
+  zeichneWand(ctx, w);
+  if (await canvasZuPng(c, dateiname(".png", `${w.name || "wand"}_${g.b}x${g.h}`))) melde(`PNG „${w.name}“ ${g.b} × ${g.h} exportiert.`, "ok");
+};
+
+document.getElementById("btn-png-maske").onclick = async () => {
+  if (!leinwandGueltig()) return melde("Leinwand zu groß für den Export.", "bad");
+  const { b, h } = projekt.leinwand;
+  const c = document.createElement("canvas");
+  c.width = b; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, b, h);
+  ctx.fillStyle = "#ffffff";
+  for (const w of projekt.waende) { const r = rechteck(w); ctx.fillRect(r.x, r.y, r.b, r.h); }
+  if (await canvasZuPng(c, dateiname(".png", `maske_${b}x${h}`))) melde("Masken-PNG exportiert.", "ok");
+};
+
+function slices() {
+  return projekt.waende.map(w => {
+    const g = geometrie(w);
+    return {
+      name: w.name, x: w.x, y: w.y, breite: g.b, hoehe: g.h,
+      kachelBreite: w.kb, kachelHoehe: w.kh, spalten: w.spalten, zeilen: w.zeilen,
+      halbeSpalte: w.halbeSpalte, halbeZeile: w.halbeZeile,
+    };
+  });
+}
+
+document.getElementById("btn-csv").onclick = () => {
+  const kopf = ["Name", "X", "Y", "Breite", "Höhe", "Kachel Breite", "Kachel Höhe", "Spalten", "Zeilen", "Halbe Spalte", "Halbe Zeile"];
+  const feld = v => { const s = String(v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const zeilen = slices().map(s => [s.name, s.x, s.y, s.breite, s.hoehe, s.kachelBreite, s.kachelHoehe, s.spalten, s.zeilen, s.halbeSpalte, s.halbeZeile].map(feld).join(";"));
+  const text = "﻿" + [`# Leinwand;${projekt.leinwand.b};${projekt.leinwand.h}`, kopf.join(";"), ...zeilen].join("\r\n") + "\r\n";
+  herunterladen(new Blob([text], { type: "text/csv;charset=utf-8" }), dateiname(".csv", "slices"));
+  melde("Slice-Liste (CSV) exportiert.", "ok");
+};
+
+document.getElementById("btn-json").onclick = () => {
+  const daten = { format: "rex-ledraster-slices", version: 1, leinwand: { ...projekt.leinwand }, slices: slices() };
+  herunterladen(new Blob([JSON.stringify(daten, null, 2)], { type: "application/json" }), dateiname(".json", "slices"));
+  melde("Slice-Liste (JSON) exportiert.", "ok");
+};
+
+/* After-Effects-ExtendScript: Leinwand-Komposition mit je einer Unterkomposition pro Wand */
+function aeSkript() {
+  const lw = projekt.leinwand;
+  const js = s => JSON.stringify(String(s));
+  const titel = projekt.name || "LED-Leinwand";
+  const waende = projekt.waende.map(w => {
+    const g = geometrie(w);
+    const [r, gr, b] = hexZuRgb(wandFarbe(w)).map(v => +(v / 255).toFixed(4));
+    return `  { name: ${js(w.name || "Wand")}, x: ${w.x}, y: ${w.y}, b: ${g.b}, h: ${g.h}, farbe: [${r}, ${gr}, ${b}] }`;
+  }).join(",\n");
+  return `// LED-Raster-Generator – After-Effects-Skript
+// Datei > Skripten > Skriptdatei ausführen …
+// Legt einen Ordner mit einer Leinwand-Komposition (${lw.b} × ${lw.h}) und je
+// einer Unterkomposition pro LED-Wand an, exakt an ihrem Versatz platziert.
+(function () {
+  var LEINWAND = { name: ${js(titel)}, b: ${lw.b}, h: ${lw.h} };
+  var WAENDE = [
+${waende}
+  ];
+  var FPS = 25, DAUER = 60;
+  app.beginUndoGroup("LED-Raster anlegen");
+  var ordner = app.project.items.addFolder(LEINWAND.name + " – LED");
+  var haupt = app.project.items.addComp(LEINWAND.name, LEINWAND.b, LEINWAND.h, 1, DAUER, FPS);
+  haupt.parentFolder = ordner;
+  haupt.bgColor = [0, 0, 0];
+  for (var i = WAENDE.length - 1; i >= 0; i--) {
+    var w = WAENDE[i];
+    var comp = app.project.items.addComp(w.name + " (" + w.b + "x" + w.h + ")", w.b, w.h, 1, DAUER, FPS);
+    comp.parentFolder = ordner;
+    var platzhalter = comp.layers.addSolid(w.farbe, "Platzhalter " + w.name, w.b, w.h, 1, DAUER);
+    platzhalter.guideLayer = true;
+    var ebene = haupt.layers.add(comp);
+    ebene.property("Transform").property("Anchor Point").setValue([0, 0]);
+    ebene.property("Transform").property("Position").setValue([w.x, w.y]);
+  }
+  app.endUndoGroup();
+  alert("LED-Raster: " + WAENDE.length + " Wand/Wände angelegt.");
+})();
+`;
+}
+
+document.getElementById("btn-ae").onclick = () => {
+  if (!projekt.waende.length) return melde("Keine Wand vorhanden.", "bad");
+  herunterladen(new Blob(["\ufeff" + aeSkript()], { type: "text/plain;charset=utf-8" }), dateiname(".jsx", "aftereffects"));
+  melde("After-Effects-Skript exportiert.", "ok");
+};
+
+/* ---------- Live-Ausgabe ---------- */
+
+const live = { fenster: null, ctx: null, start: 0, pause: false, pausenZeit: 0, neuZeichnen: true };
+let bildschirme = null;
+
+async function bildschirmeErmitteln() {
+  if (!("getScreenDetails" in window)) return;
+  document.getElementById("bildschirm-zeile").hidden = false;
+  try {
+    const status = await navigator.permissions.query({ name: "window-management" });
+    if (status.state === "denied") return;
+    if (status.state === "granted") await bildschirmListe();
+  } catch (e) { /* API nicht verfügbar */ }
+}
+
+async function bildschirmListe() {
+  bildschirme = await window.getScreenDetails();
+  const sel = document.getElementById("bildschirm-wahl");
+  const fuellen = () => {
+    sel.innerHTML = bildschirme.screens.map((s, i) =>
+      `<option value="${i}"${!s.isPrimary && sel.value === "" ? " selected" : ""}>Ausgabe auf ${esc(s.label || "Bildschirm " + (i + 1))} · ${s.width * (s.devicePixelRatio || 1)} × ${s.height * (s.devicePixelRatio || 1)}${s.isPrimary ? " (Haupt)" : ""}</option>`).join("");
+    sel.hidden = bildschirme.screens.length < 2;
+    document.getElementById("btn-bildschirme").hidden = true;
+    if (bildschirme.screens.length < 2) melde("Nur ein Bildschirm erkannt – Ausgabe öffnet als Fenster.");
+  };
+  bildschirme.addEventListener("screenschange", fuellen);
+  fuellen();
+}
+
+function liveOeffnen() {
+  if (live.fenster && !live.fenster.closed) { live.fenster.focus(); return; }
+  if (!leinwandGueltig()) return melde("Leinwand zu groß für die Live-Ausgabe.", "bad");
+
+  let lage = "";
+  let ziel = null;
+  if (bildschirme && bildschirme.screens.length > 1) {
+    ziel = bildschirme.screens[Number(document.getElementById("bildschirm-wahl").value)] || null;
+    if (ziel) lage = `,left=${ziel.availLeft},top=${ziel.availTop},width=${ziel.availWidth},height=${ziel.availHeight}`;
+  }
+  const f = window.open("", "rex-ledraster-ausgabe", "popup" + (lage || ",width=1280,height=720"));
+  if (!f) return melde("Popup wurde blockiert – bitte Popups für diese Seite erlauben.", "bad");
+
+  f.document.open();
+  f.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>LED-Ausgabe</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  body.verstecken{cursor:none}
+  canvas{position:absolute;left:0;top:0;image-rendering:pixelated}
+  #hilfe{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 14px;border-radius:8px;background:rgba(20,22,25,.9);color:#fff;font:13px/1.5 system-ui,"Segoe UI",sans-serif;transition:opacity .4s}
+  #hilfe.weg{opacity:0;pointer-events:none}
+  kbd{background:#444;border-radius:3px;padding:0 5px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hilfe"><b>LED-Ausgabe</b> – Ausgabe 1:1, oben links beginnend.<br>
+<kbd>F</kbd> / Doppelklick: Vollbild · <kbd>Leertaste</kbd>: Cursor anhalten<br>
+<kbd>E</kbd>: ins Fenster einpassen (nur zur Kontrolle) · <kbd>H</kbd>: Hilfe</div>
+</body></html>`);
+  f.document.close();
+
+  const canvas = f.document.getElementById("c");
+  const hilfe = f.document.getElementById("hilfe");
+  live.fenster = f;
+  live.ctx = canvas.getContext("2d");
+  live.canvas = canvas;
+  live.start = performance.now();
+  live.pause = false;
+  live.einpassen = false;
+  live.neuZeichnen = true;
+
+  let hilfeTimer = 0;
+  const zeigeHilfe = () => {
+    hilfe.classList.remove("weg");
+    f.document.body.classList.remove("verstecken");
+    clearTimeout(hilfeTimer);
+    hilfeTimer = setTimeout(() => { hilfe.classList.add("weg"); f.document.body.classList.add("verstecken"); }, 3500);
+  };
+  const vollbild = () => {
+    if (f.document.fullscreenElement) f.document.exitFullscreen();
+    else f.document.documentElement.requestFullscreen(ziel ? { screen: ziel } : {}).catch(() => {});
+  };
+  f.addEventListener("dblclick", vollbild);
+  f.addEventListener("mousemove", zeigeHilfe);
+  f.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (k === "f") vollbild();
+    else if (k === " ") {
+      e.preventDefault();
+      live.pause = !live.pause;
+      if (live.pause) live.pausenZeit = performance.now();
+      else live.start += performance.now() - live.pausenZeit;
+    }
+    else if (k === "e") { live.einpassen = !live.einpassen; live.neuZeichnen = true; }
+    else if (k === "h") zeigeHilfe();
+  });
+  f.addEventListener("resize", () => { live.neuZeichnen = true; });
+  zeigeHilfe();
+  f.requestAnimationFrame(liveSchleife);
+  melde("Live-Ausgabe geöffnet – Fenster auf den LED-Ausgang ziehen und mit F auf Vollbild.", "ok");
+}
+
+function liveSchleife() {
+  const jetzt = performance.now();
+  const f = live.fenster;
+  if (!f || f.closed) { live.fenster = null; return; }
+  const lw = projekt.leinwand;
+  const c = live.canvas;
+  if (c.width !== lw.b || c.height !== lw.h) { c.width = lw.b; c.height = lw.h; live.neuZeichnen = true; }
+  if (live.neuZeichnen) {
+    if (live.einpassen) {
+      const z = Math.min(f.innerWidth / lw.b, f.innerHeight / lw.h);
+      c.style.width = lw.b * z + "px"; c.style.height = lw.h * z + "px";
+    } else {
+      // 1 Leinwandpixel = 1 Gerätepixel, auch bei Windows-Skalierung
+      const dpr = f.devicePixelRatio || 1;
+      c.style.width = lw.b / dpr + "px"; c.style.height = lw.h / dpr + "px";
+    }
+    live.neuZeichnen = false;
+  }
+  const zeit = ((live.pause ? live.pausenZeit : jetzt) - live.start) / 1000;
+  live.ctx.imageSmoothingEnabled = false;
+  live.ctx.drawImage(vorschau, 0, 0);
+  zeichneCursor(live.ctx, zeit);
+  f.requestAnimationFrame(liveSchleife);
+}
+
+document.getElementById("btn-live").onclick = liveOeffnen;
+document.getElementById("btn-bildschirme").onclick = async () => {
+  try { await bildschirmListe(); } catch (e) { melde("Bildschirme konnten nicht abgefragt werden (Erlaubnis verweigert?).", "bad"); }
+};
+window.addEventListener("beforeunload", () => { if (live.fenster && !live.fenster.closed) live.fenster.close(); });
+
+/* ---------- Start ---------- */
+
+baueFormulare();
+zeichneVorschau();
+bildschirmeErmitteln();
+</script>
+</body>
+</html>
