@@ -1,0 +1,26 @@
+feature,area,priority,original,clone,notes
+Kabinett-Vorlagen mit mm und Pixeln,physik,must,yes,yes,
+Eigene Kabinettmaße,physik,must,yes,yes,
+Physische Größe und Fläche (m²),physik,must,yes,yes,
+Pixelpitch,physik,should,yes,yes,
+Gewicht und Leistung (W/A),physik,should,no,yes,eigene Ergänzung
+Inhalt- und Ausgangsposition getrennt,karten,must,yes,yes,
+Inhalts-Leinwand automatisch oder fest,karten,should,yes,yes,
+Datenwege Schlangenlinie mit Richtung und Startecke,kabel,must,yes,yes,
+Kapazität je Datenport,kabel,must,yes,yes,Original: m² je Port; hier Pixel je Port
+Stromkreise mit Kapazität,kabel,must,yes,yes,Original: m² je Kreis; hier Watt je Kreis
+Ausgewogene zusammenhängende Segmente,kabel,must,yes,yes,
+Zuleitungen und Brücken zählen,kabel,must,yes,yes,
+Kabellängen (Zuleitung),kabel,should,yes,yes,"Zuleitungslänge je Wand; Brücken nur gezählt, ohne Länge"
+Daten-/Strom-Diagramm als PNG,export,must,yes,yes,
+Masken und Karten-PNG je Karte,export,should,yes,yes,
+Bericht als PDF,export,should,yes,yes,Druckansicht A4 quer; PDF über Druckdialog des Browsers
+Kabelliste CSV,export,could,no,yes,eigene Ergänzung
+Rückgängig/Wiederholen,editor,must,yes,yes,
+Ansicht verschieben (Leertaste) und Zoom am Mauszeiger,editor,should,yes,yes,
+Einrasten und Pfeiltasten,editor,should,yes,yes,bereits vorhanden
+Projekt-JSON mit Migration von v1,projekt,must,yes,yes,
+Drehung der Wand im Inhalt,karten,could,yes,no,
+Ausrichten mehrerer Wände,editor,could,yes,no,
+Logo im Bericht,export,could,yes,no,
+Resolume-XML,export,could,yes,no,im Original Beta/ungetestet
