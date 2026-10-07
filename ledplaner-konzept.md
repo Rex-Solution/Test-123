@@ -1,4 +1,4 @@
-# LED-Planer – Konzept & Fahrplan (Stand: Konzeptphase, Runde 2)
+# LED-Planer – Konzept & Fahrplan (Stand: Konzeptphase, 07.10.2026)
 
 Modul im Rex-System zur vollständigen Planung von LED-Wänden: Aufbau, Strom,
 Signal und Ausgabe in einem Projekt. **Dieses Dokument ist reine
@@ -32,7 +32,7 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Bedienung | **Freie Reiter** Aufbau · Strom · Signal · Ausgabe, jeder mit **Ampel** (ok / Warnung / fehlt) |
 | Nutzer | Planung im Büro, Techniker vor Ort, Kunde/Angebot |
 | Wandbau | **Module einzeln per Drag & Drop** (wie NovaStar COEX), **verschiedene Modultypen in einer Wand** (verschiedene Größen und auch verschiedene Pixelpitches), Einrasten **an Nachbarmodulen** (+ feines mm-Raster) |
-| Gemischte Module | Erlaubt im selben Screen. **Ein Datenport/-strang nur mit einem Pixelpitch**; verschiedene Größen mit gleichem Pitch (z.B. 1 × 0,5 m und 0,5 × 0,5 m) dürfen auf denselben Port |
+| Gemischte Module | Erlaubt im selben Screen. **Ein Datenport/-strang nur mit Modulen derselben Serie und derselben Receiving Card** (damit gleicher Pitch); verschiedene Größen dieser Serie (z.B. 1 × 0,5 m und 0,5 × 0,5 m) dürfen auf denselben Port |
 | Position | Je Screen **Höhe und Beschreibung** (z.B. „Bühne Mitte, UK 2,50 m“); **Kabellängen von Hand** |
 | Library LED-Modul | Grunddaten, Mechanik, Daten-/Strom-Grenzen, Grafik, **Receiving Card** |
 | Aufbau | Material **+ Lasten + Riggingplan**; Bauformen gerade, unregelmäßig/Lücken, Kurven/Winkel; 3D später |
@@ -108,7 +108,7 @@ flexiblen JSON-Feld `attribute` – wie beim Signalfluss-Planer.
 
 | Kategorie | Wichtige Eigenschaften |
 | --- | --- |
-| **LED-Modul** | Pixel B×H, Maße mm, Pitch, Gewicht, Leistung max./Ø, Einschaltstrom; **Receiving Card** (Typ/Familie); Anschlüsse Strom/Daten (ein/aus, Steckertyp); max. Module je Strombrücke und je Datenstrang; max. Anzahl geflogen untereinander / gestellt übereinander; Verbindungsart, mögliche Winkel; Grafik vorne/hinten |
+| **LED-Modul** | **Serie**, Pixel B×H, Maße mm, Pitch, Gewicht, Leistung max./Ø, Einschaltstrom; **Receiving Card** (Typ/Familie); Anschlüsse Strom/Daten (ein/aus, Steckertyp); max. Module je Strombrücke und je Datenstrang; max. Anzahl geflogen untereinander / gestellt übereinander; Verbindungsart, mögliche Winkel; Grafik vorne/hinten |
 | **Prozessor** | **unterstützte Receiving Cards**; Eingänge (Anschlussart, max. Auflösung, Bildraten); Ausgangs-Ports (Anzahl, Pixel je Port); Gesamtkapazität; Backup-Fähigkeit; Leistung, HE/Gewicht |
 | **Stagebox** (aktiv) | Eingänge (z.B. Glasfaser), Ausgangs-Ports, Kapazität, **Leistung** (taucht im Strom auf) |
 | **Multicore** (passiv) | Anzahl Adern/Ports, Steckertyp, Längen, Auflösung an der Wand |
@@ -177,8 +177,8 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - Je Prozessor ein **Standort** (Regie/FOH, Bühne, hinter der Wand …).
 - Je Screen: **Stagebox** (aktiv, braucht Strom) oder **Multicore** (passiv, mit Auflösung) oder direkt.
 - Datenwege: **Vorlage** des Programms oder **Pinsel** (Port wählen → Module malen), wie beim Strom.
-- **Regel: ein Port = ein Pixelpitch.** Module verschiedener Größe mit gleichem Pitch dürfen auf denselben Port (z.B. 1 × 0,5 m und 0,5 × 0,5 m). Der Vorschlag bildet Stränge nur innerhalb eines Pitches; der Pinsel überspringt Module mit anderem Pitch (Hinweis). Screens mit mehreren Pitches brauchen mindestens einen Port je Pitch.
-- Offen zur Prüfung: Müssen Module an einem Port zusätzlich dieselbe Receiving Card haben (siehe offene Fragen)?
+- **Regel: ein Port = eine Serie mit derselben Receiving Card.** Verschiedene Größen derselben Serie dürfen auf denselben Port (z.B. 1 × 0,5 m und 0,5 × 0,5 m). Der Vorschlag bildet Stränge nur innerhalb einer Serie; der Pinsel überspringt Module einer anderen Serie bzw. Receiving Card (Hinweis). Screens mit mehreren Serien brauchen mindestens einen Port je Serie.
+- Die Library braucht dafür beim LED-Modul das Feld **Serie** (z.B. Herstellerserie), zusätzlich zu Receiving Card und Pitch.
 - **Backup automatisch gespiegelt**: Zu jedem Strang ein Rückweg vom letzten Modul, auf eigenem Port.
 - **Liste unten**: jeder Port (Haupt/Backup) mit Gerät, Strang, Modulen, Pixeln, **Portauslastung**.
 - Kabelarten und Längen je Strecke, **Prozessor-Übersicht** zum Abtippen (Port → Startposition, Modulreihenfolge); Hersteller-Dateien später.
@@ -196,7 +196,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 | --- | --- |
 | Aufbau | Last je Punkt überschritten · zu viele Module untereinander · Bracket passt nicht · Lücke/Versatz zwischen Modulen |
 | Strom | Kreis überlastet · zu viele Module an einer Brücke · Schieflast · Einschaltstrom · Modul ohne Kreis · Verteiler-Ebene überlastet |
-| Signal | Kein passender Prozessor · **verschiedene Pixelpitches an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
+| Signal | Kein passender Prozessor · **verschiedene Serien/Receiving Cards an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
 | Ausgabe | Output zu groß für den Eingang · Prozessor-Kapazität überschritten · Anschluss passt nicht · Bildraten unterschiedlich · Wandfläche ohne Bild · Ausschnitt ≠ Fläche |
 
 ## 8. Ausgaben
@@ -256,5 +256,18 @@ es aber schon in Phase 1.
 8. **Mehrbenutzer**: Arbeiten mehrere Personen gleichzeitig am selben Projekt?
 9. **Name** des Moduls (Arbeitstitel „LED-Planer“).
 10. **Prototyp**: Bleibt `ledraster.html` als eigenständiges Testbild-Werkzeug für Kunden ohne LED-Planer, oder geht es ganz in der Ausgabe auf?
-11. **Gemischter Pitch in der Ausgabe**: Wenn ein Screen z.B. P2.6 und P3.9 enthält – wird jeder Bereich als eigene Fläche gemappt (eigener Ausschnitt im Output), oder soll das Programm einen gemeinsamen Ausschnitt vorschlagen, den der Prozessor je Bereich skaliert?
-12. **Port-Regel**: Reicht gleicher Pixelpitch, oder müssen Module an einem Port auch dieselbe Receiving Card / Serie haben (z.B. zwei Hersteller mit P2.6)?
+11. **Mapping (Signal/Ausgabe) – später**: Wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden (eigene Ausschnitte je Bereich oder gemeinsamer Ausschnitt mit Skalierung) und das Mapping-Konzept im Detail werden in einer eigenen Runde geklärt.
+
+## 13. Stand und nächste Schritte
+
+**Stand 07.10.2026** – geklärt: Plattform, Arbeitsablauf (Aufbau → Strom →
+Signal → Ausgabe), Oberfläche mit Hauptmenü und Werkzeugleiste, Library-Inhalte,
+Modul-Editor mit gemischten Modulen, Port-Regel (gleiche Serie + Receiving Card),
+Stromverteilung mit Ebenen/Laka/Pinsel/Übersicht, Signal mit Kompatibilität,
+Stagebox/Multicore und gespiegeltem Backup, Ausgabe mit Outputs und 1:1-Zuordnung,
+Freischaltung und Verknüpfung, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
+
+**Nächste Sitzung:**
+1. Offene Fragen 1–10 durchgehen (Rex-Oberfläche, Bestand, Datenblätter, Hausregeln Strom, Rigging-Freigabe, Tablet/offline, Verknüpfung, Mehrbenutzer, Name, Prototyp).
+2. Eigene Runde zum **Mapping** (Signal und Ausgabe).
+3. Danach Phase 0 starten: Skizzen der vier Reiter und Library-Datenformat.
