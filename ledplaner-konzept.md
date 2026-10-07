@@ -31,8 +31,8 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Geräte | Prozessoren, Stageboxen, Stromverteiler gehören zum **Projekt** und können **mehrere Wände** versorgen |
 | Bedienung | **Freie Reiter** Aufbau · Strom · Signal · Ausgabe, jeder mit **Ampel** (ok / Warnung / fehlt) |
 | Nutzer | Planung im Büro, Techniker vor Ort, Kunde/Angebot |
-| Wandbau | **Module einzeln per Drag & Drop** (wie NovaStar COEX), **verschiedene Modultypen in einer Wand** (auch unterschiedlicher Pitch), Einrasten **an Nachbarmodulen** (+ feines mm-Raster) |
-| Gemischte Typen | Erlaubt im selben Screen, aber **ein Datenport/-strang nur mit einem Modultyp** |
+| Wandbau | **Module einzeln per Drag & Drop** (wie NovaStar COEX), **verschiedene Modultypen in einer Wand** (verschiedene Größen und auch verschiedene Pixelpitches), Einrasten **an Nachbarmodulen** (+ feines mm-Raster) |
+| Gemischte Module | Erlaubt im selben Screen. **Ein Datenport/-strang nur mit einem Pixelpitch**; verschiedene Größen mit gleichem Pitch (z.B. 1 × 0,5 m und 0,5 × 0,5 m) dürfen auf denselben Port |
 | Position | Je Screen **Höhe und Beschreibung** (z.B. „Bühne Mitte, UK 2,50 m“); **Kabellängen von Hand** |
 | Library LED-Modul | Grunddaten, Mechanik, Daten-/Strom-Grenzen, Grafik, **Receiving Card** |
 | Aufbau | Material **+ Lasten + Riggingplan**; Bauformen gerade, unregelmäßig/Lücken, Kurven/Winkel; 3D später |
@@ -156,7 +156,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - Neuer Screen: Name, Beschreibung, Höhe, **geflogen oder gestellt**.
 - Module aus der Library **per Drag & Drop** setzen; Einrasten an Kanten und Ecken der Nachbarmodule; **verschiedene Typen** in einer Wand (z.B. 500×1000 und 500×500 gemischt).
 - Werkzeuge: Erweitern/Kürzen, Spiegeln, Duplizieren, Auswahl → Lücke/Typ tauschen.
-- Pixel-Lage jedes Moduls ergibt sich aus der Position (wichtig für Signal und Ausgabe). Bei **unterschiedlichem Pitch** im selben Screen hat jeder Modultyp seine eigene Pixeldichte: Der Screen zeigt die Bereiche je Typ farbig an, die Pixel-Lage wird je Bereich bzw. je Port gerechnet.
+- Pixel-Lage jedes Moduls ergibt sich aus der Position (wichtig für Signal und Ausgabe). Bei **unterschiedlichem Pitch** im selben Screen hat jeder Pitch-Bereich seine eigene Pixeldichte: Der Screen zeigt die Bereiche je Pitch farbig an, die Pixel-Lage wird je Bereich bzw. je Port gerechnet. Verschiedene Größen mit gleichem Pitch bilden einen gemeinsamen Bereich.
 - Geflogen: Bumper/Flugrahmen, Aufhängepunkte, **Last je Punkt**, Prüfung max. Module untereinander.
 - Gestellt: Stacking/Bodenstützen, **Bodenlast**, Prüfung max. Höhe.
 - **Riggingplan** mit Punkten, Abständen, Lasten. Hinweis: *Ersetzt keine Statik.*
@@ -177,7 +177,8 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - Je Prozessor ein **Standort** (Regie/FOH, Bühne, hinter der Wand …).
 - Je Screen: **Stagebox** (aktiv, braucht Strom) oder **Multicore** (passiv, mit Auflösung) oder direkt.
 - Datenwege: **Vorlage** des Programms oder **Pinsel** (Port wählen → Module malen), wie beim Strom.
-- **Regel: ein Port = ein Modultyp.** Der Vorschlag bildet Stränge nur innerhalb gleicher Typen; der Pinsel lässt keine Module eines anderen Typs auf denselben Port malen (Modul wird übersprungen, Hinweis). Gemischte Screens brauchen daher mindestens einen Port je Typ.
+- **Regel: ein Port = ein Pixelpitch.** Module verschiedener Größe mit gleichem Pitch dürfen auf denselben Port (z.B. 1 × 0,5 m und 0,5 × 0,5 m). Der Vorschlag bildet Stränge nur innerhalb eines Pitches; der Pinsel überspringt Module mit anderem Pitch (Hinweis). Screens mit mehreren Pitches brauchen mindestens einen Port je Pitch.
+- Offen zur Prüfung: Müssen Module an einem Port zusätzlich dieselbe Receiving Card haben (siehe offene Fragen)?
 - **Backup automatisch gespiegelt**: Zu jedem Strang ein Rückweg vom letzten Modul, auf eigenem Port.
 - **Liste unten**: jeder Port (Haupt/Backup) mit Gerät, Strang, Modulen, Pixeln, **Portauslastung**.
 - Kabelarten und Längen je Strecke, **Prozessor-Übersicht** zum Abtippen (Port → Startposition, Modulreihenfolge); Hersteller-Dateien später.
@@ -195,7 +196,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 | --- | --- |
 | Aufbau | Last je Punkt überschritten · zu viele Module untereinander · Bracket passt nicht · Lücke/Versatz zwischen Modulen |
 | Strom | Kreis überlastet · zu viele Module an einer Brücke · Schieflast · Einschaltstrom · Modul ohne Kreis · Verteiler-Ebene überlastet |
-| Signal | Kein passender Prozessor · **verschiedene Modultypen an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
+| Signal | Kein passender Prozessor · **verschiedene Pixelpitches an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
 | Ausgabe | Output zu groß für den Eingang · Prozessor-Kapazität überschritten · Anschluss passt nicht · Bildraten unterschiedlich · Wandfläche ohne Bild · Ausschnitt ≠ Fläche |
 
 ## 8. Ausgaben
@@ -255,4 +256,5 @@ es aber schon in Phase 1.
 8. **Mehrbenutzer**: Arbeiten mehrere Personen gleichzeitig am selben Projekt?
 9. **Name** des Moduls (Arbeitstitel „LED-Planer“).
 10. **Prototyp**: Bleibt `ledraster.html` als eigenständiges Testbild-Werkzeug für Kunden ohne LED-Planer, oder geht es ganz in der Ausgabe auf?
-11. **Gemischter Pitch in der Ausgabe**: Wenn ein Screen P2.6 und P3.9 enthält – wird jeder Bereich als eigene Fläche gemappt (eigener Ausschnitt im Output), oder soll das Programm einen gemeinsamen Ausschnitt vorschlagen, den der Prozessor je Bereich skaliert?
+11. **Gemischter Pitch in der Ausgabe**: Wenn ein Screen z.B. P2.6 und P3.9 enthält – wird jeder Bereich als eigene Fläche gemappt (eigener Ausschnitt im Output), oder soll das Programm einen gemeinsamen Ausschnitt vorschlagen, den der Prozessor je Bereich skaliert?
+12. **Port-Regel**: Reicht gleicher Pixelpitch, oder müssen Module an einem Port auch dieselbe Receiving Card / Serie haben (z.B. zwei Hersteller mit P2.6)?
