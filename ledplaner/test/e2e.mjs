@@ -148,6 +148,27 @@ pruefe("Port-Regel: fremde Serie nicht auf Port 1", await ev(() => !P.straenge.f
 await ev(() => { ui.werkzeug = "auswahl"; P.screens[0].module = P.screens[0].module.filter(m => m.id !== "m-fremd"); aenderung(); });
 await p.screenshot({ path: path.join(AUSGABE, "signal.png") });
 
+/* ---------- Ausgabe: Outputs & Layer ---------- */
+await p.click('[data-reiter="ausgabe"]');
+await p.click('[data-m="modus"][data-wert="mapping"]'); await p.waitForTimeout(100);
+const map = await ev(() => ({ o: P.outputs.length, l: P.layer.length, raum: pixelraumBloecke(P.outputs[0].prozessor).map(b => [b.x, b.y, b.b, b.h]) }));
+pruefe("Mapping: 1 Output, 1 Layer, Screen bei 0/0", map.o === 1 && map.l === 1 && JSON.stringify(map.raum) === "[[0,0,1248,728]]", JSON.stringify(map));
+const blk = await p.locator("[data-raum]").first().boundingBox();
+await p.mouse.move(blk.x + blk.width / 2, blk.y + blk.height / 2); await p.mouse.down();
+await p.mouse.move(blk.x + blk.width / 2 + 80, blk.y + blk.height / 2 + 60, { steps: 6 }); await p.mouse.up();
+const raumNeu = await ev(() => pixelraumBloecke(P.outputs[0].prozessor)[0]);
+pruefe("Mapping: Screen im Pixelraum verschiebbar", raumNeu.x > 0 && raumNeu.y > 0, JSON.stringify([raumNeu.x, raumNeu.y]));
+pruefe("Mapping: Layer wandert mit dem Screen", await ev(() => { const l = P.layer[0], b = pixelraumBloecke(l.prozessor)[0]; return l.zx === b.x && l.zy === b.y && !mappingPruefungen().some(x => x.art !== "info"); }));
+pruefe("Mapping: Output-Testbild 3840 × 2160", await ev(() => { const c = outputCanvas(P.outputs[0]); return c.width === 3840 && c.height === 2160; }));
+pruefe("Kabel: Videokabel Output → Prozessor", await ev(() => kabelListe().some(z => z.gewerk === "video")));
+await p.screenshot({ path: path.join(AUSGABE, "mapping.png") });
+await p.keyboard.press("Control+z"); await p.waitForTimeout(100);
+pruefe("Mapping: Verschieben rückgängig", await ev(() => pixelraumBloecke(P.outputs[0].prozessor)[0].x === 0 && P.layer[0].zx === 0));
+await ev(() => { P.layer[0].zb = 600; });
+pruefe("Mapping: Teilabdeckung wird gemeldet", await ev(() => mappingPruefungen().some(x => x.text.includes("abgedeckt"))));
+await ev(() => { P.layer[0].zb = 1248; });
+await ev(() => { ui.modus.ausgabe = "screen"; render(); });
+
 /* ---------- Kabel ---------- */
 await p.click('[data-reiter="kabel"]');
 const zeilen = await ev(() => kabelListe().map(z => [z.nr, z.gewerk, z.anzahl, z.bruecke || false]));

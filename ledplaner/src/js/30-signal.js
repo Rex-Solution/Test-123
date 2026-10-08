@@ -259,9 +259,9 @@ function signalUebersicht(el) {
     return `<div class="karte"><div class="knopfreihe"><h2 style="margin:0">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</h2><span class="fueller"></span>${st.length ? `<span class="badge voll">ok</span>` : `<span class="badge teil">leer</span>`}</div>
       <p class="klein leise">Standort: ${esc(g.standort || "—")} · Receiving Cards: ${esc((led.receivingCards || []).join(", "))}</p>
       <div class="label">Ausgänge (${ports.length} × ${fmt(led.pxJePort)} px)</div><div class="portgitter">${portHtml}</div>
-      <div class="label">Eingänge</div><table class="werte">${eingaenge.map(a => `<tr><td>${esc(a.name)}</td><td class="leise">frei</td></tr>`).join("")}</table>
+      <div class="label">Eingänge</div><table class="werte">${eingaenge.map(a => { const o = (P.outputs || []).filter(x => x.prozessor === g.id && x.eingang === a.name); return `<tr><td>${esc(a.name)}</td><td>${o.length ? o.map(x => esc(`${x.name} · ${x.b} × ${x.h} @ ${fmtFlex(x.hz)} Hz`)).join(", ") : '<span class="leise">frei</span>'}</td></tr>`; }).join("")}</table>
       <div class="label">Auslastung</div><table class="werte"><tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)} (${fmt(led.pxGesamt ? px / led.pxGesamt * 100 : 0)} %)</td></tr>
-      <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>— / ${fmt(led.layer)}</td></tr></table></div>`;
+      <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>${(P.layer || []).filter(l => l.prozessor === g.id).length} / ${fmt(led.layer)}</td></tr></table></div>`;
   }).join("")}</div>`;
 }
 

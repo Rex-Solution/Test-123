@@ -75,7 +75,13 @@ REITER.ausgabe = {
   titelPalette: "Testbild",
   werkzeuge() {
     const o = ausgabeOptionen(); const s = aktuellerScreen();
-    return `<select data-o="palette">${[["regenbogen", "Regenbogen"], ["pastell", "Pastell"], ["grau", "Graustufen"], ["kontrast", "Schwarz / Weiß"]].map(([w, t]) => `<option value="${w}"${o.palette === w ? " selected" : ""}>${t}</option>`).join("")}</select>
+    const umschalter = `<div class="umschalter"><button data-m="modus" data-wert="screen" aria-selected="${ui.modus.ausgabe !== "mapping"}">Testbild Screen</button><button data-m="modus" data-wert="mapping" aria-selected="${ui.modus.ausgabe === "mapping"}">Outputs &amp; Layer</button></div><span class="trenner"></span>`;
+    if (ui.modus.ausgabe === "mapping") {
+      const ps = P.geraete.filter(g => g.art === "prozessor"); const g = mappingProzessor();
+      return umschalter + `<select data-m-feld="prozessor">${ps.map(x => `<option value="${x.id}"${g?.id === x.id ? " selected" : ""}>${esc(x.name)}</option>`).join("") || "<option>kein Prozessor</option>"}</select>
+        <button data-m="layer-vorschlag" ${g ? "" : "disabled"} title="Ein Layer, wenn der Pixelraum in den Output passt, sonst einer je Screen">Layer vorschlagen</button><button data-m="layer-neu" ${g ? "" : "disabled"}>+ Layer</button>`;
+    }
+    return umschalter + `<select data-o="palette">${[["regenbogen", "Regenbogen"], ["pastell", "Pastell"], ["grau", "Graustufen"], ["kontrast", "Schwarz / Weiß"]].map(([w, t]) => `<option value="${w}"${o.palette === w ? " selected" : ""}>${t}</option>`).join("")}</select>
       <select data-o="beschriftung">${[["modul", "Modulname (A1)"], ["pixel", "Pixel-Position"], ["keine", "keine Beschriftung"]].map(([w, t]) => `<option value="${w}"${o.beschriftung === w ? " selected" : ""}>${t}</option>`).join("")}</select>
       <label class="klein"><input type="checkbox" data-o="kreis" ${o.kreis ? "checked" : ""}> Kreis</label>
       <label class="klein"><input type="checkbox" data-o="kreuz" ${o.kreuz ? "checked" : ""}> Kreuz</label>
@@ -83,10 +89,18 @@ REITER.ausgabe = {
       <span class="trenner"></span><button data-o-a="png" ${s?.module.length ? "" : "disabled"}>PNG exportieren</button><button data-o-a="live" ${s?.module.length ? "" : "disabled"}>▶ Live</button>`;
   },
   palette() {
+    if (ui.modus.ausgabe === "mapping") {
+      mappingDaten();
+      return `<button data-m="output-neu" class="palette-item" style="cursor:pointer">+ Output anlegen</button>` + P.outputs.map(o => `<button class="palette-item${ui.sel.output === o.id ? " aktiv" : ""}" data-m="output-sel" data-id="${o.id}" style="cursor:pointer">
+        <span class="kabelpunkt" style="background:${kabelFarbe(o.anschluss === "SDI" ? "SDI" : o.anschluss === "DP" ? "DisplayPort" : "HDMI")}"></span>
+        <span class="name">${esc(o.name)}<br><span class="leise klein">${o.b} × ${o.h} · ${fmtFlex(o.hz)} Hz · ${esc(o.anschluss)}${o.prozessor ? " → " + esc(geraetById(o.prozessor)?.name || "") + " · " + esc(o.eingang) : " · nicht verbunden"}</span></span></button>`).join("")
+        + `<p class="klein leise">Doppelklick: Output bearbeiten. Im Pixelraum die Screens per Maus anordnen. Liegen sie wie im Output, reicht ein Layer für mehrere Screens.</p>`;
+    }
     return `<p class="klein leise">Testbild des gewählten Screens in seiner Pixel-Lage (jedes Modul in seiner eigenen Auflösung). Live-Ausgabe: 1:1 in eigenem Fenster, <kbd>F</kbd> Vollbild, <kbd>Leertaste</kbd> Cursor anhalten.</p>
-      <div class="hinweis info">Zuspieler-Outputs, Prozessor-Eingänge und Layer-Zuordnung folgen in Phase 2.</div>`;
+      <p class="klein leise">Outputs, Eingänge und Layer: Umschalter „Outputs &amp; Layer“.</p>`;
   },
   zeichnung(el) {
+    if (ui.modus.ausgabe === "mapping") return mappingZeichnung(el);
     const s = aktuellerScreen();
     if (!s?.module.length) return leerZeichnung(el, "Kein Screen mit Modulen.");
     el.classList.add("liste-modus");
@@ -96,6 +110,7 @@ REITER.ausgabe = {
     el.innerHTML = ""; el.appendChild(c);
   },
   liste() {
+    if (ui.modus.ausgabe === "mapping") return mappingListe();
     const s = aktuellerScreen(); if (!s?.module.length) return "";
     const pl = pixelLage(s); const namen = modulNamen(s);
     const typen = [...new Set(s.module.map(m => eintrag(m.lib)?.attribute?.led?.pitchMm))];
@@ -104,6 +119,7 @@ REITER.ausgabe = {
       ${s.module.slice().sort((a, b) => a.y - b.y || a.x - b.x).map(m => { const r = pl.lage.get(m.id); return `<tr><td>${namen.get(m.id)}</td><td>${esc(eintrag(m.lib)?.name)}</td><td class="zahl">${r.x}</td><td class="zahl">${r.y}</td><td class="zahl">${r.b} × ${r.h}</td></tr>`; }).join("")}</table>`;
   },
   rechts() {
+    if (ui.modus.ausgabe === "mapping") return mappingRechts();
     const o = ausgabeOptionen();
     return `<div class="karte"><div class="label">Live-Cursor</div>
       <div class="zwei"><label class="feld"><span>Tempo (px/s)</span><input data-o="cursorTempo" value="${o.cursorTempo}" inputmode="numeric"></label>
@@ -116,8 +132,7 @@ REITER.ausgabe = {
       const pitches = new Set(s.module.map(m => eintrag(m.lib)?.attribute?.led?.pitchMm));
       if (pitches.size > 1) liste.push({ art: "info", text: `${s.name}: verschiedene Pixelpitches – Testbild zeigt die Pixel-Lage je Typ.`, ziel: "screen:" + s.id });
     }
-    if (P.screens.some(s => s.module.length)) liste.push({ art: "info", text: "Zuordnung Outputs → Prozessor → Layer folgt in Phase 2." });
-    return liste;
+    return [...liste, ...mappingPruefungen()];
   },
 };
 
@@ -144,6 +159,10 @@ function ausgabeEreignisse() {
 const live = { fenster: null };
 function liveOeffnen(s) {
   if (!s?.module.length) return toast("Kein Screen mit Modulen gewählt.", "fehler");
+  liveCanvasOeffnen(s.name, testbildCanvas(s));
+}
+function liveCanvasOeffnen(titel, bild) {
+  const s = { name: titel };
   const f = window.open("", "rex-ledplaner-live", "popup,width=1280,height=720");
   if (!f) return toast("Popup wurde blockiert – bitte Popups für diese Seite erlauben.", "fehler");
   f.document.open();
@@ -154,7 +173,6 @@ function liveOeffnen(s) {
     <canvas id="c"></canvas><div id="hilfe"><b>${esc(s.name)}</b> – Ausgabe 1:1 ab oben links<br><kbd>F</kbd> Vollbild · <kbd>Leertaste</kbd> Cursor anhalten · <kbd>E</kbd> einpassen</div></body></html>`);
   f.document.close();
   const c = f.document.getElementById("c"), ctx = c.getContext("2d"), hilfe = f.document.getElementById("hilfe");
-  const bild = testbildCanvas(s);
   c.width = bild.width; c.height = bild.height;
   const zustand = { start: performance.now(), pause: false, pausenZeit: 0, einpassen: false };
   const groesse = () => {

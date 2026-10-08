@@ -81,6 +81,13 @@ function kabelListe() {
     add({ key: "weg:" + g.id, gewerk: "signal", lib: g.portKabel, laengeM: g.portLaengeM ?? null, anzahl: g.weg === "multicore" ? Math.ceil(ports / 4) : 1,
       von: `${g.name} · ${g.weg === "stagebox" ? "Glasfaser" : "Ports"}`, nach: g.weg === "stagebox" ? "Stagebox an der Wand" : "Multicore-Auflösung an der Wand", screen: null });
   }
+  // Video: Outputs → Prozessor-Eingänge
+  for (const o of P.outputs || []) {
+    if (!o.prozessor) continue;
+    const typ = { HDMI: "HDMI", SDI: "BNC", DP: "DisplayPort", DVI: "DVI" }[o.anschluss];
+    const lib = libListe("kabel").find(e => e.attribute.led.gewerk === "video" && e.attribute.led.steckerA === typ);
+    add({ key: "video:" + o.id, gewerk: "video", lib: lib?.id || null, laengeM: null, von: `${o.zuspieler || "Zuspieler"} · ${o.name}`, nach: `${geraetById(o.prozessor)?.name || "—"} · ${o.eingang}`, screen: null });
+  }
   // Strom für Geräte
   for (const g of P.geraete.filter(x => x.strom?.verteiler)) {
     const v = geraetById(g.strom.verteiler);

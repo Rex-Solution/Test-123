@@ -32,6 +32,7 @@ function neuesProjekt() {
     daten: { titel: "Neues Projekt", kunde: "", veranstaltung: "", ort: "", ersteller: "", revision: "1", datum: new Date().toISOString().slice(0, 10) },
     regeln: standardRegeln(),
     library: {}, screens: [], geraete: [], kreise: [], straenge: [], lakas: [], kabel: [], kabelAnpassung: {},
+    outputs: [], pixelraum: {}, layer: [],
     ausgabe: { palette: "regenbogen", beschriftung: "modul", linie: 2, kreis: true, kreuz: true, info: true, cursorTempo: 240, cursorBreite: 4 },
   };
 }
@@ -50,7 +51,8 @@ function normalisiereProjekt(roh) {
   p.daten = { ...p.daten, ...(d.daten || {}) };
   p.regeln = { ...standardRegeln(), ...(d.regeln || {}) };
   p.library = d.library && typeof d.library === "object" ? d.library : {};
-  for (const k of ["screens", "geraete", "kreise", "straenge", "lakas", "kabel"]) p[k] = Array.isArray(d[k]) ? d[k] : [];
+  for (const k of ["screens", "geraete", "kreise", "straenge", "lakas", "kabel", "outputs", "layer"]) p[k] = Array.isArray(d[k]) ? d[k] : [];
+  p.pixelraum = d.pixelraum && typeof d.pixelraum === "object" ? d.pixelraum : {};
   p.kabelAnpassung = d.kabelAnpassung && typeof d.kabelAnpassung === "object" ? d.kabelAnpassung : {};
   p.ausgabe = { ...p.ausgabe, ...(d.ausgabe || {}) };
   p.gespeichert = d.gespeichert || null;

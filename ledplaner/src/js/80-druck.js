@@ -69,7 +69,7 @@ function projektSummen() {
   return sum;
 }
 function alleHinweise() {
-  return ["aufbau", "strom", "signal", "kabel"].flatMap(r => REITER[r].pruefungen().filter(h => h.art !== "ok").map(h => ({ ...h, reiter: r })));
+  return ["aufbau", "strom", "signal", "ausgabe", "kabel"].flatMap(r => REITER[r].pruefungen().filter(h => h.art !== "ok").map(h => ({ ...h, reiter: r })));
 }
 
 function berichtHtml() {
@@ -114,6 +114,15 @@ function berichtHtml() {
     <h2>Prozessoren</h2><table><tr><th>Gerät</th><th>Typ</th><th>Standort</th><th>Weg</th><th class="z">Ports</th><th class="z">Pixel</th><th>Strom</th></tr>
     ${ps.map(g => { const st = P.straenge.filter(k => k.prozessor === g.id); return `<tr><td>${esc(g.name)}</td><td>${esc(eintrag(g.lib)?.name)}</td><td>${esc(g.standort || "—")}</td><td>${esc(g.weg)}</td>
       <td class="z">${belegtePorts(g.id).size} / ${prozessorPorts(g).length}</td><td class="z">${fmt(st.reduce((a, k) => a + strangPixel(k), 0))}</td><td>${g.strom ? esc(geraetById(g.strom.verteiler)?.name) + " · K" + g.strom.kanal : "—"}</td></tr>`; }).join("") || `<tr><td colspan="7">—</td></tr>`}</table></div>`);
+  // Ausgabe
+  if ((P.outputs || []).length) blaetter.push(`<div class="blatt">${kopfzeile("Ausgabe", "Blatt " + (++nr))}<h2>Outputs</h2>
+    <table><tr><th>Output</th><th>Zuspieler</th><th class="z">Format</th><th class="z">Hz</th><th>Anschluss</th><th>Prozessor · Eingang</th></tr>
+    ${P.outputs.map(o => `<tr><td>${esc(o.name)}</td><td>${esc(o.zuspieler || "—")}</td><td class="z">${o.b} × ${o.h}</td><td class="z">${fmtFlex(o.hz)}</td><td>${esc(o.anschluss)}</td><td>${o.prozessor ? esc(geraetById(o.prozessor)?.name) + " · " + esc(o.eingang) : "—"}</td></tr>`).join("")}</table>
+    <h2>Layer</h2><table><tr><th>Prozessor</th><th>Layer</th><th>Output</th><th>Ausschnitt</th><th>Ziel im Pixelraum</th><th>Modus</th></tr>
+    ${P.geraete.filter(g => g.art === "prozessor").flatMap(g => P.layer.filter(l => l.prozessor === g.id).map((l, i) => `<tr><td>${esc(g.name)}</td><td>${i + 1}</td><td>${esc(outputById(l.output)?.name || "—")}</td>
+      <td>${l.ax}, ${l.ay} · ${l.b} × ${l.h}</td><td>${l.zx}, ${l.zy} · ${l.zb} × ${l.zh}</td><td>${l.modus}</td></tr>`)).join("") || `<tr><td colspan="6">—</td></tr>`}</table>
+    <h2>Pixelraum</h2><table><tr><th>Prozessor</th><th>Screen</th><th class="z">X</th><th class="z">Y</th><th class="z">B × H</th></tr>
+    ${P.geraete.filter(g => g.art === "prozessor").flatMap(g => pixelraumBloecke(g.id).map(b => `<tr><td>${esc(g.name)}</td><td>${esc(b.s.name)}</td><td class="z">${b.x}</td><td class="z">${b.y}</td><td class="z">${b.b} × ${b.h}</td></tr>`)).join("")}</table></div>`);
   // Kabel
   const kabel = kabelListe();
   blaetter.push(`<div class="blatt">${kopfzeile("Kabel", "Blatt " + (++nr))}<h2>Kabelliste</h2>

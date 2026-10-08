@@ -32,9 +32,11 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/05-ui.js` | Oberflächen-Zustand `ui`, Reiter-Gerüst `REITER`, Projektbaum, Prüfhinweise, Tastenkürzel |
 | `js/06-zeichnen.js` | Screen als SVG (1 Einheit = 1 mm), Wege/Pfeile, Zoom/Verschieben |
 | `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
+| `js/15-rigging.js` | Rigging: Flugrahmen/Stacking aus der Library, Last je Rahmen und Punkt, Riggingplan, Prüfungen |
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
-| `js/40-ausgabe.js` | Reiter Ausgabe: Testbild je Screen, PNG, Live-Ausgabe 1:1 |
+| `js/40-ausgabe.js` | Reiter Ausgabe: Umschalter Testbild Screen / Outputs & Layer, Testbild, PNG, Live-Ausgabe 1:1 |
+| `js/45-mapping.js` | Ausgabe „Outputs & Layer“: Zuspieler-Outputs → Prozessor-Eingänge, Pixelraum je Prozessor (Screens ziehen), Layer (Ausschnitt → Fläche), Output-Testbild, Prüfungen |
 | `js/50-kabel.js` | Reiter Kabel: automatische + manuelle Kabel, Bearbeiten, Packliste, CSV |
 | `js/60-library-ui.js` | Hauptreiter Library (Manager-Ansicht, Formular aus `SCHEMA`) |
 | `js/70-einstellungen.js` | Hauptreiter Einstellungen, Hausregeln, Beispielprojekt |
@@ -62,17 +64,19 @@ registriert und prüfen `ui.reiter`. Prüfhinweise: `{ art: "fehler"|"warn"|"inf
 
 ## Stand (08.10.2026)
 
-Fertig (Phase 1 + Teile von Phase 2): Projekte (Neu/Öffnen/Speichern, Autosave, Rückgängig),
+Fertig (Phase 1 + 2): Projekte (Neu/Öffnen/Speichern, Autosave, Rückgängig),
 Library-Manager mit Pflicht-/Prüffeldern, Modul-Editor (Drag & Drop, Einrasten, gemischte Typen,
-Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht), Strom komplett (Verteiler-Ebenen,
-Einspeisungen, Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht),
-Signal (Prozessor-Kompatibilität, Port-Regel Serie + RC, Vorschlag + Pinsel, Backup am Strangende,
-Übersicht), Kabel (automatisch + von Hand, Packliste, CSV), Testbild + Live je Screen,
-Druck (Bericht A4, Großformat A3/A4 quer, Kundenansicht), Hausregeln, Beispielprojekt.
+Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht), Rigging (Flugrahmen/Stacking,
+Last je Punkt, Riggingplan, Freigabefeld), Strom komplett (Verteiler-Ebenen, Einspeisungen,
+Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht), Signal
+(Prozessor-Kompatibilität, Port-Regel Serie + RC, Vorschlag + Pinsel, Backup am Strangende,
+Übersicht), Ausgabe (Testbild + Live je Screen; Outputs → Eingänge, Pixelraum, Layer-Vorschlag,
+Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Output), Kabel
+(automatisch inkl. Video + von Hand, Packliste, CSV), Druck (Bericht A4 inkl. Ausgabe-Blatt,
+Großformat A3/A4 quer, Kundenansicht), Hausregeln, Beispielprojekt. 41 Ende-zu-Ende-Tests.
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
-- Ausgabe-Mapping: Zuspieler-Outputs → Prozessor-Eingänge → Layer, Ausschnitt → Fläche, Pixelraum je Prozessor.
-- Aufbau-Lasten und Riggingplan (Flugrahmen/Stacking aus der Library, Last je Punkt).
+- Gemischte Pitches: Option „gemeinsam + Skalierung“ je Screen (derzeit 1:1 je Modultyp).
 - Stagebox/Multicore als Library-Geräte (derzeit nur als Weg-Art beim Prozessor).
 - Rex-Datenbank (Library + Projekte), Freischaltung, Verknüpfung Signalfluss-Planer.
 - Kurven/Winkel, Hersteller-Dateien (NovaLCT/Colorlight), 3D, Tablet-Bedienung.

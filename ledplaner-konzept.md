@@ -368,11 +368,13 @@ es aber schon in Phase 1.
 `ledplaner.html` (Quellcode `ledplaner/src/`, Tests `ledplaner/test/e2e.mjs`, Übergabe `ledplaner/README.md`).
 
 Umgesetzt: Phase 1 vollständig (Projekte, Library-Manager, Modul-Editor, Strom mit Verteilern/Phasen/Laka/Pinsel,
-Verteiler-Übersicht, Kabel-Reiter, Testbild + Live je Screen, Bericht/Großformat/Kundenansicht, Hausregeln) und aus
-Phase 2 der Reiter Signal (Prozessoren, Port-Regel, Vorschlag + Pinsel, Backup am Strangende, Prozessor-Übersicht,
-Signalkabel).
+Verteiler-Übersicht, Kabel-Reiter, Testbild + Live je Screen, Bericht/Großformat/Kundenansicht, Hausregeln) und
+Phase 2: Signal (Prozessoren, Port-Regel, Vorschlag + Pinsel, Backup am Strangende, Prozessor-Übersicht, Signalkabel),
+Rigging (Flugrahmen/Stacking, Last je Punkt, Riggingplan, Freigabefeld) und Ausgabe-Mapping (Outputs → Eingänge,
+Pixelraum je Prozessor mit frei verschiebbaren Screens, Layer-Vorschlag mit Grenze je Prozessor, Testbild/Live je
+Output, Videokabel, Ausgabe-Blatt im Bericht).
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.
-2. Phase 2 fertigstellen: Ausgabe-Mapping (Outputs → Eingänge → Layer, Pixelraum), Rigging-Lasten und Riggingplan, Stagebox/Multicore als Geräte.
+2. Phase 2 abrunden: Stagebox/Multicore als Geräte, gemischte Pitches „gemeinsam + Skalierung“.
 3. Bestandsliste und Datenblätter nachreichen (Lakas, Stageboxen, Multicores, Flugrahmen; LEDTEK-Grenzwerte, C24-Phasen).

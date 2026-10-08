@@ -4,13 +4,13 @@
 
 const ui = {
   haupt: "planen", reiter: "aufbau",
-  modus: { strom: "wand", signal: "wand" },
+  modus: { strom: "wand", signal: "wand", ausgabe: "screen" },
   screen: null,               // gewählter Screen (id)
   auswahl: new Set(),         // gewählte Module (ids)
   werkzeug: "auswahl",        // auswahl | pinsel
   ansicht: new Map(),         // je Screen: viewBox { x, y, b, h }
   hinten: false,              // Rückansicht im Aufbau
-  sel: { verteiler: null, kreis: null, prozessor: null, strang: null, kabel: null, laka: null },
+  sel: { verteiler: null, kreis: null, prozessor: null, strang: null, kabel: null, laka: null, output: null },
   pinsel: { strom: null, signal: null },  // Ziel des Pinsels: { verteiler, kanal } bzw. { prozessor, port }
   libSel: null, libFilter: "", libNurOffen: false,
   einst: "datei",

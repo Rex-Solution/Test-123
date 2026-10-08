@@ -111,6 +111,8 @@ function beispielProjektLaden() {
     const lib = "beispiel-novastar-mx30";
     const g = prozessorAnlegen(lib); g.portLaengeM = 60; g.strom = { verteiler: v.id, kanal: 7 };
     signalVorschlag();
+    P.outputs.push({ id: neueId("o"), name: "Medienserver 1 · Out 1", zuspieler: "Medienserver 1", b: 3840, h: 2160, hz: 50, anschluss: "HDMI", prozessor: g.id, eingang: "HDMI 2.0" });
+    layerVorschlag(g.id);
   } finally { window.confirm = confirmAlt; }
   ui.reiter = "aufbau";
   aenderung();
