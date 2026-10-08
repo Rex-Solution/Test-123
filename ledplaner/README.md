@@ -41,6 +41,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/22-strom-geraete.js` | Spinnen je Laka (Library, Abgangslänge, automatisch die kürzeste passende), Ausgänge per Drag & Drop tauschen, Schieflast-Hinweis, Stageboxen im Stromplan (mit dem Pinsel versorgen) |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
+| `js/31-controller-backup.js` | Controller-Backup: ganzer Prozessor als Backup (Port N → Strangende N), `strangeAnPort`, Auswahl in Prozessor-Karte und Bereich Backup, Prüfungen |
 | `js/35-wege.js` | Stagebox/Multicore als eigene Geräte am Prozessor: Port-Zuordnung, Zuleitung, Strom, Kabel zur Wand, Prüfungen |
 | `js/36-zuweisung.js` | Zuweisung von Verteiler-Kanälen und Prozessor-Ports zur Wand (`screen.zuweisung`), Raster in den Karten, Liste unten = Pinsel-Auswahl |
 | `js/37-backup.js` | Bereich „Backup“ (Backup-Port je Haupt-Port, automatisch über denselben Weg), Stagebox-/Multicore-Karten in „Alle Prozessoren“ |
@@ -88,7 +89,7 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-139 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+150 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).

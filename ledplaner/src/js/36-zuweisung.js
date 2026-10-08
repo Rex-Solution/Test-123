@@ -64,7 +64,7 @@ function kanalRasterHtml(v, s) {
 }
 
 /* ---------- Signal ---------- */
-function portStrang(gId, nr) { return P.straenge.find(k => k.prozessor === gId && (k.port === nr || k.backupPort === nr)) || null; }
+function portStrang(gId, nr) { return strangeAnPort(gId, nr)?.strang || null; }
 function portScreen(gId, nr) {
   const k = portStrang(gId, nr);
   if (k) return k.screen;
@@ -72,11 +72,11 @@ function portScreen(gId, nr) {
 }
 function zugewiesenePorts(s) {
   const z = new Set(zuweisung(s).signal);
-  for (const k of P.straenge.filter(k => k.screen === s.id)) { z.add(zielText(k.prozessor, k.port)); if (Number.isFinite(k.backupPort)) z.add(zielText(k.prozessor, k.backupPort)); }
+  for (const k of P.straenge.filter(k => k.screen === s.id)) { z.add(zielText(k.prozessor, k.port)); if (Number.isFinite(k.backupPort)) z.add(zielText(backupGeraetId(k), k.backupPort)); }
   const gIdx = id => P.geraete.findIndex(g => g.id === id);
   return [...z].map(t => { const [gId, n] = t.split("|"); return { g: geraetById(gId), nr: Number(n), ziel: t }; })
     .filter(x => x.g && prozessorPorts(x.g).some(p => p.nr === x.nr))
-    .map(x => { const k = portStrang(x.g.id, x.nr); return { ...x, strang: k, rolle: !k ? "frei" : k.port === x.nr ? "haupt" : "backup" }; })
+    .map(x => { const an = strangeAnPort(x.g.id, x.nr); return { ...x, strang: an?.strang || null, rolle: an ? an.rolle : "frei" }; })
     .sort((a, b) => gIdx(a.g.id) - gIdx(b.g.id) || a.nr - b.nr);
 }
 function portZuweisen(s, gId, nr) {
@@ -91,9 +91,9 @@ function portZuweisen(s, gId, nr) {
 function portRasterHtml(g, s) {
   if (!s) return "";
   return `<div class="label">Ports für „${esc(s.name)}“ · Klick: zuweisen</div><div class="portgitter">${prozessorPorts(g).map(p => {
-    const scr = portScreen(g.id, p.nr), k = portStrang(g.id, p.nr);
+    const scr = portScreen(g.id, p.nr), an = strangeAnPort(g.id, p.nr), k = an?.strang;
     if (scr && scr !== s.id) return `<div class="port" title="${esc(screenById(scr)?.name)}" style="opacity:.45"><b>${p.nr}</b><br>${esc(screenById(scr)?.name || "").slice(0, 8)}</div>`;
-    if (scr === s.id) return `<button class="port zugewiesen" data-zuweisen="${zielText(g.id, p.nr)}" style="border-color:${k ? strangFarbe(k) : "var(--akzent)"}${k && k.backupPort === p.nr ? ";border-style:dashed" : ""}"><b>${p.nr}</b><br>${k ? (k.port === p.nr ? strangName(k) : "B" + k.port) : "frei"}</button>`;
+    if (scr === s.id) return `<button class="port zugewiesen" data-zuweisen="${zielText(g.id, p.nr)}" style="border-color:${k ? strangFarbe(k) : "var(--akzent)"}${an?.rolle === "backup" ? ";border-style:dashed" : ""}"><b>${p.nr}</b><br>${k ? (an.rolle === "haupt" ? strangName(k) : "B·" + strangName(k)) : "frei"}</button>`;
     return `<button class="port frei" data-zuweisen="${zielText(g.id, p.nr)}"><b>${p.nr}</b><br>—</button>`;
   }).join("")}</div>`;
 }

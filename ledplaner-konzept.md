@@ -262,6 +262,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - **Regel: ein Port = eine Serie mit derselben Receiving Card.** Verschiedene Größen derselben Serie dürfen auf denselben Port (z.B. 1 × 0,5 m und 0,5 × 0,5 m). Der Vorschlag bildet Stränge nur innerhalb einer Serie; der Pinsel überspringt Module einer anderen Serie bzw. Receiving Card (Hinweis). Screens mit mehreren Serien brauchen mindestens einen Port je Serie.
 - Die Library braucht dafür beim LED-Modul das Feld **Serie** (z.B. Herstellerserie), zusätzlich zu Receiving Card und Pitch.
 - **Backup automatisch**: Zu jedem Strang ein Backup-Port, der am **letzten Modul** einspeist und denselben Weg rückwärts nutzt. Keine eigene Linie in der Zeichnung – nur die Marke „B1“ am Endpunkt des Hauptwegs; das Backup-Kabel steht im Kabel-Reiter.
+- **Controller-Backup**: Statt Port-Backup kann ein ganzer Prozessor Backup eines anderen sein. Port N des Backup-Controllers speist am Ende von Strang N ein – über eigene Kabel, eine eigene Stagebox/Multicore oder freie Adern am Multicore des Haupt-Controllers. Port-Backups am Haupt-Controller entfallen dann, alle seine Ports sind für Hauptstränge frei.
 - **Liste unten**: jeder Port (Haupt/Backup) mit Gerät, Strang, Modulen, Pixeln, **Portauslastung**.
 - Kabelarten und Längen je Strecke, **Prozessor-Übersicht** zum Abtippen (Port → Startposition, Modulreihenfolge); Hersteller-Dateien später.
 

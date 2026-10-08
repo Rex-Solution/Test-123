@@ -28,21 +28,21 @@ function spinneBedarf(s, l) { const p = spinnePos(s, l); return spinneZiele(s, l
 /* ---------- Stagebox / Multicore ---------- */
 function wegZiele(s, d) {
   const ziele = [];
-  for (const nr of d.ports) {
-    const k = P.straenge.find(x => x.prozessor === d.prozessor && x.screen === s.id && (x.port === nr || x.backupPort === nr));
-    if (!k || !k.module.length) continue;
-    const haupt = k.port === nr;
-    ziele.push({ nr, strang: k, haupt, punkt: modulMitte(s, haupt ? k.module[0] : k.module[k.module.length - 1]) });
+  for (const { g, nr } of wegBelegung(d)) {
+    const an = strangeAnPort(g, nr); const k = an?.strang;
+    if (!k || k.screen !== s.id || !k.module.length) continue;
+    const haupt = an.rolle === "haupt";
+    ziele.push({ nr, g, strang: k, haupt, punkt: modulMitte(s, haupt ? k.module[0] : k.module[k.module.length - 1]) });
   }
   return ziele.filter(z => z.punkt);
 }
 function wegPos(s, d) { return d.pos?.screen === s.id ? d.pos : mitteVon(wegZiele(s, d).map(z => z.punkt), s); }
 function wegeAufScreen(s) { return P.geraete.filter(istWeg).filter(d => wegZiele(s, d).length || d.pos?.screen === s.id); }
 /* Länge des Kabels von der Stagebox/Auflösung zu einem Port-Ziel (null = nicht bestimmbar) */
-function wegKabelLaenge(d, nr) {
+function wegKabelLaenge(d, nr, gId = d.prozessor) {
   if (Number.isFinite(d.ausgangLaengeM)) return d.ausgangLaengeM;   // feste Länge von Hand
   for (const s of P.screens) {
-    const z = wegZiele(s, d).find(x => x.nr === nr);
+    const z = wegZiele(s, d).find(x => x.nr === nr && x.g === gId);
     if (z) return standardLaenge(d.ausgangKabel, benoetigtM(wandAbstandMm(wegPos(s, d), z.punkt)));
   }
   return null;

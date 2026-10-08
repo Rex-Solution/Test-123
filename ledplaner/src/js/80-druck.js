@@ -61,7 +61,7 @@ function stromDruckOpt(s) {
 }
 function signalDruckOpt(s) {
   const st = straengeVon(s.id); const farbe = new Map(); st.forEach((k, i) => k.module.forEach(id => farbe.set(id, wegFarbe(i))));
-  return { fuellung: m => farbe.has(m.id) ? farbe.get(m.id) + "2e" : "transparent", wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: Number.isFinite(k.backupPort) ? "B" + k.backupPort : null })) };
+  return { fuellung: m => farbe.has(m.id) ? farbe.get(m.id) + "2e" : "transparent", wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: backupName(k) })) };
 }
 function projektSummen() {
   const sum = { module: 0, m2: 0, kg: 0, wMax: 0, wTyp: 0, px: 0 };
@@ -101,7 +101,7 @@ function berichtHtml() {
       <p style="font-size:8pt;color:#666">● Start Hauptweg · ▢ Einspeisung Backup am Strangende (gleicher Weg)</p>
       <h3>Ports</h3><table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Backup</th><th class="z">Module</th><th class="z">Pixel</th><th class="z">Auslastung</th></tr>
       ${st.map((k, i) => { const g = geraetById(k.prozessor); const px = strangPixel(k);
-        return `<tr><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${strangName(k)}</td><td>${esc(g?.name)}</td><td>${k.port}</td><td>${Number.isFinite(k.backupPort) ? k.backupPort : "—"}</td><td class="z">${k.module.length}</td><td class="z">${fmt(px)}</td><td class="z">${fmt(px / (portKapazitaet(g) || 1) * 100)} %</td></tr>`; }).join("")}</table></div>`);
+        return `<tr><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${strangName(k)}</td><td>${esc(g?.name)}</td><td>${k.port}</td><td>${Number.isFinite(k.backupPort) ? esc((k.backupGeraet ? geraetById(k.backupGeraet)?.name + " · " : "") + "Port " + k.backupPort) : "—"}</td><td class="z">${k.module.length}</td><td class="z">${fmt(px)}</td><td class="z">${fmt(px / (portKapazitaet(g) || 1) * 100)} %</td></tr>`; }).join("")}</table></div>`);
   }
   // Verteiler und Prozessoren
   const bilanz = stromBilanz();

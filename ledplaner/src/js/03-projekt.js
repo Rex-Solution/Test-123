@@ -8,12 +8,12 @@
      screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], zuweisung: { strom: ["vId|kanal"], signal: ["pId|port"] }, winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
-              | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
+              | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom, backupController (Prozessor-ID | null) }
               | stagebox  { id, art:"stagebox", lib, name, standort, prozessor, ports: [Prozessor-Ports], zuleitung: { kabel, laengeM, anzahl }, ausgangKabel, ausgangLaengeM, strom }
-              | multicore { id, art:"multicore", lib, name, standort, prozessor, ports: [...], ausgangKabel, ausgangLaengeM } ],
+              | multicore { id, art:"multicore", lib, name, standort, prozessor, ports: [...], backupPorts: [Ports des Backup-Controllers], ausgangKabel, ausgangLaengeM } ],
               Ports ohne Stagebox/Multicore gehen direkt (portKabel, portLaengeM) vom Prozessor zur Wand.
      kreise:   [{ id, screen, verteiler, kanal, module: [modulIds in Reihenfolge] }],
-     straenge: [{ id, screen, prozessor, port, backupPort, module: [...] }],
+     straenge: [{ id, screen, prozessor, port, backupPort, backupGeraet (Backup-Controller, sonst null = gleicher Prozessor), module: [...] }],
      lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM, pos: { x, y } (Spinne in der Wand) }],
      kabel:    [{ id, lib, laengeM, anzahl, von, nach, bemerkung }]          // von Hand
      kabelAnpassung: { [schluessel automatisches Kabel]: { lib, laengeM, bemerkung } }

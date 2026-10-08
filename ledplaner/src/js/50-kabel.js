@@ -61,14 +61,15 @@ function kabelListe() {
       const g = geraetById(k.prozessor); if (!g) continue;
       const ms = strangModule(k);
       // je Port: direkt vom Prozessor oder vom Ausgang der Stagebox / Auflösung des Multicores
-      const quelle = nr => {
-        const d = portWeg(g.id, nr);
-        if (!d) return { lib: g.portKabel, laengeM: g.portLaengeM ?? null, von: `${g.name} · Port ${nr}` };
-        return { lib: d.ausgangKabel, laengeM: wegKabelLaenge(d, nr), bemerkung: Number.isFinite(d.ausgangLaengeM) ? "" : "Länge aus Position in der Wand",
-          von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
+      // je Port: direkt vom Gerät (Haupt- oder Backup-Controller) oder vom Ausgang der Stagebox / Ader des Multicores
+      const quelle = (gx, nr) => {
+        const d = portWeg(gx.id, nr);
+        if (!d) return { lib: gx.portKabel, laengeM: gx.portLaengeM ?? null, von: `${gx.name} · Port ${nr}` };
+        return { lib: d.ausgangKabel, laengeM: wegKabelLaenge(d, nr, gx.id), bemerkung: Number.isFinite(d.ausgangLaengeM) ? "" : "Länge aus Position in der Wand",
+          von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr, gx.id)} (${gx.id !== d.prozessor ? gx.name + " " : ""}Port ${nr})` };
       };
-      add({ key: "port:" + k.id, gewerk: "signal", ...quelle(k.port), nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
-      if (Number.isFinite(k.backupPort)) { const q = quelle(k.backupPort); add({ key: "backup:" + k.id, gewerk: "signal", ...q, von: q.von + " Backup", nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id }); }
+      add({ key: "port:" + k.id, gewerk: "signal", ...quelle(g, k.port), nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
+      if (Number.isFinite(k.backupPort) && geraetById(backupGeraetId(k))) { const q = quelle(geraetById(backupGeraetId(k)), k.backupPort); add({ key: "backup:" + k.id, gewerk: "signal", ...q, von: q.von + " Backup", nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id }); }
     }
     const brDaten = st.reduce((a, k) => a + Math.max(0, k.module.length - 1), 0);
     if (brDaten) {
@@ -83,7 +84,7 @@ function kabelListe() {
     if (d.art === "stagebox") add({ key: "weg:" + d.id, gewerk: "signal", lib: d.zuleitung?.kabel || null, laengeM: d.zuleitung?.laengeM ?? null, anzahl: d.zuleitung?.anzahl || 1,
       von: `${g.name} · Glasfaser`, nach: `${d.name} (${d.standort || "—"})`, screen: null });
     else add({ key: "weg:" + d.id, gewerk: "signal", lib: d.lib, laengeM: wegLed(d).laengeM ?? null,
-      von: `${g.name} · Port ${d.ports.join(", ")}`, nach: `${d.name} · Auflösung (${d.standort || "—"})`, screen: null });
+      von: `${g.name} · Port ${d.ports.join(", ")}${(d.backupPorts || []).length ? ` + ${backupController(g)?.name || "Backup"} · Port ${d.backupPorts.join(", ")}` : ""}`, nach: `${d.name} · Auflösung (${d.standort || "—"})`, screen: null });
   }
   // Video: Outputs → Prozessor-Eingänge
   for (const o of P.outputs || []) {

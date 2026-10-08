@@ -187,6 +187,9 @@ function geraetLoeschen(g) {
   P.kreise = P.kreise.filter(k => k.verteiler !== g.id);
   P.lakas = P.lakas.filter(l => l.verteiler !== g.id);
   P.straenge = P.straenge.filter(k => k.prozessor !== g.id);
+  // Backup-Controller gelöscht: Haupt-Controller ohne Controller-Backup, Stränge ohne Backup
+  for (const x of P.geraete) if (x.backupController === g.id) x.backupController = null;
+  for (const k of P.straenge) if (k.backupGeraet === g.id) { k.backupGeraet = null; k.backupPort = null; }
   P.geraete = P.geraete.filter(x => !(istWeg(x) && x.prozessor === g.id));
   for (const x of P.geraete) { if (x.speisung?.von === g.id) x.speisung.von = null; if (x.strom?.verteiler === g.id) x.strom = null; }
   ui.sel.verteiler = null; ui.sel.prozessor = null;

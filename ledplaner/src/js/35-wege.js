@@ -7,12 +7,21 @@ const WEG_MEHRZAHL = { stagebox: "Stageboxen", multicore: "Multicores" };
 
 function istWeg(g) { return !!g && g.art in WEG_ARTEN; }
 function wegGeraete(gId) { return P.geraete.filter(d => istWeg(d) && d.prozessor === gId); }
-function portWeg(gId, nr) { return wegGeraete(gId).find(d => d.ports.includes(nr)) || null; }
+/* Weg eines Ports: eigene Stagebox/Multicore des Geräts oder Adern am Multicore des Haupt-Controllers (d.backupPorts) */
+function portWeg(gId, nr) {
+  return P.geraete.find(d => istWeg(d) && ((d.prozessor === gId && d.ports.includes(nr))
+    || ((d.backupPorts || []).includes(nr) && backupController(geraetById(d.prozessor))?.id === gId))) || null;
+}
+/* Belegung eines Wegs in Reihenfolge: eigene Ports, dann Ports des Backup-Controllers */
+function wegBelegung(d) {
+  const bc = backupController(geraetById(d.prozessor));
+  return [...d.ports.map(nr => ({ g: d.prozessor, nr })), ...(bc ? (d.backupPorts || []).map(nr => ({ g: bc.id, nr })) : [])];
+}
 function wegLed(d) { return eintrag(d.lib)?.attribute?.led || {}; }
 function wegKapazitaet(d) { const led = wegLed(d); return (d.art === "stagebox" ? led.ports : led.adern) ?? null; }
 function wegKurz(d) { return (d.art === "stagebox" ? "SB" : "MC") + (P.geraete.filter(x => x.art === d.art).indexOf(d) + 1); }
 /* Ausgang des Wegs, an dem ein Port an der Wand ankommt (1-basiert, Reihenfolge der Zuordnung) */
-function wegAusgang(d, nr) { return d.ports.indexOf(nr) + 1; }
+function wegAusgang(d, nr, gId = d.prozessor) { return wegBelegung(d).findIndex(e => e.g === gId && e.nr === nr) + 1; }
 
 /* Belegte Ports eines Prozessors in Port-Reihenfolge */
 function genutztePorts(gId) { return [...belegtePorts(gId)].sort((a, b) => a - b); }
@@ -105,6 +114,8 @@ function wegKarte(d) {
     <label class="feld"><span>Name *</span><input data-w-feld="name" value="${esc(d.name)}"></label>
     <label class="feld"><span>Standort</span><input data-w-feld="standort" value="${esc(d.standort || "")}"></label>
     <label class="feld"><span>Ports des Prozessors (z.B. 1-4, 6)</span><input data-w-feld="ports" value="${d.ports.join(", ")}"></label>
+    ${d.art === "multicore" && backupController(geraetById(d.prozessor)) ? `<label class="feld"><span>Adern für Backup-Controller ${esc(backupController(geraetById(d.prozessor)).name)} (Ports)</span><input data-w-feld="backupPorts" value="${(d.backupPorts || []).join(", ")}"></label>
+      <div class="knopfreihe" style="margin:-4px 0 8px"><button data-w="backup-spiegeln">Backup-Ports übernehmen</button></div>` : ""}
     <div class="knopfreihe" style="margin:-4px 0 8px"><button data-w="auffuellen" ${kap && d.ports.length >= kap ? "disabled" : ""}>Freie Ports übernehmen</button><span class="klein leise">${d.ports.length} / ${fmt(kap)} ${d.art === "stagebox" ? "Ausgänge" : "Adern"}</span></div>`;
   if (d.art === "stagebox") {
     html += `<div class="abschnitt">Zuleitung vom Prozessor</div>
@@ -125,6 +136,13 @@ function wegKarte(d) {
 function wegAendern(d, feld, w) {
   if (feld === "name") { if (!w.trim()) { toast("Name: darf nicht leer sein.", "fehler"); return render(); } d.name = w; }
   else if (feld === "standort") d.standort = w;
+  else if (feld === "backupPorts") {
+    const bc = backupController(geraetById(d.prozessor)); const liste = lesePortListe(w);
+    if (!bc || !liste) { toast("Ports: Zahlen mit Komma, Bereiche mit Bindestrich.", "fehler"); return render(); }
+    const fremd = liste.find(nr => !prozessorPorts(bc).some(p => p.nr === nr) || (portWeg(bc.id, nr) && portWeg(bc.id, nr) !== d));
+    if (fremd != null) { toast(`Port ${fremd} des Backup-Controllers gibt es nicht oder läuft schon über einen anderen Weg.`, "fehler"); return render(); }
+    d.backupPorts = liste;
+  }
   else if (feld === "ports") {
     const liste = lesePortListe(w);
     const g = geraetById(d.prozessor); const vorhanden = new Set(prozessorPorts(g).map(p => p.nr));
@@ -155,11 +173,12 @@ function wegePruefungen() {
     if (!e) liste.push({ art: "warn", text: `${d.name}: Library-Eintrag fehlt – Gerät aus der Library wählen.`, ziel: z });
     else if (!eintragNutzbar(e)) liste.push({ art: "warn", text: `${d.name}: Pflichtfelder im Library-Eintrag „${e.name}“ fehlen.`, ziel: "library:" + d.lib });
     const kap = wegKapazitaet(d);
-    if (kap != null && d.ports.length > kap) liste.push({ art: "warn", text: `${d.name}: ${d.ports.length} Ports, aber nur ${kap} ${d.art === "stagebox" ? "Ausgänge" : "Adern"}.`, ziel: z });
+    const belegung = wegBelegung(d).length;
+    if (kap != null && belegung > kap) liste.push({ art: "warn", text: `${d.name}: ${belegung} Ports, aber nur ${kap} ${d.art === "stagebox" ? "Ausgänge" : "Adern"}.`, ziel: z });
     const genutzt = belegtePorts(g.id);
     const leer = d.ports.filter(nr => !genutzt.has(nr));
     if (leer.length) liste.push({ art: "info", text: `${d.name}: Port ${leer.join(", ")} ohne Strang.`, ziel: z });
-    if (!d.ports.length) liste.push({ art: "info", text: `${d.name}: keine Ports zugeordnet – wird es gebraucht?`, ziel: z });
+    if (!wegBelegung(d).length) liste.push({ art: "info", text: `${d.name}: keine Ports zugeordnet – wird es gebraucht?`, ziel: z });
     for (const nr of d.ports) for (const x of wegGeraete(g.id)) if (x !== d && x.ports.includes(nr) && P.geraete.indexOf(x) > P.geraete.indexOf(d)) liste.push({ art: "fehler", text: `${g.name} · Port ${nr}: in ${d.name} und ${x.name} zugeordnet.`, ziel: z });
     if (d.art === "stagebox") {
       if (!d.strom) liste.push({ art: "warn", text: `${d.name}: Stromversorgung nicht zugeordnet (aktives Gerät).`, ziel: z });

@@ -507,6 +507,39 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   await p.screenshot({ path: path.join(AUSGABE, "alle-prozessoren.png") });
 }
 
+/* ---------- Controller-Backup (ganzer Prozessor als Backup) ---------- */
+{
+  await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "signal"; ui.modus.signal = "wand"; ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; ui.sel.weg = null; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });
+  const pid = await ev(() => ui.sel.prozessor);
+  await p.click(`#rechts [data-cb-neu="${pid}"]`); await p.waitForTimeout(80);
+  const cb = await ev(id => { const g = geraetById(id); const b = backupController(g); return b && { b: b.id, name: b.name, st: P.straenge.map(k => [k.port, k.backupGeraet === b.id, k.backupPort]), belegt: [...belegtePorts(id)].sort(), belegtB: [...belegtePorts(b.id)].sort() }; }, pid);
+  pruefe("Controller-Backup: anlegen spiegelt Port N → Port N am Backup-Controller", cb && cb.name === "Prozessor 1 Backup" && JSON.stringify(cb.st) === "[[1,true,1],[2,true,2]]", JSON.stringify(cb));
+  pruefe("Controller-Backup: Port-Backups am Haupt-Controller entfallen (nur 1, 2 belegt)", cb && JSON.stringify(cb.belegt) === "[1,2]" && JSON.stringify(cb.belegtB) === "[1,2]");
+  pruefe("Controller-Backup: Kabel vom Backup-Controller zum Strangende", await ev(() => kabelListe().filter(z => z.key.startsWith("backup:")).every(z => z.von.startsWith("Prozessor 1 Backup · Port ") && z.nach.includes("Strangende"))));
+  pruefe("Controller-Backup: Zeichnung zeigt Pr2·B1", await ev(() => signalSvgInhalt(P.screens[0]).includes("Pr2·B1")));
+  // eigene Stagebox für den Backup-Controller
+  await ev(id => { wegAnlegen("stagebox", "beispiel-novastar-cvt10", id); }, cb.b);
+  pruefe("Controller-Backup: eigene Stagebox übernimmt Backup-Ports 1, 2", await ev(id => { const d = wegGeraete(id)[0]; return JSON.stringify(d.ports) === "[1,2]" && kabelListe().filter(z => z.key.startsWith("backup:")).every(z => z.von.startsWith(d.name + " · Ausgang")); }, cb.b));
+  // statt dessen: Adern am Multicore des Haupt-Controllers
+  await ev(id => { P.geraete = P.geraete.filter(d => !(istWeg(d) && d.prozessor === id)); aenderung(); }, cb.b);
+  await ev(id => { const mc = wegAnlegen("multicore", "beispiel-multicore-cat4-25", id); }, pid);
+  await p.click('#rechts [data-w="backup-spiegeln"]'); await p.waitForTimeout(50);
+  pruefe("Controller-Backup: Adern am Multicore des Haupt-Controllers", await ev(([pid, bid]) => { const mc = P.geraete.find(d => d.art === "multicore"); return JSON.stringify(mc.backupPorts) === "[1,2]" && portWeg(bid, 1) === mc && kabelListe().some(z => z.von.includes("Ader 1 (Prozessor 1 Backup Port 1)")); }, [pid, cb.b]));
+  // Vorschlag am Haupt-Controller spiegelt wieder, am Backup-Controller verweigert
+  await ev(() => { ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; signalVorschlag(); });
+  pruefe("Controller-Backup: neuer Vorschlag spiegelt, keine Port-Backups", await ev(id => P.straenge.every(k => k.backupGeraet === id && k.backupPort === k.port), cb.b));
+  pruefe("Controller-Backup: Vorschlag am Backup-Controller verweigert", await ev(id => { ui.sel.prozessor = id; const n = P.straenge.length; signalVorschlag(); return P.straenge.length === n && P.straenge.every(k => k.prozessor !== id); }, cb.b));
+  await ev(() => { ui.modus.signal = "backup"; $("#toasts").innerHTML = ""; render(); });
+  pruefe("Controller-Backup: Bereich Backup zeigt Controller und Ports", (await p.locator("#zeichnung").innerText()).includes("Controller-Backup") && (await p.locator("[data-backup-strang]").first().innerText()).includes("Prozessor 1 Backup"));
+  await p.screenshot({ path: path.join(AUSGABE, "controller-backup.png") });
+  await ev(() => { ui.modus.signal = "prozessoren"; render(); });
+  pruefe("Controller-Backup: Übersicht markiert den Backup-Controller", (await p.locator(".uebersicht .karte", { hasText: "Backup von Prozessor 1" }).count()) === 1);
+  await p.screenshot({ path: path.join(AUSGABE, "controller-backup-alle.png") });
+  // Backup-Controller löschen
+  await ev(id => { geraetLoeschen(geraetById(id)); }, cb.b);
+  pruefe("Controller-Backup: Löschen hebt das Backup auf", await ev(id => !geraetById(P.geraete.find(g => g.art === "prozessor").id).backupController && P.straenge.every(k => !k.backupGeraet && !Number.isFinite(k.backupPort)), cb.b));
+}
+
 /* ---------- Rex-Anbindung (simulierter Datenbank-Agent) ---------- */
 async function rexSeite(module) {
   const c = await browser.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });

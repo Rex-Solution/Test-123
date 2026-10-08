@@ -24,7 +24,12 @@ function strangName(k) {
   return (ps.length > 1 ? `Pr${ps.findIndex(p => p.id === k.prozessor) + 1}·` : "") + "P" + k.port;
 }
 function strangFarbe(k) { return wegFarbe(straengeVon(k.screen).indexOf(k)); }
-function belegtePorts(gId) { return new Set(P.straenge.filter(k => k.prozessor === gId).flatMap(k => [k.port, k.backupPort].filter(Number.isFinite))); }
+/* Belegte Ports eines Geräts: eigene Hauptports + Backup-Ports (auch Backups anderer Controller auf diesem Gerät) */
+function belegtePorts(gId) {
+  const s = new Set();
+  for (const k of P.straenge) { if (k.prozessor === gId) s.add(k.port); if (Number.isFinite(k.backupPort) && backupGeraetId(k) === gId) s.add(k.backupPort); }
+  return s;
+}
 
 /* ---------- Geräte ---------- */
 function prozessorAnlegen(libId) {
@@ -51,6 +56,7 @@ function signalVorschlag() {
     if (!lib) return toast("Kein passender Prozessor in der Library (Receiving Card prüfen).", "fehler");
     g = prozessorAnlegen(lib.id);
   }
+  if (hauptVon(g)) return toast(`${g.name} ist Backup-Controller von ${hauptVon(g).name} – Vorschlag am Haupt-Controller erzeugen.`, "fehler");
   if (!passtZuModulen(g.lib, s.module)) return toast(`${g.name} passt nicht zur Receiving Card aller Module.`, "fehler");
   const alt = P.straenge.filter(k => k.screen === s.id && k.prozessor === g.id);
   if (alt.length && !confirm(`Die ${alt.length} vorhandenen Stränge von „${s.name}“ an ${g.name} ersetzen?`)) return;
@@ -73,16 +79,21 @@ function signalVorschlag() {
   const eigen = new Set(zuweisung(s).signal.filter(t => t.startsWith(g.id + "|")).map(t => Number(t.split("|")[1])));
   const offen = prozessorPorts(g).map(p => p.nr).filter(n => !belegt.has(n) && (portScreen(g.id, n) || s.id) === s.id);
   const frei = [...offen.filter(n => eigen.has(n)), ...offen.filter(n => !eigen.has(n))];
-  const backup = P.regeln.backup && prozessorLed(g).backup !== false;
+  // Controller-Backup: Port N des Backup-Controllers spiegelt Port N – alle eigenen Ports frei für Hauptstränge
+  const bc = backupController(g);
+  const bcPorts = bc ? new Set(prozessorPorts(bc).map(p => p.nr)) : null;
+  const backup = !bc && P.regeln.backup && prozessorLed(g).backup !== false;
   const noetig = segmente.length * (backup ? 2 : 1);
   if (noetig > frei.length) return toast(`${g.name}: ${noetig} Ports nötig${backup ? " (mit Backup)" : ""}, aber nur ${frei.length} frei.`, "fehler");
   segmente.forEach((seg, i) => {
-    P.straenge.push({ id: neueId("d"), screen: s.id, prozessor: g.id, port: frei[i], backupPort: backup ? frei[segmente.length + i] : null, module: seg.map(m => m.id) });
+    const port = frei[i];
+    P.straenge.push({ id: neueId("d"), screen: s.id, prozessor: g.id, port,
+      backupPort: bc ? (bcPorts.has(port) ? port : null) : backup ? frei[segmente.length + i] : null, backupGeraet: bc ? bc.id : null, module: seg.map(m => m.id) });
   });
   wegeAbgleichen(g.id);
   ui.sel.prozessor = g.id;
   aenderung();
-  toast(`${segmente.length} Datenstränge an ${g.name}${backup ? " + Backup" : ""} vorgeschlagen${ueberlast ? " – Achtung: einzelne Module über der Portgrenze" : ""}.`, ueberlast ? "fehler" : "ok");
+  toast(`${segmente.length} Datenstränge an ${g.name}${bc ? " + Backup über " + bc.name : backup ? " + Backup" : ""} vorgeschlagen${ueberlast ? " – Achtung: einzelne Module über der Portgrenze" : ""}.`, ueberlast ? "fehler" : "ok");
 }
 
 /* ---------- Pinsel ---------- */
@@ -93,6 +104,12 @@ function signalPinselMalen(svg, s) {
   const g = geraetById(gId); if (!g) return null;
   let k = P.straenge.find(x => x.prozessor === gId && x.port === port);
   if (k && k.screen !== s.id) { toast(`Port ${port} versorgt schon „${screenById(k.screen)?.name}“.`, "fehler"); return null; }
+  if (!k && hauptVon(g)) { toast(`${g.name} ist Backup-Controller – am Haupt-Controller ${hauptVon(g).name} malen.`, "fehler"); return null; }
+  const bc = backupController(g);
+  if (!k && bc) {
+    k = { id: neueId("d"), screen: s.id, prozessor: gId, port, backupPort: prozessorPorts(bc).some(p => p.nr === port) ? port : null, backupGeraet: bc.id, module: [] };
+    P.straenge.push(k);
+  }
   if (!k) {
     let backupPort = null;
     if (P.regeln.backup) {
@@ -127,7 +144,7 @@ function signalSvgInhalt(s) {
   return screenSvgInhalt(s, {
     fuellung: m => farbe.has(m.id) ? farbe.get(m.id) + "2e" : "transparent",
     fehlerIds: new Set(s.module.filter(m => !farbe.has(m.id)).map(m => m.id)),
-    wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: Number.isFinite(k.backupPort) ? "B" + k.backupPort : null })),
+    wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: backupName(k) })),
     oben: `${s.name} · Signal · ● Start Hauptweg · ▢ Einspeisung Backup (gleicher Weg)`,
     zusatz: symbolSvg(s, "signal"),
   });
@@ -192,7 +209,7 @@ REITER.signal = {
         if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(g.name)}</td><td>${nr}</td><td>—</td><td>0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
         const ms = strangModule(k); const px = strangPixel(k);
         return `<tr class="klickbar${gewaehlt || ui.sel.strang === k.id ? " sel" : ""}" data-ziel="${zielText(g.id, k.port)}" data-strang="${k.id}"><td><span class="punkt" style="background:${strangFarbe(k)}${rolle === "backup" ? ";opacity:.5" : ""}"></span>${strangName(k)}</td><td>${esc(g.name)}</td><td>${nr}</td>
-          <td>${rolle === "haupt" ? `Haupt${Number.isFinite(k.backupPort) ? " (Backup " + k.backupPort + ")" : ""}` : "Backup zu " + k.port}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
+          <td>${rolle === "haupt" ? `Haupt${Number.isFinite(k.backupPort) ? " (Backup " + backupName(k) + ")" : ""}` : "Backup zu " + strangName(k)}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
           <td>${balken(px / (portKapazitaet(g) || 1))}</td><td>${esc(wegText(k))}</td></tr>`; }).join("")
         || `<tr><td colspan="8" class="leise">Noch keine Ports zugewiesen – rechts beim Prozessor Ports anklicken oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
   },
@@ -216,7 +233,7 @@ REITER.signal = {
 
 function wegText(k) {
   const d = portWeg(k.prozessor, k.port);
-  const b = Number.isFinite(k.backupPort) ? portWeg(k.prozessor, k.backupPort) : d;
+  const b = Number.isFinite(k.backupPort) ? portWeg(backupGeraetId(k), k.backupPort) : d;
   return d === b ? (d ? d.name : "direkt (Cat)") : `${d?.name || "direkt"} / Backup ${b?.name || "direkt"}`;
 }
 
@@ -228,9 +245,9 @@ function signalRechts() {
   if (k) {
     const g = geraetById(k.prozessor); const px = strangPixel(k);
     html += `<div class="karte"><div class="label">Strang ${strangName(k)}</div><table class="werte">
-      <tr><td>Prozessor · Port</td><td>${esc(g?.name)} · ${k.port}</td></tr><tr><td>Backup</td><td>${Number.isFinite(k.backupPort) ? "Port " + k.backupPort + " (am Strangende)" : "—"}</td></tr>
+      <tr><td>Prozessor · Port</td><td>${esc(g?.name)} · ${k.port}</td></tr><tr><td>Backup</td><td>${Number.isFinite(k.backupPort) ? `${k.backupGeraet ? esc(geraetById(k.backupGeraet)?.name) + " · " : ""}Port ${k.backupPort} (am Strangende)` : "—"}</td></tr>
       <tr><td>Module</td><td>${k.module.length}</td></tr><tr><td>Pixel</td><td>${fmt(px)} / ${fmt(portKapazitaet(g))}</td></tr></table>
-      <div class="knopfreihe" style="margin-top:8px"><button data-d="strang-pinsel">Mit Pinsel fortsetzen</button><button data-d="backup-weg">${Number.isFinite(k.backupPort) ? "Backup entfernen" : "Backup hinzufügen"}</button><button data-d="strang-loeschen" class="gefahr">Löschen</button></div></div>`;
+      <div class="knopfreihe" style="margin-top:8px"><button data-d="strang-pinsel">Mit Pinsel fortsetzen</button>${k.backupGeraet ? "" : `<button data-d="backup-weg">${Number.isFinite(k.backupPort) ? "Backup entfernen" : "Backup hinzufügen"}</button>`}<button data-d="strang-loeschen" class="gefahr">Löschen</button></div></div>`;
   }
   const g = geraetById(ui.sel.prozessor);
   if (g && g.art === "prozessor") {
@@ -247,6 +264,7 @@ function signalRechts() {
       <table class="werte"><tr><td>Receiving Cards</td><td>${esc((led.receivingCards || []).join(", "))}</td></tr><tr><td>Belegte Ports</td><td>${belegt.size} / ${ports.length}</td></tr>
       <tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)}</td></tr><tr><td>Layer</td><td>${fmt(led.layer)}</td></tr></table>
       ${portRasterHtml(g, aktuellerScreen())}
+      <div class="abschnitt">Backup</div>${controllerBackupHtml(g)}
       <div class="knopfreihe" style="margin-top:8px"><button data-d="geraet-loeschen" class="gefahr">Prozessor löschen</button></div></div>`;
     html += wegeKarte(g);
     const d = geraetById(ui.sel.weg);
@@ -265,16 +283,17 @@ function signalUebersicht(el) {
     const px = st.reduce((a, k) => a + strangPixel(k), 0);
     const eingaenge = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "video");
     const portHtml = ports.map(p => {
-      const haupt = st.find(k => k.port === p.nr), bk = st.find(k => k.backupPort === p.nr);
+      const an = strangeAnPort(g.id, p.nr); const haupt = an?.rolle === "haupt" ? an.strang : null, bk = an?.rolle === "backup" ? an.strang : null;
       const via = portWeg(g.id, p.nr); const viaText = via ? `<br><span class="leise">über ${esc(wegKurz(via))}</span>` : "";
       if (haupt) return `<div class="port" style="border-color:${strangFarbe(haupt)}"><b>Port ${p.nr}</b><br>Haupt · ${esc(screenById(haupt.screen)?.name || "")}<br>${fmt(strangPixel(haupt) / portKapazitaet(g) * 100)} %${viaText}</div>`;
-      if (bk) return `<div class="port" style="border-color:${strangFarbe(bk)};border-style:dashed"><b>Port ${p.nr}</b><br>Backup zu ${p.nr === bk.backupPort ? bk.port : ""}<br>${esc(screenById(bk.screen)?.name || "")}${viaText}</div>`;
+      if (bk) return `<div class="port" style="border-color:${strangFarbe(bk)};border-style:dashed"><b>Port ${p.nr}</b><br>Backup zu ${strangName(bk)}<br>${esc(screenById(bk.screen)?.name || "")}${viaText}</div>`;
       return `<div class="port frei"><b>Port ${p.nr}</b><br>frei</div>`;
     }).join("");
-    return `<div class="karte"><div class="knopfreihe"><h2 style="margin:0">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</h2><span class="fueller"></span>${st.length ? `<span class="badge voll">ok</span>` : `<span class="badge teil">leer</span>`}</div>
-      <p class="klein leise">Standort: ${esc(g.standort || "—")} · Receiving Cards: ${esc((led.receivingCards || []).join(", "))}</p>
+    const haupt = hauptVon(g), bc = backupController(g);
+    return `<div class="karte"${haupt ? ' style="border-left:4px dashed var(--akzent)"' : ""}><div class="knopfreihe"><h2 style="margin:0">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</h2><span class="fueller"></span>${haupt ? `<span class="badge teil">Backup von ${esc(haupt.name)}</span>` : st.length ? `<span class="badge voll">ok</span>` : `<span class="badge teil">leer</span>`}</div>
+      <p class="klein leise">Standort: ${esc(g.standort || "—")} · Receiving Cards: ${esc((led.receivingCards || []).join(", "))}${bc ? ` · Backup-Controller: <b>${esc(bc.name)}</b>` : ""}</p>
       <div class="label">Ausgänge (${ports.length} × ${fmt(led.pxJePort)} px)</div><div class="portgitter">${portHtml}</div>
-      ${wegGeraete(g.id).length ? `<div class="label">Wege zur Wand</div><table class="werte">${wegGeraete(g.id).map(d => `<tr><td>${esc(wegKurz(d))} · ${esc(d.name)}</td><td>${esc(eintrag(d.lib)?.name || "—")} · Ports ${d.ports.join(", ") || "—"} · ${esc(d.standort || "")}</td></tr>`).join("")}</table>` : ""}
+      ${wegGeraete(g.id).length ? `<div class="label">Wege zur Wand</div><table class="werte">${wegGeraete(g.id).map(d => `<tr><td>${esc(wegKurz(d))} · ${esc(d.name)}</td><td>${esc(eintrag(d.lib)?.name || "—")} · Ports ${wegBelegung(d).map(e => (e.g !== d.prozessor ? prozessorKurz(e.g) + " " : "") + e.nr).join(", ") || "—"} · ${esc(d.standort || "")}</td></tr>`).join("")}</table>` : ""}
       <div class="label">Eingänge</div><table class="werte">${eingaenge.map(a => { const o = (P.outputs || []).filter(x => x.prozessor === g.id && x.eingang === a.name); return `<tr><td>${esc(a.name)}</td><td>${o.length ? o.map(x => esc(`${x.name} · ${x.b} × ${x.h} @ ${fmtFlex(x.hz)} Hz`)).join(", ") : '<span class="leise">frei</span>'}</td></tr>`; }).join("")}</table>
       <div class="label">Auslastung</div><table class="werte"><tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)} (${fmt(led.pxGesamt ? px / led.pxGesamt * 100 : 0)} %)</td></tr>
       <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>${(P.layer || []).filter(l => l.prozessor === g.id).length} / ${fmt(led.layer)}</td></tr></table></div>`
@@ -284,10 +303,10 @@ function signalUebersicht(el) {
 
 function signalListeAlle() {
   const zeilen = [];
-  for (const g of P.geraete.filter(x => x.art === "prozessor")) for (const k of P.straenge.filter(x => x.prozessor === g.id).sort((a, b) => a.port - b.port)) {
-    const px = strangPixel(k);
-    zeilen.push(`<tr><td>${esc(g.name)}</td><td>${k.port}</td><td>Haupt</td><td>${esc(screenById(k.screen)?.name || "—")}</td><td><span class="punkt" style="background:${strangFarbe(k)}"></span>${strangName(k)}</td><td class="zahl">${fmt(px)}</td><td>${balken(px / (portKapazitaet(g) || 1))}</td></tr>`);
-    if (Number.isFinite(k.backupPort)) zeilen.push(`<tr><td>${esc(g.name)}</td><td>${k.backupPort}</td><td>Backup zu ${k.port}</td><td>${esc(screenById(k.screen)?.name || "—")}</td><td><span class="punkt" style="background:${strangFarbe(k)}"></span>${strangName(k)} (Ende)</td><td class="zahl">${fmt(px)}</td><td>${balken(px / (portKapazitaet(g) || 1))}</td></tr>`);
+  for (const g of P.geraete.filter(x => x.art === "prozessor")) for (const p of prozessorPorts(g)) {
+    const an = strangeAnPort(g.id, p.nr); if (!an) continue;
+    const k = an.strang, px = strangPixel(k), kap = portKapazitaet(geraetById(k.prozessor)) || 1;
+    zeilen.push(`<tr><td>${esc(g.name)}</td><td>${p.nr}</td><td>${an.rolle === "haupt" ? "Haupt" : "Backup zu " + strangName(k)}</td><td>${esc(screenById(k.screen)?.name || "—")}</td><td><span class="punkt" style="background:${strangFarbe(k)}"></span>${strangName(k)}${an.rolle === "backup" ? " (Ende)" : ""}</td><td class="zahl">${fmt(px)}</td><td>${balken(px / kap)}</td></tr>`);
   }
   return `<div class="kopf"><b>Alle Ports aller Prozessoren</b></div><table><tr><th>Prozessor</th><th>Port</th><th>Art</th><th>Screen</th><th>Strang</th><th class="zahl">Pixel</th><th>Auslastung</th></tr>
     ${zeilen.join("") || `<tr><td colspan="7" class="leise">Keine Stränge.</td></tr>`}</table>`;
@@ -317,17 +336,18 @@ function signalPruefungen() {
     const led = prozessorLed(g);
     const px = P.straenge.filter(k => k.prozessor === g.id).reduce((a, k) => a + strangPixel(k), 0);
     if (led.pxGesamt && px > led.pxGesamt) liste.push({ art: "warn", text: `${g.name}: ${fmt(px)} px über der Gesamtkapazität ${fmt(led.pxGesamt)} px.`, ziel: "prozessor:" + g.id });
-    if (!P.straenge.some(k => k.prozessor === g.id)) liste.push({ art: "info", text: `${g.name}: keine Ports belegt – wird er gebraucht?`, ziel: "prozessor:" + g.id });
+    if (!hauptVon(g) && !P.straenge.some(k => k.prozessor === g.id)) liste.push({ art: "info", text: `${g.name}: keine Ports belegt – wird er gebraucht?`, ziel: "prozessor:" + g.id });
     if (!g.strom) liste.push({ art: "info", text: `${g.name}: Stromversorgung nicht zugeordnet.`, ziel: "prozessor:" + g.id });
     const direkt = genutztePorts(g.id).some(nr => !portWeg(g.id, nr));
     if (direkt && !Number.isFinite(g.portLaengeM)) liste.push({ art: "warn", text: `${g.name}: Länge der Port-Kabel fehlt.`, ziel: "prozessor:" + g.id });
     if (direkt && g.portLaengeM > P.regeln.catMax) liste.push({ art: "warn", text: `${g.name}: Cat-Strecke ${fmtFlex(g.portLaengeM)} m über ${fmt(P.regeln.catMax)} m – Glasfaser/Stagebox nutzen.`, ziel: "prozessor:" + g.id });
   }
-  liste.push(...wegePruefungen());
+  liste.push(...wegePruefungen(), ...controllerBackupPruefungen());
   return liste;
 }
 
 function signalEreignisse() {
+  controllerBackupEreignisse($("#rechts")); controllerBackupEreignisse($("#zeichnung"));
   $("#zeichnung").addEventListener("click", e => { if (ui.reiter === "signal" && e.target.closest("[data-d='backup-auto']")) backupAutomatisch(); });
   $("#zeichnung").addEventListener("change", e => {
     if (ui.reiter !== "signal" || !e.target.dataset.backupPort) return;
@@ -381,13 +401,23 @@ function signalEreignisse() {
     if (wa && istWeg(d)) {
       if (wa === "loeschen") wegLoeschen(d);
       if (wa === "auffuellen") { wegPortsAuffuellen(d); aenderung(); }
+      if (wa === "backup-spiegeln") {
+        // Adern für den Backup-Controller: alle seine Backup-Ports, die noch keinen anderen Weg haben (bis zur Adernzahl)
+        const bc = backupController(geraetById(d.prozessor)); if (!bc) return;
+        const kap = wegKapazitaet(d) ?? Infinity;
+        const neu = [...new Set(P.straenge.filter(k => k.prozessor === d.prozessor && k.backupGeraet === bc.id && Number.isFinite(k.backupPort)).map(k => k.backupPort))]
+          .sort((a, b) => a - b).filter(nr => !portWeg(bc.id, nr) || portWeg(bc.id, nr) === d);
+        d.backupPorts = neu.slice(0, Math.max(0, kap - d.ports.length));
+        if (neu.length > d.backupPorts.length) toast(`Nur ${d.backupPorts.length} Adern frei – ${neu.length - d.backupPorts.length} Backup-Ports passen nicht.`, "fehler");
+        aenderung();
+      }
       return;
     }
     const a = e.target.closest("[data-d]")?.dataset.d; if (!a) return;
     const k = P.straenge.find(x => x.id === ui.sel.strang);
     if (a === "strang-loeschen" && k) strangLoeschen(k.id);
     if (a === "strang-pinsel" && k) { ui.pinsel.signal = `${k.prozessor}|${k.port}`; ui.werkzeug = "pinsel"; ui.screen = k.screen; render(); }
-    if (a === "backup-weg" && k) {
+    if (a === "backup-weg" && k && !k.backupGeraet) {
       if (Number.isFinite(k.backupPort)) k.backupPort = null;
       else { const g = geraetById(k.prozessor); const belegt = belegtePorts(g.id); const frei = prozessorPorts(g).map(p => p.nr).reverse().find(n => !belegt.has(n)); if (!frei) return toast("Kein Port frei.", "fehler"); k.backupPort = frei; }
       aenderung();

@@ -31,6 +31,8 @@ function geraetDuplizieren(g) {
   n.id = neueId({ verteiler: "v", einspeisung: "e", prozessor: "p", stagebox: "sb", multicore: "mc" }[g.art] || "g");
   n.name = g.name + " (Kopie)";
   if (g.art === "prozessor" || g.art === "stagebox") n.strom = null;   // Kanal ist schon belegt
+  if (g.art === "prozessor") n.backupController = null;
+  if (istWeg(g)) n.backupPorts = [];
   if (istWeg(g)) { n.ports = []; n.pos = null; }
   P.geraete.splice(P.geraete.indexOf(g) + 1, 0, n);
   if (istWeg(n)) { ui.sel.prozessor = n.prozessor; ui.sel.weg = n.id; }
@@ -60,6 +62,9 @@ function baumEintraege(li) {
   const g = geraetById(li.dataset.geraet); if (!g) return [];
   const basis = [{ t: "Duplizieren", f: () => geraetDuplizieren(g) }, { t: "Löschen", gefahr: true, f: () => istWeg(g) ? wegLoeschen(g) : geraetLoeschen(g) }];
   if (g.art === "prozessor") return [...basis,
+    ...(hauptVon(g) ? [{ t: "Controller-Backup aufheben", f: () => controllerBackupSetzen(hauptVon(g), null) }]
+      : backupController(g) ? [{ t: "Controller-Backup aufheben", f: () => controllerBackupSetzen(g, null) }]
+      : [{ t: "Backup-Controller anlegen", f: () => { ui.reiter = "signal"; backupControllerAnlegen(g); } }]),
     { kopf: "Stagebox hinzufügen" }, ...libAuswahl("stagebox", id => { ui.reiter = "signal"; wegAnlegen("stagebox", id, g.id); }),
     { kopf: "Multicore hinzufügen" }, ...libAuswahl("multicore", id => { ui.reiter = "signal"; wegAnlegen("multicore", id, g.id); })];
   return basis;
