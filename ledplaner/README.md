@@ -35,6 +35,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/07-touch.js` | Tablet: Zwei-Finger-Zoom/-Verschieben (bricht laufende Aktionen ab), Zoom-Knöpfe, Module mit dem Finger aus der Palette ziehen, ausklappbare Seitenspalten (≤ 900 px) |
 | `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
 | `js/12-kurve.js` | Kurven/Winkel: Knick an senkrechten Fugen (`s.winkel`), Winkel oder Radius, Draufsicht mit Sehne/Stich/Radius, Prüfungen (Library-Winkel, Flugrahmen über Knick) |
+| `js/13-dreid.js` | 3D-Ansicht ohne Bibliotheken (SVG, Maler-Verfahren): Module, Kurve, Unterkante, Flugrahmen, Boden-Raster, Person 1,80 m; drehen/zoomen mit Maus und Fingern |
 | `js/15-rigging.js` | Rigging: Flugrahmen/Stacking aus der Library, Last je Rahmen und Punkt, Riggingplan, Prüfungen |
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
@@ -71,7 +72,7 @@ registriert und prüfen `ui.reiter`. Prüfhinweise: `{ art: "fehler"|"warn"|"inf
 
 Fertig (Phase 1 + 2): Projekte (Neu/Öffnen/Speichern, Autosave, Rückgängig),
 Library-Manager mit Pflicht-/Prüffeldern, Modul-Editor (Drag & Drop, Einrasten, gemischte Typen,
-Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht, Kurven/Winkel mit Abwicklung + Draufsicht, Tablet-Bedienung mit Fingergesten), Rigging (Flugrahmen/Stacking,
+Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht, Kurven/Winkel mit Abwicklung + Draufsicht, Tablet-Bedienung mit Fingergesten, 3D-Ansicht), Rigging (Flugrahmen/Stacking,
 Last je Punkt, Riggingplan, Freigabefeld), Strom komplett (Verteiler-Ebenen, Einspeisungen,
 Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht), Signal
 (Prozessor-Kompatibilität, Port-Regel Serie + RC, Vorschlag + Pinsel, Backup am Strangende,
@@ -82,12 +83,12 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-82 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+90 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).
 - Verknüpfung Signalfluss-Planer (wird neu gebaut; der LED-Planer funktioniert ohne ihn).
-- Hersteller-Dateien (NovaLCT/Colorlight, Beispieldateien nötig), 3D.
+- Hersteller-Dateien (NovaLCT/Colorlight) – Beispieldateien nötig. Medienserver-Exporte.
 - Tablet: auf echten Geräten (iPad/Android) ausprobieren – getestet mit simulierten Touch-Ereignissen in Chromium.
 - Kurven: mögliche Winkel der LEDTEK-Module in der Library eintragen (derzeit unbekannt → nur Info).
 - Rex-Logo-Dateien einbinden (derzeit Platzhalter in der Kopfleiste).

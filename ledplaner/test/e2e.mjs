@@ -279,6 +279,30 @@ await p.click('[data-a="spiegel-x"]');
 pruefe("Kurve: Spiegeln ↔ nimmt die Winkel mit", await ev(() => JSON.stringify(Object.keys(P.screens[0].winkel).map(Number).sort((a, b) => a - b)) === "[1000,2000,3000,4000,5000]" && P.screens[0].module.length === 48));
 pruefe("Kurve: Draufsicht im Bericht", await ev(() => berichtHtml().includes("Draufsicht (Kurve)")));
 
+/* ---------- 3D-Ansicht ---------- */
+await p.click('[data-a="3d"]'); await p.waitForTimeout(100);
+const d3 = await ev(() => { const svg = $("#zeichnung svg[data-dreid]"); const s = P.screens[0]; return { svg: !!svg, poly: svg?.querySelectorAll("polygon").length, vorne: [...(svg?.querySelectorAll("polygon") || [])].filter(x => x.getAttribute("fill") === "#1d3a5c").length,
+  soll: s.module.reduce((a, m) => { const r = modRect(m); return a + 1 + Object.keys(s.winkel).map(Number).filter(x => x > r.x && x < r.x + r.b).length; }, 0) + riggingDaten(s).rahmen.length }; });
+pruefe("3D: alle Module (+ Flugrahmen) als Flächen, Vorderseite zur Kamera", d3.svg && d3.poly === d3.soll && d3.vorne >= 36, JSON.stringify(d3));
+const fl = await p.locator("#zeichnung .dreid-flaeche").boundingBox();
+const yaw0 = await ev(() => ui.dreid.yaw);
+await p.mouse.move(fl.x + fl.width / 2, fl.y + fl.height / 2); await p.mouse.down();
+await p.mouse.move(fl.x + fl.width / 2 + 200, fl.y + fl.height / 2, { steps: 5 }); await p.mouse.up(); await p.waitForTimeout(50);
+pruefe("3D: Ziehen dreht die Ansicht", await ev(y => Math.abs(ui.dreid.yaw - (y + 80)) < 1, yaw0));
+await p.mouse.move(fl.x + fl.width / 2, fl.y + fl.height / 2); await p.mouse.wheel(0, -200); await p.waitForTimeout(50);
+await p.click('[data-zoom="+"]'); await p.waitForTimeout(50);
+pruefe("3D: Mausrad und Zoom-Knopf", await ev(() => Math.abs(ui.dreid.zoom - 1.15 * 1.4) < 0.01));
+await ev(() => { $("#toasts").innerHTML = ""; });
+await p.screenshot({ path: path.join(AUSGABE, "dreid.png") });
+await p.click('[data-zoom="fit"]'); await p.waitForTimeout(50);
+pruefe("3D: ⤢ setzt die Ansicht zurück", await ev(() => ui.dreid.zoom === 1 && ui.dreid.yaw === -28));
+await ev(() => { ui.modus.strom = "wand"; });
+await p.click('[data-reiter="strom"]'); await p.waitForTimeout(50);
+pruefe("3D: andere Reiter zeichnen normal", await p.locator("#zeichnung svg[data-ansicht]").count() === 1);
+await p.click('[data-reiter="aufbau"]'); await p.click('[data-a="vorne"]'); await p.waitForTimeout(50);
+pruefe("3D: zurück zur Vorderansicht", await p.locator("#zeichnung svg[data-ansicht]").count() === 1 && await p.locator("#zeichnung svg[data-dreid]").count() === 0);
+pruefe("3D: Kundenansicht mit 3D-Bild", await ev(() => kundenHtml().includes("data-dreid")));
+
 /* ---------- Speichern / Laden / Autosave ---------- */
 await p.click('[data-haupt="planen"]');
 const [dl] = await Promise.all([p.waitForEvent("download"), p.keyboard.press("Control+s")]);
@@ -443,6 +467,14 @@ async function rexSeite(module) {
   pruefe("Tablet: Pinsel mit dem Finger", await e(() => P.kreise.find(k => k.kanal === 12)?.module.length === 2));
   await e(() => { ui.werkzeug = "auswahl"; ui.reiter = "aufbau"; $("#toasts").innerHTML = ""; render(); });
   await pg.screenshot({ path: path.join(AUSGABE, "tablet-quer.png") });
+  await e(() => { ui.ansicht3d = true; ui.dreid = dreidStandard(); render(); }); await pause();
+  const [dx, dy] = mitte(await box("#zeichnung .dreid-flaeche"));
+  await finger("touchStart", [[dx - 50, dy]]); await pause();
+  await finger("touchStart", [[dx - 50, dy], [dx + 50, dy]]); await pause();
+  for (let i = 1; i <= 5; i++) { await finger("touchMove", [[dx - 50 - 10 * i, dy], [dx + 50 + 10 * i, dy]]); await pause(); }
+  await finger("touchEnd", []); await pause();
+  pruefe("Tablet: 3D mit zwei Fingern zoomen", await e(() => Math.abs(ui.dreid.zoom - 2) < 0.05), String(await e(() => ui.dreid.zoom)));
+  await e(() => { ui.ansicht3d = false; render(); });
 
   // Hochkant: Seitenspalten ausklappbar
   await pg.setViewportSize({ width: 820, height: 1180 }); await pause();

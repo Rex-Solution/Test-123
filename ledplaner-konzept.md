@@ -380,6 +380,8 @@ Aus Phase 4: Kurven/Winkel – Knick an senkrechten Fugen (je Fuge, für alle/au
 Prüfung gegen die möglichen Winkel der Library und auf Flugrahmen über einem Knick.
 Tablet-Bedienung: Zwei-Finger-Zoom/-Verschieben, Zoom-Knöpfe, Module mit dem Finger ziehen, Mehrfachauswahl und
 Einrasten als Schalter (statt Shift/Alt), Pinsel mit dem Finger, größere Bedienelemente, Seitenspalten hochkant ausklappbar.
+3D-Ansicht im Aufbau (Umschalter „3D“): Module mit Kurve und Unterkante, Flugrahmen, Boden-Raster, Person als Maßstab,
+drehen und zoomen mit Maus oder Fingern; 3D-Bild auch in der Kundenansicht.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

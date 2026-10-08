@@ -180,7 +180,8 @@ function kundenHtml() {
     const x = screenSummen(s); const pl = pixelLage(s);
     const pitches = [...new Set(s.module.map(m => fmtFlex(eintrag(m.lib)?.attribute?.led?.pitchMm, 2)))].join(" / ");
     return `<div class="blatt"><div class="marke">R E X &nbsp; S O L U T I O N</div><h1 style="font-size:24pt">${esc(s.name)}</h1><div class="unter">${esc(P.daten.titel)}${P.daten.kunde ? " · " + esc(P.daten.kunde) : ""}</div>
-      <div style="margin:10mm 0">${druckSvg(s, { masse: true }, 130)}</div>
+      <div style="margin:10mm 0">${druckSvg(s, { masse: true }, 110)}</div>
+      <div style="margin:0 0 8mm">${dreidSvg(s, 640, 300, dreidStandard())}</div>
       <div class="eckdaten"><span>Größe</span><b>${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m (${fmt(x.m2, 2)} m²)</b><span>Auflösung</span><b>${fmt(pl.b)} × ${fmt(pl.h)} Pixel</b>
       <span>Pixelabstand</span><b>${pitches} mm</b><span>Module</span><b>${x.anzahl}</b><span>Bauart</span><b>${s.bauart}${s.ukM != null ? ", Unterkante " + fmtFlex(s.ukM) + " m" : ""}</b>
       <span>Leistung max. / typ.</span><b>${fmt(x.wMax / 1000, 1)} / ${fmt(x.wTyp / 1000, 1)} kW</b><span>Gewicht Module</span><b>${fmt(x.kg)} kg</b></div></div>`;

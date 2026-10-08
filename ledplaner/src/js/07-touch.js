@@ -36,6 +36,9 @@ function touchEreignisse() {
     beruehrung.punkte.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (!beruehrung.geste) return;
     e.stopPropagation();
+    if (el.querySelector("svg[data-dreid]") && beruehrung.punkte.size >= 2) {   // 3D: zwei Finger zoomen
+      const neu = gestenMitte(); dreidZoom(neu.d / beruehrung.geste.d); beruehrung.geste = neu; return;
+    }
     const svg = el.querySelector("svg[data-ansicht]");
     if (!svg || beruehrung.punkte.size < 2) return;
     const v = ui.ansicht.get(svg.dataset.ansicht); if (!v) return;
@@ -94,6 +97,10 @@ function touchEreignisse() {
   // Zoom-Knöpfe in der Zeichnung (Finger und Maus)
   el.addEventListener("click", e => {
     const b = e.target.closest("[data-zoom]"); if (!b) return;
+    if (el.querySelector("svg[data-dreid]")) {
+      if (b.dataset.zoom === "fit") { ui.dreid = dreidStandard(); return render(); }
+      return dreidZoom(b.dataset.zoom === "+" ? 1.4 : 1 / 1.4);
+    }
     const svg = el.querySelector("svg[data-ansicht]"); if (!svg) return;
     if (b.dataset.zoom === "fit") return einpassen();
     const v = ui.ansicht.get(svg.dataset.ansicht); if (!v) return;

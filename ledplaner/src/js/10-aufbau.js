@@ -19,7 +19,7 @@ REITER.aufbau = {
         <button data-a="mehrfach" class="${ui.mehrfach ? "aktiv" : ""}" title="Antippen fügt Module zur Auswahl hinzu">Mehrfachauswahl</button>
         <button data-a="einrasten" class="${ui.einrasten ? "aktiv" : ""}" title="Aus: Module frei setzen">Einrasten: ${ui.einrasten ? "an" : "aus"}</button></span>
       <span class="trenner"></span>
-      <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten}">Rückansicht</button></div>
+      <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten && !ui.ansicht3d}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten && !ui.ansicht3d}">Rückansicht</button><button data-a="3d" aria-selected="${!!ui.ansicht3d}" title="Räumliche Ansicht mit Kurve, Unterkante und Person als Maßstab">3D</button></div>
       <button data-a="einpassen" ${dis}>Einpassen</button>
       ${s ? `<span class="trenner"></span><div class="umschalter"><button data-a="bauart" data-wert="geflogen" aria-selected="${s.bauart === "geflogen"}">Geflogen</button><button data-a="bauart" data-wert="gestellt" aria-selected="${s.bauart === "gestellt"}">Gestellt</button></div>` : ""}`;
   },
@@ -42,6 +42,7 @@ REITER.aufbau = {
   zeichnung(el) {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
+    if (ui.ansicht3d) return dreidZeichnung(el, s);
     const v = ansicht(s);
     el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s) + kurveMarkenSvg(s), masseTiefer: !ui.hinten,
       oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${kurveDaten(s).gebogen ? " · Abwicklung" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
@@ -386,7 +387,8 @@ function aufbauEreignisse() {
     else if (a === "spiegel-x") aufbauSpiegeln(s, "x");
     else if (a === "spiegel-y") aufbauSpiegeln(s, "y");
     else if (a === "loeschen") modulEntfernen(s, [...ui.auswahl]);
-    else if (a === "vorne" || a === "hinten") { ui.hinten = a === "hinten"; render(); }
+    else if (a === "vorne" || a === "hinten") { ui.hinten = a === "hinten"; ui.ansicht3d = false; render(); }
+    else if (a === "3d") { ui.ansicht3d = true; ui.hinten = false; render(); }
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
     else if (a === "winkel") winkelDialog(s);
