@@ -135,6 +135,22 @@
   .untermenue li { padding:8px 10px; border-radius:6px; font-size:14px; }
   .untermenue li.sel { background:var(--akzent-flaeche); }
 
+  /* Übersichten (Verteiler, Prozessoren) */
+  .zeichnung.liste-modus { place-items:start stretch; }
+  .uebersicht { display:grid; grid-template-columns:repeat(auto-fill, minmax(420px, 1fr)); gap:12px; width:100%; }
+  .portgitter { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin:8px 0; }
+  .port { border:1px solid var(--linie); border-radius:6px; padding:6px; font-size:12px; background:var(--bg); }
+  .port b { display:block; font-size:13px; }
+  .port.frei { color:var(--text-leise); border-style:dashed; }
+  .kanalgitter { display:grid; grid-template-columns:repeat(6, 1fr); gap:4px; margin:6px 0 10px; }
+  .kanal { border:1px solid var(--linie); border-radius:6px; padding:4px; font-size:11px; text-align:center; background:var(--bg); }
+  .kanal.frei { color:var(--text-leise); border-style:dashed; }
+  .tabelle-edit input, .tabelle-edit select { padding:3px 6px; font-size:13px; }
+  .tabelle-edit input.laenge { width:70px; text-align:right; }
+  .tabelle-edit td.fehlt input { border-color:var(--warnung); }
+  .kabelpunkt { display:inline-block; width:22px; height:4px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+  .filter { display:flex; gap:8px; align-items:center; }
+
   /* Toast */
   .toast { position:fixed; right:16px; bottom:16px; max-width:420px; padding:10px 14px; border-radius:8px; background:#1d2c3a;
     border:1px solid var(--linie); box-shadow:0 6px 20px rgba(0,0,0,.4); font-size:13px; }
@@ -162,6 +178,7 @@
     <button data-reiter="strom" aria-selected="false"><span class="ampel ok"></span>Strom</button>
     <button data-reiter="signal" aria-selected="false"><span class="ampel ok"></span>Signal</button>
     <button data-reiter="ausgabe" aria-selected="false"><span class="ampel warn"></span>Ausgabe</button>
+    <button data-reiter="kabel" aria-selected="false"><span class="ampel warn"></span>Kabel</button>
   </div>
   <span class="fueller"></span>
   <div class="knopfreihe">
@@ -435,8 +452,8 @@ const REITER = {
 
   strom: {
     werkzeuge: `<button>Vorschlag erzeugen</button><button class="aktiv">🖌 Pinsel</button><select><option>Abgang: C24 · Kanal 1 (L1)</option></select>
-      <button>Weg löschen</button><span class="trenner"></span><button>Übersicht alle Verteiler</button>
-      <span class="trenner"></span><div class="umschalter"><button aria-selected="true">Max.</button><button aria-selected="false">Ø</button></div>`,
+      <button>Weg löschen</button><span class="trenner"></span><div class="umschalter"><button aria-selected="true">Max.</button><button aria-selected="false">Ø</button></div>
+      <span class="trenner"></span><div class="umschalter"><button aria-selected="true" data-gehe="strom">Wand</button><button aria-selected="false" data-gehe="strom:verteiler">Alle Verteiler</button></div>`,
     palette: `
       <div class="palette-item">StageSmarts C24 (4 × Harting)<span class="badge teil">11/12</span></div>
       <div class="palette-item">Laka Harting 16-pol · 25 m</div>
@@ -477,6 +494,10 @@ const REITER = {
         <div class="phase"><span style="color:var(--l2)">L2</span><span class="balken"><i style="width:17%"></i></span><span>10,7 A</span></div>
         <div class="phase"><span style="color:var(--l3)">L3</span><span class="balken"><i style="width:17%"></i></span><span>10,7 A</span></div>
         <p class="klein leise">Schieflast 0 % · Balken = Anteil an 63 A</p></div>
+      <div class="karte"><div class="label">Ausgewählte Verbindung</div>
+        <label class="feld"><span>Kabeltyp</span><select><option>Laka Harting 16-pol (6 Kreise)</option><option>CEE 63 A 5-pol</option><option>PowerCON TRUE1</option></select></label>
+        <div class="zwei"><label class="feld"><span>Länge (m)</span><input value="25"></label><label class="feld"><span>Anzahl</span><input value="1"></label></div>
+        <table class="werte"><tr><td>Von</td><td>C24 · Harting-Ausgang 1</td></tr><tr><td>Nach</td><td>Spinne 1 · Bühne Mitte oben</td></tr></table></div>
       <div class="label">Prüfhinweise</div>
       <div class="hinweis ok">Alle 48 Module haben einen Kreis.</div>
       <div class="hinweis warn">Einschaltstrom der Module unbekannt – C-Charakteristik vorhanden, Staffelung nicht geprüft.</div>
@@ -486,7 +507,7 @@ const REITER = {
   signal: {
     werkzeuge: `<select><option>Prozessor: NovaStar MX30 (passt zu A8s)</option></select><button>Vorschlag erzeugen</button>
       <button class="aktiv">🖌 Pinsel</button><select><option>Port 1 · MX30</option></select><button>Backup: an</button>
-      <span class="trenner"></span><div class="umschalter"><button aria-selected="true">Wand</button><button aria-selected="false">Pixelraum</button></div>`,
+      <span class="trenner"></span><div class="umschalter"><button aria-selected="true" data-gehe="signal">Wand</button><button aria-selected="false">Pixelraum</button><button aria-selected="false" data-gehe="signal:prozessoren">Alle Prozessoren</button></div>`,
     palette: `
       <div class="palette-item">NovaStar MX30<span class="badge voll">✓</span></div>
       <div class="palette-item leise">Stagebox … (Library leer)</div>
@@ -523,6 +544,10 @@ const REITER = {
         <label class="feld"><span>Standort</span><input value="FOH / Regie"></label>
         <label class="feld"><span>Weg zur Wand</span><select><option>direkt (Cat)</option><option>Stagebox</option><option>Multicore</option></select></label>
         <table class="werte"><tr><td>Belegte Ports</td><td>4 / 10</td></tr><tr><td>Pixel</td><td>908.544 / 6,5 Mio.</td></tr><tr><td>Receiving Card</td><td>A8s ✓</td></tr></table></div>
+      <div class="karte"><div class="label">Ausgewählte Verbindung</div>
+        <label class="feld"><span>Kabeltyp</span><select><option>Cat6 etherCON</option><option>Glasfaser</option><option>Cat-Multicore 4-fach</option></select></label>
+        <div class="zwei"><label class="feld"><span>Länge (m)</span><input value="60"></label><label class="feld"><span>Anzahl</span><input value="1"></label></div>
+        <table class="werte"><tr><td>Von</td><td>MX30 · Port 1</td></tr><tr><td>Nach</td><td>Bühne Mitte · Modul A1 (Daten ein)</td></tr></table></div>
       <div class="label">Prüfhinweise</div>
       <div class="hinweis ok">Alle Module haben einen Port, Backup vollständig.</div>
       <div class="hinweis ok">Pro Port nur eine Serie (P4+ PRO V3 · A8s).</div>
@@ -580,18 +605,171 @@ const REITER = {
   },
 };
 
+/* Übersicht aller Verteiler */
+REITER["strom:verteiler"] = {
+  ...REITER.strom,
+  werkzeuge: REITER.strom.werkzeuge.replace('aria-selected="true" data-gehe="strom"', 'aria-selected="false" data-gehe="strom"')
+                                   .replace('aria-selected="false" data-gehe="strom:verteiler"', 'aria-selected="true" data-gehe="strom:verteiler"'),
+  zeichnen(el) {
+    el.classList.add("liste-modus");
+    const kanal = (k) => k <= 6
+      ? `<div class="kanal" style="border-color:${KREISFARBEN[k-1]}"><b>${k}</b><br>L${(k-1)%3+1} · 5,3 A</div>`
+      : `<div class="kanal frei">${k}<br>L${(k-1)%3+1} · frei</div>`;
+    el.innerHTML = `<div class="uebersicht">
+      <div class="karte"><div class="knopfreihe"><h2 style="margin:0">Verteiler 1 · StageSmarts C24</h2><span class="fueller"></span><span class="badge voll">ok</span></div>
+        <p class="klein leise">Standort: Bühne links hinten · Einspeisung CEE 63 A ← Hausanschluss (CEE 63 A · 25 m)</p>
+        <div class="phase"><span style="color:var(--l1)">L1</span><span class="balken"><i style="width:17%"></i></span><span>10,7 / 63 A</span></div>
+        <div class="phase"><span style="color:var(--l2)">L2</span><span class="balken"><i style="width:17%"></i></span><span>10,7 / 63 A</span></div>
+        <div class="phase"><span style="color:var(--l3)">L3</span><span class="balken"><i style="width:17%"></i></span><span>10,7 / 63 A</span></div>
+        <p class="klein leise">Schieflast 0 % · Max. 7,4 kW · Ø 3,8 kW</p>
+        ${[1,2,3,4].map(h => `<div class="label">Harting-Ausgang ${h}${h === 1 ? " · Laka 1 → Bühne Mitte" : " · frei"}</div>
+          <div class="kanalgitter">${[1,2,3,4,5,6].map(i => kanal((h-1)*6+i)).join("")}</div>`).join("")}
+      </div>
+      <div class="karte"><div class="knopfreihe"><h2 style="margin:0">Verteiler 2 · StageSmarts C24</h2><span class="fueller"></span><span class="badge teil">leer</span></div>
+        <p class="klein leise">Für „Seite links“ und „Seite rechts“ vorgesehen – noch keine Kreise zugewiesen.</p>
+        <div class="phase"><span style="color:var(--l1)">L1</span><span class="balken"><i style="width:0%"></i></span><span>0 / 63 A</span></div>
+        <div class="phase"><span style="color:var(--l2)">L2</span><span class="balken"><i style="width:0%"></i></span><span>0 / 63 A</span></div>
+        <div class="phase"><span style="color:var(--l3)">L3</span><span class="balken"><i style="width:0%"></i></span><span>0 / 63 A</span></div>
+      </div>
+      <div class="karte"><h2>Einspeisung · Hausanschluss</h2>
+        <table class="werte"><tr><td>Anschluss</td><td>CEE 125 A</td></tr><tr><td>Versorgt</td><td>Verteiler 1, Verteiler 2</td></tr>
+        <tr><td>Last je Phase (max.)</td><td>10,7 / 10,7 / 10,7 A</td></tr><tr><td>Reserve</td><td>91 %</td></tr></table></div>
+    </div>`;
+  },
+  liste: `<div class="kopf"><b>Alle Abgänge aller Verteiler</b><span class="leise klein">6 von 48 Kanälen belegt</span></div>
+    <table><tr><th>Verteiler</th><th>Kanal</th><th>Phase</th><th>Ausgang</th><th>Kreis</th><th>Screen</th><th class="zahl">Last max.</th><th class="zahl">Last Ø</th><th>Auslastung</th></tr>
+    ${[1,2,3,4,5,6].map(k => `<tr><td>C24 · Verteiler 1</td><td>${k}</td><td>L${(k-1)%3+1}</td><td>Harting 1</td><td><span class="punkt" style="background:${KREISFARBEN[k-1]}"></span>K${k}</td><td>Bühne Mitte</td><td class="zahl">1.226 W</td><td class="zahl">630 W</td><td><span class="balken"><i style="width:42%"></i></span>42 %</td></tr>`).join("")}</table>`,
+  rechts: `
+    <div class="karte"><div class="label">Projekt gesamt</div>
+      <table class="werte"><tr><td>Verteiler</td><td>2</td></tr><tr><td>Belegte Kanäle</td><td>6 / 48</td></tr>
+      <tr><td>Last max. / Ø</td><td>7,4 / 3,8 kW</td></tr><tr><td>Größte Schieflast</td><td>0 %</td></tr></table></div>
+    <div class="label">Prüfhinweise</div>
+    <div class="hinweis ok">Alle Phasen gleichmäßig belastet.</div>
+    <div class="hinweis warn">Verteiler 2 ohne Kreise – wird er gebraucht?</div>`,
+};
+
+/* Übersicht aller Prozessoren */
+REITER["signal:prozessoren"] = {
+  ...REITER.signal,
+  werkzeuge: REITER.signal.werkzeuge.replace('aria-selected="true" data-gehe="signal"', 'aria-selected="false" data-gehe="signal"')
+                                    .replace('aria-selected="false" data-gehe="signal:prozessoren"', 'aria-selected="true" data-gehe="signal:prozessoren"'),
+  zeichnen(el) {
+    el.classList.add("liste-modus");
+    const port = (n) => {
+      const belegt = { 1: ["Haupt", "Bühne Mitte · 1–6", 69, 0], 2: ["Haupt", "Bühne Mitte · 7–12", 69, 1], 3: ["Backup 1", "gespiegelt", 69, 0], 4: ["Backup 2", "gespiegelt", 69, 1] }[n];
+      return belegt
+        ? `<div class="port" style="border-color:${KREISFARBEN[belegt[3]]}${n > 2 ? ";border-style:dashed" : ""}"><b>Port ${n}</b>${belegt[0]}<br>${belegt[1]}<br>${belegt[2]} %</div>`
+        : `<div class="port frei"><b>Port ${n}</b>frei</div>`;
+    };
+    el.innerHTML = `<div class="uebersicht">
+      <div class="karte"><div class="knopfreihe"><h2 style="margin:0">Prozessor 1 · NovaStar MX30</h2><span class="fueller"></span><span class="badge voll">ok</span></div>
+        <p class="klein leise">Standort: FOH / Regie · Receiving Card A8s ✓</p>
+        <div class="label">Ausgänge (10 × 1G · 659.722 px je Port)</div>
+        <div class="portgitter">${[1,2,3,4,5,6,7,8,9,10].map(port).join("")}</div>
+        <div class="label">Eingänge</div>
+        <table class="werte"><tr><td>HDMI 2.0</td><td>Medienserver 1 · Out 1 · 3840 × 2160 · 50p</td></tr>
+        <tr><td>HDMI 1.4</td><td class="leise">frei</td></tr><tr><td>DP 1.1</td><td class="leise">frei</td></tr>
+        <tr><td>SDI 1 / SDI 2</td><td class="leise">frei</td></tr></table>
+        <div class="label">Auslastung</div>
+        <table class="werte"><tr><td>Pixel</td><td>908.544 / 6,5 Mio. (14 %)</td></tr><tr><td>Ports</td><td>4 / 10</td></tr><tr><td>Layer</td><td>1 / 3</td></tr>
+        <tr><td>Glasfaser</td><td class="leise">nicht genutzt</td></tr></table>
+      </div>
+      <div class="karte"><div class="knopfreihe"><h2 style="margin:0">Prozessor 2 · NovaStar MX30</h2><span class="fueller"></span><span class="badge teil">leer</span></div>
+        <p class="klein leise">Für „Seite links“ und „Seite rechts“ vorgesehen.</p>
+        <div class="portgitter">${[1,2,3,4,5,6,7,8,9,10].map(n => `<div class="port frei"><b>Port ${n}</b>frei</div>`).join("")}</div>
+      </div>
+    </div>`;
+  },
+  liste: `<div class="kopf"><b>Alle Ports aller Prozessoren</b><span class="leise klein">4 von 20 Ports belegt</span></div>
+    <table><tr><th>Prozessor</th><th>Port</th><th>Art</th><th>Screen</th><th>Strang</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Kabel</th></tr>
+    <tr><td>MX30 · Prozessor 1</td><td>1</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 1–6</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
+    <tr><td>MX30 · Prozessor 1</td><td>2</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 7–12</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
+    <tr><td>MX30 · Prozessor 1</td><td>3</td><td>Backup zu 1</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
+    <tr><td>MX30 · Prozessor 1</td><td>4</td><td>Backup zu 2</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr></table>`,
+  rechts: `
+    <div class="karte"><div class="label">Projekt gesamt</div>
+      <table class="werte"><tr><td>Prozessoren</td><td>2</td></tr><tr><td>Belegte Ports</td><td>4 / 20</td></tr>
+      <tr><td>Pixel</td><td>908.544</td></tr><tr><td>Layer</td><td>1 / 6</td></tr></table></div>
+    <div class="label">Prüfhinweise</div>
+    <div class="hinweis ok">Alle Prozessoren passen zur Receiving Card A8s.</div>
+    <div class="hinweis warn">Prozessor 2 ohne Ports – wird er gebraucht?</div>`,
+};
+
+/* Kabel: alle Verbindungen des Projekts, Typ und Länge bearbeitbar */
+const KABEL = [
+  // [Nr, Gewerk, Typ, Farbe, Länge, Anzahl, Von, Nach, Herkunft]
+  ["S1", "Strom", "CEE 63 A 5-pol", "var(--kabel-strom)", "25", 1, "Hausanschluss · CEE 63 A", "C24 Verteiler 1 · Einspeisung", "von Hand"],
+  ["S2", "Strom", "Laka Harting 16-pol", "var(--kabel-harting)", "25", 1, "C24 Verteiler 1 · Harting 1", "Spinne 1 · Bühne Mitte", "von Hand"],
+  ["S3", "Strom", "PowerCON TRUE1", "var(--kabel-strom)", "3", 6, "Spinne 1 · Abgang 1–6", "Bühne Mitte · Kreisanfang K1–K6", "automatisch"],
+  ["S4", "Strom", "PowerCON TRUE1 (Brücke)", "var(--kabel-strom)", "1,2", 42, "Modul", "Modul (Brücken K1–K6)", "automatisch"],
+  ["S5", "Strom", "Kaltgeräte / IEC", "var(--kabel-strom)", "", 1, "C24 Verteiler 1 · Kanal 7", "MX30 Prozessor 1", "von Hand"],
+  ["D1", "Signal", "Cat6 etherCON", "var(--kabel-lan)", "60", 2, "MX30 · Port 1, 2", "Bühne Mitte · Modul A1, G1", "von Hand"],
+  ["D2", "Signal", "Cat6 etherCON (Backup)", "var(--kabel-lan)", "60", 2, "MX30 · Port 3, 4", "Bühne Mitte · Modul F1, L1", "von Hand"],
+  ["D3", "Signal", "Cat6 etherCON (Brücke)", "var(--kabel-lan)", "1,2", 46, "Modul", "Modul (Stränge P1, P2)", "automatisch"],
+  ["V1", "Video", "HDMI 2.0", "var(--kabel-hdmi)", "3", 1, "Medienserver 1 · Out 1", "MX30 · HDMI 2.0", "von Hand"],
+];
+REITER.kabel = {
+  werkzeuge: `<div class="filter"><span class="leise klein">Gewerk</span><div class="umschalter"><button aria-selected="true">Alle</button><button aria-selected="false">Strom</button><button aria-selected="false">Signal</button><button aria-selected="false">Video</button></div></div>
+    <span class="trenner"></span><select><option>Screen: alle</option><option>Bühne Mitte</option></select>
+    <label class="klein"><input type="checkbox"> nur ohne Länge</label><span class="trenner"></span>
+    <button>+ Kabel von Hand</button><button>Liste drucken</button><button>CSV-Export</button>`,
+  palette: `<p class="klein leise">Kabel entstehen automatisch aus Strom, Signal und Ausgabe (Verbindungen, Brücken). Typ und Länge lassen sich hier oder beim angeklickten Kabel in der Zeichnung ergänzen.</p>
+    <div class="label">Kabeltypen (Library)</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-strom)"></span>CEE 63 A 5-pol</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-harting)"></span>Laka Harting 16-pol</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-strom)"></span>PowerCON TRUE1</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-lan)"></span>Cat6 etherCON</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-fiber)"></span>Glasfaser</div>
+    <div class="palette-item"><span class="kabelpunkt" style="background:var(--kabel-hdmi)"></span>HDMI 2.0</div>`,
+  zeichnen(el) {
+    el.classList.add("liste-modus");
+    el.innerHTML = `<div style="width:100%"><table class="tabelle-edit">
+      <tr><th>Nr.</th><th>Gewerk</th><th>Kabeltyp</th><th class="zahl">Länge (m)</th><th class="zahl">Anzahl</th><th>Von (Gerät · Anschluss)</th><th>Nach (Gerät · Anschluss)</th><th>Herkunft</th></tr>
+      ${KABEL.map((k, i) => `<tr${i === 1 ? ' class="sel"' : ""}><td>${k[0]}</td><td>${k[1]}</td>
+        <td><span class="kabelpunkt" style="background:${k[3]}"></span><select><option>${k[2]}</option></select></td>
+        <td class="zahl${k[4] ? "" : " fehlt"}"><input class="laenge" value="${k[4]}" placeholder="—"></td><td class="zahl">${k[5]}</td>
+        <td>${k[6]}</td><td>${k[7]}</td><td class="leise">${k[8]}</td></tr>`).join("")}
+    </table></div>`;
+  },
+  liste: `<div class="kopf"><b>Zusammenfassung nach Typ und Länge (Packliste)</b><span class="leise klein">Brücken mit Standardlänge aus der Library</span></div>
+    <table><tr><th>Kabeltyp</th><th class="zahl">Länge</th><th class="zahl">Anzahl</th><th>Gewerk</th></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-strom)"></span>CEE 63 A 5-pol</td><td class="zahl">25 m</td><td class="zahl">1</td><td>Strom</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-harting)"></span>Laka Harting 16-pol</td><td class="zahl">25 m</td><td class="zahl">1</td><td>Strom</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-strom)"></span>PowerCON TRUE1</td><td class="zahl">3 m</td><td class="zahl">6</td><td>Strom</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-strom)"></span>PowerCON TRUE1</td><td class="zahl">1,2 m</td><td class="zahl">42</td><td>Strom</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-lan)"></span>Cat6 etherCON</td><td class="zahl">60 m</td><td class="zahl">4</td><td>Signal</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-lan)"></span>Cat6 etherCON</td><td class="zahl">1,2 m</td><td class="zahl">46</td><td>Signal</td></tr>
+    <tr><td><span class="kabelpunkt" style="background:var(--kabel-hdmi)"></span>HDMI 2.0</td><td class="zahl">3 m</td><td class="zahl">1</td><td>Video</td></tr></table>`,
+  rechts: `
+    <div class="karte"><div class="label">Kabel S2</div>
+      <label class="feld"><span>Kabeltyp</span><select><option>Laka Harting 16-pol</option></select></label>
+      <div class="zwei"><label class="feld"><span>Länge (m)</span><input value="25"></label><label class="feld"><span>Anzahl</span><input value="1"></label></div>
+      <label class="feld"><span>Von</span><input value="C24 Verteiler 1 · Harting 1"></label>
+      <label class="feld"><span>Nach</span><input value="Spinne 1 · Bühne Mitte"></label>
+      <label class="feld"><span>Bemerkung</span><input placeholder="z.B. über Traverse links"></label>
+      <button style="width:100%">In Zeichnung zeigen</button></div>
+    <div class="karte"><div class="label">Summe</div>
+      <table class="werte"><tr><td>Verbindungen</td><td>9</td></tr><tr><td>Kabel gesamt</td><td>102</td></tr>
+      <tr><td>davon Brücken</td><td>88</td></tr><tr><td>Länge (ohne Brücken, ohne S5)</td><td>311 m</td></tr></table></div>
+    <div class="label">Prüfhinweise</div>
+    <div class="hinweis warn">S5: Länge fehlt (Stromkabel MX30).</div>
+    <div class="hinweis ok">Cat-Strecken ≤ 100 m.</div>`,
+};
+
 /* ---------- Umschalten ---------- */
 
 function zeigeReiter(name) {
   const r = REITER[name];
-  document.querySelectorAll("[data-reiter]").forEach(b => b.setAttribute("aria-selected", b.dataset.reiter === name));
+  const haupt = name.split(":")[0];
+  document.querySelectorAll("[data-reiter]").forEach(b => b.setAttribute("aria-selected", b.dataset.reiter === haupt));
   document.getElementById("werkzeuge").innerHTML = r.werkzeuge;
   document.getElementById("palette").innerHTML = r.palette;
-  document.getElementById("palette-titel").textContent = name === "ausgabe" ? "Outputs" : "Library – in die Wand ziehen";
+  document.getElementById("palette-titel").textContent = { ausgabe: "Outputs", kabel: "Kabel" }[haupt] || "Library – in die Wand ziehen";
   document.getElementById("liste").innerHTML = r.liste;
   document.getElementById("rechts").innerHTML = r.rechts;
   const z = document.getElementById("zeichnung");
   z.innerHTML = "";
+  z.classList.remove("liste-modus");
   r.zeichnen(z);
 }
 function zeigeHaupt(name) {
@@ -600,6 +778,7 @@ function zeigeHaupt(name) {
   document.getElementById("unterleiste").style.display = name === "planen" ? "" : "none";
 }
 document.querySelectorAll("[data-reiter]").forEach(b => b.onclick = () => zeigeReiter(b.dataset.reiter));
+document.getElementById("werkzeuge").addEventListener("click", e => { const b = e.target.closest("[data-gehe]"); if (b) zeigeReiter(b.dataset.gehe); });
 document.querySelectorAll("[data-haupt]").forEach(b => b.onclick = () => zeigeHaupt(b.dataset.haupt));
 setTimeout(() => document.getElementById("toast").remove(), 6000);
 zeigeReiter("aufbau");

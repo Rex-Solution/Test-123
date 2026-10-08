@@ -29,7 +29,7 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | --- | --- |
 | Plattform | Erst **eigenständige Datei** (wie Signalfluss-Planer) mit eingebauter Library; Datenstrukturen von Anfang an so, dass Library und Projekte später aus dem **Datenbank-Agent** kommen |
 | Geräte | Prozessoren, Stageboxen, Stromverteiler gehören zum **Projekt** und können **mehrere Wände** versorgen |
-| Bedienung | **Freie Reiter** Aufbau · Strom · Signal · Ausgabe, jeder mit **Ampel** (ok / Warnung / fehlt) |
+| Bedienung | **Freie Reiter** Aufbau · Strom · Signal · Ausgabe · **Kabel**, jeder mit **Ampel** (ok / Warnung / fehlt) |
 | Nutzer | Planung im Büro, Techniker vor Ort, Kunde/Angebot |
 | Wandbau | **Module einzeln per Drag & Drop** (wie NovaStar COEX), **verschiedene Modultypen in einer Wand** (verschiedene Größen und auch verschiedene Pixelpitches), Einrasten **an Nachbarmodulen** (+ feines mm-Raster) |
 | Gemischte Module | Erlaubt im selben Screen. **Ein Datenport/-strang nur mit Modulen derselben Serie und derselben Receiving Card** (damit gleicher Pitch); verschiedene Größen dieser Serie (z.B. 1 × 0,5 m und 0,5 × 0,5 m) dürfen auf denselben Port |
@@ -53,6 +53,8 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Druckformat | Standard **A4 hoch**; zusätzlich alle Pläne als **A4 quer oder A3 quer** |
 | Farben Strom/Signal | **Interne freie Farben** für Kreise, Ports und Phasen erlaubt (Palette in Abschnitt 3) |
 | Werkzeugleiste | Duplizieren/Spiegeln, Erweitern/Kürzen, Module auswählen, Ausrichten/Maße |
+| Übersichten | Strom: Ansicht **„Alle Verteiler“** (Phasen, Kanäle je Ausgang, Einspeisung); Signal: Ansicht **„Alle Prozessoren“** (Ports, Eingänge, Pixel, Layer) |
+| Kabel | Eigener Reiter **Kabel**: jede Verbindung mit **Kabeltyp, Länge, Anzahl, Von, Nach**; bearbeitbar in der Liste und beim angeklickten Kabel; Zusammenfassung nach Typ und Länge als Packliste |
 | Freischaltung | Über die **Benutzerverwaltung des Rex-Systems**; bis zur DB-Anbindung ein einfacher Schalter |
 | Name | **LED-Planer** |
 | Geräte vor Ort | Vorerst **Laptop** (Maus/Tastatur), muss **offline** funktionieren; **Tablet** (Touch) später |
@@ -75,7 +77,7 @@ noch hell und erfüllen ihn nicht – der LED-Planer wird von Anfang an danach g
 ┌──────────────────────────────────────────────────────────────────────┐
 │ [Rex] LED-Planer   [Planen] [Library] [Einstellungen]   Projekt · ungespeichert │  ← Kopfleiste
 ├──────────────────────────────────────────────────────────────────────┤
-│ [Aufbau ●][Strom ●][Signal ●][Ausgabe ●]  (Umschalter, Ampel je Reiter)│
+│ [Aufbau ●][Strom ●][Signal ●][Ausgabe ●][Kabel ●]  (Ampel je Reiter)   │
 ├─────────────┬────────────────────────────────────────┬───────────────┤
 │ Projekt-    │ Werkzeugleiste des aktiven Reiters      │ Eigenschaften │
 │ baum:       │ (Duplizieren, Spiegeln, Pinsel …)       │ (Karte mit    │
@@ -181,7 +183,7 @@ flexiblen JSON-Feld `attribute` – wie beim Signalfluss-Planer.
 | **Stromverteiler** | Einspeisung (CEE 16/32/63/125 A, Laka), Abgänge (Anzahl, Typ, Absicherung, Charakteristik B/C, Phase), FI |
 | **Laka / Spinne** | Pole/Kreise je Laka, Längen, Spinne (Abgänge, Steckertyp) |
 | **Bracket / Bumper / Stacking** | Typ, passende Module, Breite in Modulen, Eigengewicht, zulässige Last, Aufhängepunkte |
-| **Kabel** | Art (Cat6/Ethercon, Glasfaser, PowerCON TRUE1, CEE, HDMI/DP/SDI), verfügbare Längen |
+| **Kabel** | Kabeltyp (Cat6/etherCON, Glasfaser, PowerCON TRUE1, CEE, Laka, HDMI/DP/SDI), Stecker beidseitig, Farbe aus dem Kabel-Farbsystem, verfügbare Längen, Standardlänge für Brücken |
 
 Fehlende Daten werden wie im Signalfluss-Planer abgefangen: Platzhalter mit
 Warnung statt Abbruch.
@@ -202,6 +204,8 @@ Projekt
  │   ├─ Signal:       Stränge[] { Port (Prozessor/Stagebox), Module in Reihenfolge, Backup-Port }
  │   └─ Ausgabe:      Mischpitch-Modus (eigene Ausschnitte | gemeinsam + Skalierung)
  ├─ Outputs[]         { Name, Auflösung, Bildrate, Anschluss, Zuspieler }
+ ├─ Kabel[]          { Nr, Gewerk, Kabeltyp (Library), Länge, Anzahl, Von {Gerät, Anschluss},
+ │                      Nach {Gerät, Anschluss}, Herkunft (automatisch | von Hand), Bemerkung }
  ├─ Verbindungen[]    Einspeisung → Verteiler → Laka/Kabel → Screen
  │                    Prozessor → Stagebox/Multicore → Screen
  │                    Output → Prozessor-Eingang (mit Kabelart/-länge)
@@ -276,6 +280,20 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - **Testbild je Output** (aus dem Prototyp): zeigt genau, welcher Ausschnitt auf welchem Screen landet – mit Screen-Name, Pitch-Bereich, Modulnummern und Markierung doppelt genutzter Ausschnitte. PNG-Export und **Live-Ausgabe** je Output mit wandernden Cursorn.
 - Prüfungen: **Eingangsauflösung**, **Gesamtkapazität** des Prozessors, **Anschlussart** (Konverter nötig?), **Bildrate**, **Anzahl Layer**, Flächen ohne Bild, Ausschnitt ≠ Fläche bei 1:1.
 
+### 6.5 Übersichten Verteiler und Prozessoren
+- **Strom → „Alle Verteiler“**: je Verteiler eine Karte mit Standort, Einspeisung (mit Kabel), Last je Phase, Schieflast, Max./Ø und den Kanälen je Ausgang (belegt mit Kreisfarbe, Phase und Strom; frei gestrichelt). Darunter die Liste aller Abgänge aller Verteiler. Einspeisungen als eigene Karte.
+- **Signal → „Alle Prozessoren“**: je Prozessor eine Karte mit Standort, Receiving Card, den Ausgangs-Ports (Haupt/Backup, Screen, Auslastung), Eingängen (welcher Output) und Auslastung (Pixel, Ports, Layer, Glasfaser). Darunter die Liste aller Ports aller Prozessoren.
+- Unbenutzte Geräte werden als Hinweis gemeldet („Prozessor 2 ohne Ports – wird er gebraucht?“).
+
+### 6.6 Kabel
+- Eigener Reiter **Kabel** (mit Ampel). Kabel entstehen **automatisch** aus Strom, Signal und Ausgabe: Zuleitungen, Lakas, Spinnen-Abgänge, Port-Kabel, Backup-Kabel, Video-Kabel und **Brücken** zwischen Modulen (Länge aus der Library als Standard).
+- Zusätzlich **Kabel von Hand** (z.B. Strom für den Prozessor, Reserve).
+- Je Kabel: Nr., Gewerk, **Kabeltyp** (Library, Farbe nach Kabel-Farbsystem), **Länge**, Anzahl, **Von** (Gerät · Anschluss), **Nach** (Gerät · Anschluss), Herkunft (automatisch/von Hand), Bemerkung.
+- **Bearbeiten an zwei Stellen**: in der Kabelliste oder beim angeklickten Kabel in der Zeichnung von Strom/Signal (Karte „Ausgewählte Verbindung“). „In Zeichnung zeigen“ springt zurück.
+- Filter nach Gewerk, Screen und „nur ohne Länge“.
+- Unten die **Zusammenfassung nach Typ und Länge** = Packliste; Export als Liste (Druck) und CSV.
+- Prüfungen: Länge fehlt, Cat-Strecke > max. Cat-Länge (Hausregel 100 m), Kabeltyp passt nicht zum Anschluss.
+
 ## 7. Prüfungen (Ampel je Reiter)
 
 | Reiter | Beispiele |
@@ -283,6 +301,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 | Aufbau | Last je Punkt überschritten · zu viele Module untereinander · Bracket passt nicht · Lücke/Versatz zwischen Modulen |
 | Strom | Kreis überlastet · zu viele Module an einer Brücke · Schieflast · Einschaltstrom · Modul ohne Kreis · Verteiler-Ebene überlastet |
 | Signal | Kein passender Prozessor · **verschiedene Serien/Receiving Cards an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
+| Kabel | Länge fehlt · Cat-Strecke zu lang · Kabeltyp passt nicht zum Anschluss · Kabel ohne Von/Nach |
 | Ausgabe | Output zu groß für den Eingang · Prozessor-Kapazität überschritten · **zu viele Layer** · Anschluss passt nicht · Bildraten unterschiedlich · Wandfläche ohne Bild · Ausschnitt ≠ Fläche (bei 1:1) · Screens eines Prozessors überlappen im Pixelraum |
 
 ## 8. Ausgaben
@@ -325,8 +344,8 @@ es aber schon in Phase 1.
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
 | **0 · Klärung** | Rex-Bedienvorgaben einholen · Library-Format mit Datenbank-Agent abstimmen · echte Beispieldaten (Module mit Receiving Card, Prozessoren, Stagebox, Verteiler, Laka/Spinne, Brackets) · Ampel-Regeln und Grenzwerte · Skizzen der vier Reiter inkl. Pinsel und Listen | Freigegebenes Konzept, Datenformat, Skizzen |
-| **1 · Aufbau-Editor + Strom** | Hauptmenü, Projekte · eingebaute Library · **Modul-Editor** (Drag & Drop, Einrasten, gemischte Typen, Lücken) · Werkzeugleiste · Screen-Daten (Höhe, Beschreibung, geflogen/gestellt) · **Strom komplett** (Verteiler-Ebenen, Laka/CEE, Vorschlag + Pinsel, Liste, Verteiler-Übersicht, Phasen, Einschaltstrom) · Testbild + Live je Screen · Stromplan-PDF, Materialliste, Kundenansicht | Nutzbar für Wand- und Stromplanung |
-| **2 · Signal + Ausgabe + Rigging** | Prozessoren/Stageboxen/Multicores in der Library · **Signal** (Kompatibilität, Standorte, Vorschlag + Pinsel, Backup gespiegelt, Portliste, Prozessor-Übersicht) · **Ausgabe** (Outputs, Eingänge, Ausschnitt → Fläche, Testbild je Output, Prüfungen) · **Aufbau-Lasten und Riggingplan** · Signal-, Ausgabe- und Riggingplan-PDF | Vollständige Planung aller vier Bereiche |
+| **1 · Aufbau-Editor + Strom** | Hauptmenü, Projekte · eingebaute Library · **Modul-Editor** (Drag & Drop, Einrasten, gemischte Typen, Lücken) · Werkzeugleiste · Screen-Daten (Höhe, Beschreibung, geflogen/gestellt) · **Strom komplett** (Verteiler-Ebenen, Laka/CEE, Vorschlag + Pinsel, Liste, Verteiler-Übersicht, Phasen, Einschaltstrom) · Testbild + Live je Screen · **Verteiler-Übersicht** · **Kabel-Reiter** (Strom-Kabel) · Stromplan-PDF, Materialliste, Kabelliste, Kundenansicht | Nutzbar für Wand- und Stromplanung |
+| **2 · Signal + Ausgabe + Rigging** | Prozessoren/Stageboxen/Multicores in der Library · **Signal** (Kompatibilität, Standorte, Vorschlag + Pinsel, Backup gespiegelt, Portliste, Prozessor-Übersicht, **Alle Prozessoren**, Signal- und Video-Kabel im Kabel-Reiter) · **Ausgabe** (Outputs, Eingänge, Ausschnitt → Fläche, Testbild je Output, Prüfungen) · **Aufbau-Lasten und Riggingplan** · Signal-, Ausgabe- und Riggingplan-PDF | Vollständige Planung aller vier Bereiche |
 | **3 · Rex-Anbindung** | Library aus dem Datenbank-Agent · Projekte in der Datenbank · Rückgabe Material ans Rex-System · Freischaltung über Benutzerverwaltung · Verknüpfung mit dem Signalfluss-Planer | Integriertes Rex-Modul |
 | **4 · Erweiterungen** | Kurven/Winkel · Hersteller-Dateien (NovaLCT, Colorlight – mit Beispieldateien) · Skalierung in der Ausgabe · Medienserver-Exporte · 3D-Ansicht | Nach Bedarf |
 
