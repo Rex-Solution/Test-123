@@ -123,6 +123,7 @@ td.zahl, th.zahl { text-align:right; font-variant-numeric:tabular-nums; }
 .feld textarea { min-height:90px; font-family:Consolas, ui-monospace, monospace; font-size:12px; }
 .feld.check { flex-direction:row; align-items:center; gap:8px; }
 .feld.check > span { text-transform:none; letter-spacing:0; font-size:13px; color:var(--text); }
+.feld.check input { width:auto; flex:none; }
 .feld.fehlt input, .feld.fehlt select { border-color:var(--warnung); }
 .feld.pflicht-fehlt input, .feld.pflicht-fehlt select { border-color:var(--fehler); }
 .zwei { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -181,4 +182,34 @@ dialog h2 { margin-bottom:12px; }
 
 @media (max-width: 1100px) {
   #planen { grid-template-columns:220px 1fr 280px; }
+}
+
+/* Zoom-Knöpfe in der Zeichnung */
+.zoomknoepfe { position:absolute; right:8px; bottom:8px; display:flex; gap:4px; }
+.zoomknoepfe button { width:34px; height:34px; padding:0; font-size:18px; background:rgba(20,20,20,.85); }
+
+/* Tablet: Fingerbedienung */
+.nur-touch { display:none; }
+body.touch .nur-touch { display:inline-flex; }
+body.touch button, body.touch select, body.touch input:not([type=checkbox]) { min-height:40px; }
+body.touch input, body.touch select, body.touch textarea { font-size:16px; }   /* iPad zoomt sonst beim Antippen */
+body.touch .palette-item { padding:10px; touch-action:pan-y; }
+body.touch .baum li { padding:9px 8px; }
+body.touch .zoomknoepfe button { width:44px; height:44px; }
+body.touch .werkzeuge { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }   /* Werkzeugleiste wischen statt umbrechen */
+body.touch .werkzeuge > *, body.touch .werkzeuge .knopfreihe > * { flex:none; }
+body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
+.zeichnung > svg { touch-action:none; }   /* Gesten selbst auswerten */
+.palette-item.geist { position:fixed; z-index:60; width:220px; transform:translate(-50%, -50%); opacity:.85; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+
+/* Schmaler Bildschirm (Tablet hochkant): Seitenspalten als ausklappbare Leisten */
+.nur-schmal { display:none; }
+@media (max-width: 900px) {
+  .nur-schmal { display:inline-block; }
+  #planen { grid-template-columns:1fr; position:relative; }
+  #planen > .spalte { position:absolute; top:0; bottom:0; z-index:20; width:min(320px, 85vw); display:none; box-shadow:0 0 24px rgba(0,0,0,.6); }
+  #planen > .spalte.links { left:0; }
+  #planen > .spalte.rechts { right:0; }
+  body.zeige-links #planen > .spalte.links, body.zeige-rechts #planen > .spalte.rechts { display:block; }
+  #library, #einstellungen { grid-template-columns:1fr; }
 }

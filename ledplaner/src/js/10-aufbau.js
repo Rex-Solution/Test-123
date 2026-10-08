@@ -15,6 +15,9 @@ REITER.aufbau = {
       <button data-a="spiegel-y" ${dis} title="Auswahl bzw. Screen vertikal spiegeln">Spiegeln ↕</button>
       <button data-a="winkel" ${dis} title="Winkel an den senkrechten Fugen setzen – je Fuge oder als Radius">∠ Kurve …</button>
       <button data-a="loeschen" class="gefahr" ${sel ? "" : "disabled"} title="Auswahl entfernen (Entf)">Entfernen</button>
+      <span class="nur-touch knopfreihe"><span class="trenner"></span><button data-a="alle" ${dis}>Alle</button>
+        <button data-a="mehrfach" class="${ui.mehrfach ? "aktiv" : ""}" title="Antippen fügt Module zur Auswahl hinzu">Mehrfachauswahl</button>
+        <button data-a="einrasten" class="${ui.einrasten ? "aktiv" : ""}" title="Aus: Module frei setzen">Einrasten: ${ui.einrasten ? "an" : "aus"}</button></span>
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten}">Rückansicht</button></div>
       <button data-a="einpassen" ${dis}>Einpassen</button>
@@ -31,8 +34,9 @@ REITER.aufbau = {
       return `<div class="palette-item" draggable="${nutzbar}" data-lib="${e.id}" title="${nutzbar ? "In die Zeichnung ziehen oder anklicken" : "Pflichtangaben fehlen – in der Library ergänzen"}" style="${nutzbar ? "" : "opacity:.5"}">
         <span class="form" style="width:${Math.max(6, (led.mmB || 500) * f)}px;height:${Math.max(6, (led.mmH || 500) * f)}px"></span>
         <span class="name">${esc(e.name)}</span>${badgeHtml(e)}</div>`;
-    }).join("") + `<p class="klein leise">Ziehen: Modul setzen (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei). Klick: rechts anfügen.
-      <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`;
+    }).join("") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: rechts anfügen.
+      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei). Klick: rechts anfügen.
+      <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`);
   },
 
   zeichnung(el) {
@@ -300,7 +304,7 @@ function aufbauInteraktion(svg, s) {
     const g = e.target.closest("[data-mod]");
     if (g) {
       const id = g.dataset.mod;
-      if (e.shiftKey || e.ctrlKey) { ui.auswahl.has(id) ? ui.auswahl.delete(id) : ui.auswahl.add(id); render(); return; }
+      if (e.shiftKey || e.ctrlKey || ui.mehrfach) { ui.auswahl.has(id) ? ui.auswahl.delete(id) : ui.auswahl.add(id); render(); return; }
       if (!ui.auswahl.has(id)) { ui.auswahl = new Set([id]); markiereAuswahl(svg); }
       zug = { start: p, dx: 0, dy: 0, bewegt: false, ankerId: id };
     } else {
@@ -312,7 +316,7 @@ function aufbauInteraktion(svg, s) {
     const p = svgPunkt(svg, e);
     if (zug) {
       let dx = (p.x - zug.start.x) * (ui.hinten ? -1 : 1), dy = p.y - zug.start.y;
-      if (!e.altKey) {
+      if (!e.altKey && ui.einrasten) {
         const anker = s.module.find(m => m.id === zug.ankerId);
         const r = modRect(anker);
         const andere = s.module.filter(m => !ui.auswahl.has(m.id)).map(modRect);
@@ -342,7 +346,7 @@ function aufbauInteraktion(svg, s) {
       if (r.r && r.r.b > 2 && r.r.h > 2) {
         const rr = ui.hinten ? spiegelRect(s, r.r) : r.r;
         ui.auswahl = new Set(s.module.filter(m => schneidet(modRect(m), rr)).map(m => m.id));
-      } else ui.auswahl.clear();
+      } else if (!ui.mehrfach) ui.auswahl.clear();
       render();
     }
   });
@@ -351,17 +355,20 @@ function aufbauInteraktion(svg, s) {
   svg.addEventListener("drop", e => {
     e.preventDefault();
     const lib = e.dataTransfer.getData("text/lib");
-    if (!lib) return;
-    nutzeEintrag(lib);
-    const { b, h } = modMass({ lib });
-    const p = svgPunkt(svg, e);
-    let x = p.x - b / 2, y = p.y - h / 2;
-    if (ui.hinten) { const g = grenzen(s.module); x = g.x + g.x + g.b - x - b; }
-    if (!e.altKey && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
-    else if (!s.module.length) { x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10; }
-    const m = modulHinzufuegen(s, lib, x, y);
-    if (m) { ui.auswahl = new Set([m.id]); aenderung(); }
+    if (lib) modulAbsetzen(svg, s, lib, e.clientX, e.clientY, e.altKey || !ui.einrasten);
   });
+}
+/* Modul an einer Bildschirmposition absetzen (Maus-Drop oder Finger-Ziehen) */
+function modulAbsetzen(svg, s, lib, clientX, clientY, frei) {
+  nutzeEintrag(lib);
+  const { b, h } = modMass({ lib });
+  const p = svgPunkt(svg, { clientX, clientY });
+  let x = p.x - b / 2, y = p.y - h / 2;
+  if (ui.hinten) { const g = grenzen(s.module); x = g.x + g.x + g.b - x - b; }
+  if (!frei && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
+  else if (!s.module.length) { x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10; }
+  const m = modulHinzufuegen(s, lib, x, y);
+  if (m) { ui.auswahl = new Set([m.id]); aenderung(); }
 }
 function spiegelRect(s, r) { const g = grenzen(s.module); return { ...r, x: g.x + g.x + g.b - r.x - r.b }; }
 function markiereAuswahl(svg) { svg.querySelectorAll("[data-mod]").forEach(g => g.classList.toggle("sel", ui.auswahl.has(g.dataset.mod))); }
@@ -383,6 +390,9 @@ function aufbauEreignisse() {
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
     else if (a === "winkel") winkelDialog(s);
+    else if (a === "alle") { ui.auswahl = new Set(s.module.map(m => m.id)); render(); }
+    else if (a === "mehrfach") { ui.mehrfach = !ui.mehrfach; render(); }
+    else if (a === "einrasten") { ui.einrasten = !ui.einrasten; render(); }
   });
   $("#zeichnung").addEventListener("click", e => { if (e.target.closest("[data-a='screen-neu']")) screenAnlegen(); });
   $("#palette").addEventListener("dragstart", e => {
@@ -392,6 +402,7 @@ function aufbauEreignisse() {
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "aufbau") return;
     const it = e.target.closest("[data-lib]"); if (!it || it.getAttribute("draggable") !== "true") return;
+    if (Date.now() - ui.klickSperre < 500) return;   // gerade mit dem Finger gezogen
     modulAnfuegen(it.dataset.lib);
   });
   $("#rechts").addEventListener("change", e => {

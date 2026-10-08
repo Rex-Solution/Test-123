@@ -131,6 +131,7 @@ td.zahl, th.zahl { text-align:right; font-variant-numeric:tabular-nums; }
 .feld textarea { min-height:90px; font-family:Consolas, ui-monospace, monospace; font-size:12px; }
 .feld.check { flex-direction:row; align-items:center; gap:8px; }
 .feld.check > span { text-transform:none; letter-spacing:0; font-size:13px; color:var(--text); }
+.feld.check input { width:auto; flex:none; }
 .feld.fehlt input, .feld.fehlt select { border-color:var(--warnung); }
 .feld.pflicht-fehlt input, .feld.pflicht-fehlt select { border-color:var(--fehler); }
 .zwei { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -191,6 +192,36 @@ dialog h2 { margin-bottom:12px; }
   #planen { grid-template-columns:220px 1fr 280px; }
 }
 
+/* Zoom-Knöpfe in der Zeichnung */
+.zoomknoepfe { position:absolute; right:8px; bottom:8px; display:flex; gap:4px; }
+.zoomknoepfe button { width:34px; height:34px; padding:0; font-size:18px; background:rgba(20,20,20,.85); }
+
+/* Tablet: Fingerbedienung */
+.nur-touch { display:none; }
+body.touch .nur-touch { display:inline-flex; }
+body.touch button, body.touch select, body.touch input:not([type=checkbox]) { min-height:40px; }
+body.touch input, body.touch select, body.touch textarea { font-size:16px; }   /* iPad zoomt sonst beim Antippen */
+body.touch .palette-item { padding:10px; touch-action:pan-y; }
+body.touch .baum li { padding:9px 8px; }
+body.touch .zoomknoepfe button { width:44px; height:44px; }
+body.touch .werkzeuge { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:thin; }   /* Werkzeugleiste wischen statt umbrechen */
+body.touch .werkzeuge > *, body.touch .werkzeuge .knopfreihe > * { flex:none; }
+body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
+.zeichnung > svg { touch-action:none; }   /* Gesten selbst auswerten */
+.palette-item.geist { position:fixed; z-index:60; width:220px; transform:translate(-50%, -50%); opacity:.85; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+
+/* Schmaler Bildschirm (Tablet hochkant): Seitenspalten als ausklappbare Leisten */
+.nur-schmal { display:none; }
+@media (max-width: 900px) {
+  .nur-schmal { display:inline-block; }
+  #planen { grid-template-columns:1fr; position:relative; }
+  #planen > .spalte { position:absolute; top:0; bottom:0; z-index:20; width:min(320px, 85vw); display:none; box-shadow:0 0 24px rgba(0,0,0,.6); }
+  #planen > .spalte.links { left:0; }
+  #planen > .spalte.rechts { right:0; }
+  body.zeige-links #planen > .spalte.links, body.zeige-rechts #planen > .spalte.rechts { display:block; }
+  #library, #einstellungen { grid-template-columns:1fr; }
+}
+
 </style>
 </head>
 <body>
@@ -209,6 +240,7 @@ dialog h2 { margin-bottom:12px; }
 </header>
 
 <div class="unterleiste" id="unterleiste">
+  <button class="nur-schmal" data-spalte="links" title="Projekt und Library ein-/ausblenden">☰</button>
   <div class="umschalter" role="tablist" id="reiterleiste">
     <button data-reiter="aufbau"><span class="ampel"></span>Aufbau</button>
     <button data-reiter="strom"><span class="ampel"></span>Strom</button>
@@ -223,6 +255,7 @@ dialog h2 { margin-bottom:12px; }
     <button id="btn-drucken" title="Bericht A4 hoch, Großformat oder Kundenansicht">Drucken …</button>
     <button id="btn-live" title="Testbild des gewählten Screens 1:1 in eigenem Fenster">▶ Live-Ausgabe</button>
     <button id="btn-speichern" class="primaer" title="Projekt speichern (Strg+S)">Speichern</button>
+    <button class="nur-schmal" data-spalte="rechts" title="Details und Prüfhinweise ein-/ausblenden">ⓘ</button>
   </div>
 </div>
 
@@ -1127,6 +1160,10 @@ const ui = {
   libSel: null, libFilter: "", libNurOffen: false,
   einst: "datei",
   kabelFilter: { gewerk: "alle", screen: "alle", ohneLaenge: false },
+  touch: false,               // Fingerbedienung erkannt (Tablet)
+  mehrfach: false,            // Antippen fügt zur Auswahl hinzu (statt Shift/Strg)
+  einrasten: true,            // aus = frei setzen (statt Alt)
+  klickSperre: 0,             // Zeitpunkt des letzten Finger-Ziehens aus der Palette
 };
 const REITER = {};
 
@@ -1416,6 +1453,7 @@ function mmJePixel(svg) {
 /* Zoom (Mausrad) und Verschieben (Leertaste/mittlere Taste/Hand) für eine Screen-Zeichnung */
 function ansichtSteuerung(el, svg, screen, { leerKlick } = {}) {
   const v = ansicht(screen);
+  svg.dataset.ansicht = screen.id;   // für Zwei-Finger-Gesten und Zoom-Knöpfe
   svg.addEventListener("wheel", e => {
     e.preventDefault();
     const p = svgPunkt(svg, e);
@@ -1442,7 +1480,8 @@ function ansichtSteuerung(el, svg, screen, { leerKlick } = {}) {
 function zoomAnzeige(el, svg) {
   let z = el.querySelector(".zoomanzeige");
   if (!z) { z = document.createElement("div"); z.className = "zoomanzeige"; el.appendChild(z); }
-  requestAnimationFrame(() => { const f = mmJePixel(svg); z.textContent = `1 px ≈ ${fmtFlex(f, 1)} mm · Mausrad: Zoom · Leertaste + Ziehen: verschieben`; });
+  requestAnimationFrame(() => { const f = mmJePixel(svg); z.textContent = `1 px ≈ ${fmtFlex(f, 1)} mm · ${ui.touch ? "zwei Finger: zoomen und verschieben" : "Mausrad: Zoom · Leertaste + Ziehen: verschieben"}`; });
+  if (!el.querySelector(".zoomknoepfe")) el.insertAdjacentHTML("beforeend", `<div class="zoomknoepfe"><button data-zoom="-" title="Verkleinern">−</button><button data-zoom="+" title="Vergrößern">+</button><button data-zoom="fit" title="Einpassen">⤢</button></div>`);
 }
 const leertaste = { gedrueckt: false };
 document.addEventListener("keydown", e => { if (e.key === " " && !e.target.matches("input, textarea, select, button")) { leertaste.gedrueckt = true; $("#zeichnung")?.classList.add("pan"); if (e.target === document.body) e.preventDefault(); } });
@@ -1456,6 +1495,123 @@ function einpassen() {
 /* Leerer Zustand der Zeichenfläche */
 function leerZeichnung(el, text) {
   el.innerHTML = `<div class="leer-hinweis">${text}</div>`;
+}
+
+/* ===== 07-touch.js ===== */
+/* Tablet-Bedienung: Zwei-Finger-Zoom/-Verschieben, Module mit dem Finger aus der Palette ziehen,
+   Ersatz für Tastatur-Modifikatoren (Mehrfachauswahl statt Shift, Einrasten aus statt Alt),
+   ausklappbare Seitenspalten bei schmalem Bildschirm. */
+
+const beruehrung = { punkte: new Map(), geste: null };
+
+/* Beim ersten Fingerkontakt: Touch-Knöpfe einblenden (per CSS, ohne neu zu zeichnen) */
+function touchErkannt() {
+  if (ui.touch) return;
+  ui.touch = true;
+  document.body.classList.add("touch");
+}
+
+function gestenMitte() {
+  const [a, b] = [...beruehrung.punkte.values()];
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) };
+}
+
+function touchEreignisse() {
+  if (matchMedia("(pointer: coarse)").matches) { ui.touch = true; document.body.classList.add("touch"); }
+  const el = $("#zeichnung");
+  // Capture-Phase: Gesten werden abgefangen, bevor Auswahl, Verschieben oder Pinsel reagieren
+  el.addEventListener("pointerdown", e => {
+    if (e.pointerType !== "touch") return;
+    beruehrung.punkte.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (beruehrung.punkte.size === 2) {
+      e.stopPropagation(); e.preventDefault();
+      // laufende Ein-Finger-Aktion (Ziehen, Rahmen, Pinselstrich) verwerfen
+      if (historie.stand && JSON.stringify(P) !== historie.stand) P = JSON.parse(historie.stand);
+      beruehrung.geste = gestenMitte();
+      render();
+    } else if (beruehrung.punkte.size > 2 || beruehrung.geste) e.stopPropagation();
+  }, true);
+  el.addEventListener("pointermove", e => {
+    if (e.pointerType !== "touch" || !beruehrung.punkte.has(e.pointerId)) return;
+    beruehrung.punkte.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!beruehrung.geste) return;
+    e.stopPropagation();
+    const svg = el.querySelector("svg[data-ansicht]");
+    if (!svg || beruehrung.punkte.size < 2) return;
+    const v = ui.ansicht.get(svg.dataset.ansicht); if (!v) return;
+    const neu = gestenMitte(), alt = beruehrung.geste;
+    const z = alt.d / neu.d;                                  // Finger auseinander → hineinzoomen
+    const p = svgPunkt(svg, { clientX: neu.x, clientY: neu.y });
+    v.x = p.x - (p.x - v.x) * z; v.y = p.y - (p.y - v.y) * z; v.b *= z; v.h *= z;
+    svg.setAttribute("viewBox", vbText(v));
+    const f = mmJePixel(svg);
+    v.x -= (neu.x - alt.x) * f; v.y -= (neu.y - alt.y) * f;
+    svg.setAttribute("viewBox", vbText(v));
+    beruehrung.geste = neu;
+    zoomAnzeige(el, svg);
+  }, true);
+  const ende = e => {
+    if (e.pointerType !== "touch") return;
+    beruehrung.punkte.delete(e.pointerId);
+    if (beruehrung.geste) { e.stopPropagation(); if (!beruehrung.punkte.size) beruehrung.geste = null; }
+  };
+  el.addEventListener("pointerup", ende, true);
+  el.addEventListener("pointercancel", ende, true);
+  document.addEventListener("pointerdown", e => { if (e.pointerType === "touch") touchErkannt(); }, true);
+
+  // Module mit dem Finger aus der Palette in die Zeichnung ziehen (HTML-Drag & Drop geht auf Tablets nicht)
+  $("#palette").addEventListener("pointerdown", e => {
+    if (e.pointerType !== "touch" || ui.reiter !== "aufbau") return;
+    const it = e.target.closest('[data-lib][draggable="true"]'); if (!it) return;
+    const start = { x: e.clientX, y: e.clientY };
+    let geist = null;
+    const bewegen = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      if (!geist && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 10) {
+        geist = it.cloneNode(true);
+        geist.className = "palette-item geist";
+        document.body.appendChild(geist);
+      }
+      if (geist) { geist.style.left = ev.clientX + "px"; geist.style.top = ev.clientY + "px"; }
+    };
+    const loslassen = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      document.removeEventListener("pointermove", bewegen); document.removeEventListener("pointerup", loslassen); document.removeEventListener("pointercancel", loslassen);
+      if (!geist) return;
+      geist.remove();
+      ui.klickSperre = Date.now();
+      const svg = $("#zeichnung svg[data-ansicht]"); const s = aktuellerScreen();
+      if (ev.type !== "pointerup" || !svg || !s) return;
+      const r = svg.getBoundingClientRect();
+      if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
+      modulAbsetzen(svg, s, it.dataset.lib, ev.clientX, ev.clientY, !ui.einrasten);
+    };
+    document.addEventListener("pointermove", bewegen);
+    document.addEventListener("pointerup", loslassen);
+    document.addEventListener("pointercancel", loslassen);
+  });
+
+  // Zoom-Knöpfe in der Zeichnung (Finger und Maus)
+  el.addEventListener("click", e => {
+    const b = e.target.closest("[data-zoom]"); if (!b) return;
+    const svg = el.querySelector("svg[data-ansicht]"); if (!svg) return;
+    if (b.dataset.zoom === "fit") return einpassen();
+    const v = ui.ansicht.get(svg.dataset.ansicht); if (!v) return;
+    const f = b.dataset.zoom === "+" ? 1 / 1.4 : 1.4;
+    const cx = v.x + v.b / 2, cy = v.y + v.h / 2;
+    v.b *= f; v.h *= f; v.x = cx - v.b / 2; v.y = cy - v.h / 2;
+    svg.setAttribute("viewBox", vbText(v));
+    zoomAnzeige(el, svg);
+  });
+
+  // Seitenspalten ein-/ausklappen (schmaler Bildschirm, z.B. Tablet hochkant)
+  $("#unterleiste").addEventListener("click", e => {
+    const b = e.target.closest("[data-spalte]"); if (!b) return;
+    const k = "zeige-" + b.dataset.spalte;
+    const an = !document.body.classList.contains(k);
+    document.body.classList.remove("zeige-links", "zeige-rechts");
+    document.body.classList.toggle(k, an);
+  });
 }
 
 /* ===== 10-aufbau.js ===== */
@@ -1476,6 +1632,9 @@ REITER.aufbau = {
       <button data-a="spiegel-y" ${dis} title="Auswahl bzw. Screen vertikal spiegeln">Spiegeln ↕</button>
       <button data-a="winkel" ${dis} title="Winkel an den senkrechten Fugen setzen – je Fuge oder als Radius">∠ Kurve …</button>
       <button data-a="loeschen" class="gefahr" ${sel ? "" : "disabled"} title="Auswahl entfernen (Entf)">Entfernen</button>
+      <span class="nur-touch knopfreihe"><span class="trenner"></span><button data-a="alle" ${dis}>Alle</button>
+        <button data-a="mehrfach" class="${ui.mehrfach ? "aktiv" : ""}" title="Antippen fügt Module zur Auswahl hinzu">Mehrfachauswahl</button>
+        <button data-a="einrasten" class="${ui.einrasten ? "aktiv" : ""}" title="Aus: Module frei setzen">Einrasten: ${ui.einrasten ? "an" : "aus"}</button></span>
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten}">Rückansicht</button></div>
       <button data-a="einpassen" ${dis}>Einpassen</button>
@@ -1492,8 +1651,9 @@ REITER.aufbau = {
       return `<div class="palette-item" draggable="${nutzbar}" data-lib="${e.id}" title="${nutzbar ? "In die Zeichnung ziehen oder anklicken" : "Pflichtangaben fehlen – in der Library ergänzen"}" style="${nutzbar ? "" : "opacity:.5"}">
         <span class="form" style="width:${Math.max(6, (led.mmB || 500) * f)}px;height:${Math.max(6, (led.mmH || 500) * f)}px"></span>
         <span class="name">${esc(e.name)}</span>${badgeHtml(e)}</div>`;
-    }).join("") + `<p class="klein leise">Ziehen: Modul setzen (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei). Klick: rechts anfügen.
-      <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`;
+    }).join("") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: rechts anfügen.
+      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei). Klick: rechts anfügen.
+      <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`);
   },
 
   zeichnung(el) {
@@ -1761,7 +1921,7 @@ function aufbauInteraktion(svg, s) {
     const g = e.target.closest("[data-mod]");
     if (g) {
       const id = g.dataset.mod;
-      if (e.shiftKey || e.ctrlKey) { ui.auswahl.has(id) ? ui.auswahl.delete(id) : ui.auswahl.add(id); render(); return; }
+      if (e.shiftKey || e.ctrlKey || ui.mehrfach) { ui.auswahl.has(id) ? ui.auswahl.delete(id) : ui.auswahl.add(id); render(); return; }
       if (!ui.auswahl.has(id)) { ui.auswahl = new Set([id]); markiereAuswahl(svg); }
       zug = { start: p, dx: 0, dy: 0, bewegt: false, ankerId: id };
     } else {
@@ -1773,7 +1933,7 @@ function aufbauInteraktion(svg, s) {
     const p = svgPunkt(svg, e);
     if (zug) {
       let dx = (p.x - zug.start.x) * (ui.hinten ? -1 : 1), dy = p.y - zug.start.y;
-      if (!e.altKey) {
+      if (!e.altKey && ui.einrasten) {
         const anker = s.module.find(m => m.id === zug.ankerId);
         const r = modRect(anker);
         const andere = s.module.filter(m => !ui.auswahl.has(m.id)).map(modRect);
@@ -1803,7 +1963,7 @@ function aufbauInteraktion(svg, s) {
       if (r.r && r.r.b > 2 && r.r.h > 2) {
         const rr = ui.hinten ? spiegelRect(s, r.r) : r.r;
         ui.auswahl = new Set(s.module.filter(m => schneidet(modRect(m), rr)).map(m => m.id));
-      } else ui.auswahl.clear();
+      } else if (!ui.mehrfach) ui.auswahl.clear();
       render();
     }
   });
@@ -1812,17 +1972,20 @@ function aufbauInteraktion(svg, s) {
   svg.addEventListener("drop", e => {
     e.preventDefault();
     const lib = e.dataTransfer.getData("text/lib");
-    if (!lib) return;
-    nutzeEintrag(lib);
-    const { b, h } = modMass({ lib });
-    const p = svgPunkt(svg, e);
-    let x = p.x - b / 2, y = p.y - h / 2;
-    if (ui.hinten) { const g = grenzen(s.module); x = g.x + g.x + g.b - x - b; }
-    if (!e.altKey && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
-    else if (!s.module.length) { x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10; }
-    const m = modulHinzufuegen(s, lib, x, y);
-    if (m) { ui.auswahl = new Set([m.id]); aenderung(); }
+    if (lib) modulAbsetzen(svg, s, lib, e.clientX, e.clientY, e.altKey || !ui.einrasten);
   });
+}
+/* Modul an einer Bildschirmposition absetzen (Maus-Drop oder Finger-Ziehen) */
+function modulAbsetzen(svg, s, lib, clientX, clientY, frei) {
+  nutzeEintrag(lib);
+  const { b, h } = modMass({ lib });
+  const p = svgPunkt(svg, { clientX, clientY });
+  let x = p.x - b / 2, y = p.y - h / 2;
+  if (ui.hinten) { const g = grenzen(s.module); x = g.x + g.x + g.b - x - b; }
+  if (!frei && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
+  else if (!s.module.length) { x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10; }
+  const m = modulHinzufuegen(s, lib, x, y);
+  if (m) { ui.auswahl = new Set([m.id]); aenderung(); }
 }
 function spiegelRect(s, r) { const g = grenzen(s.module); return { ...r, x: g.x + g.x + g.b - r.x - r.b }; }
 function markiereAuswahl(svg) { svg.querySelectorAll("[data-mod]").forEach(g => g.classList.toggle("sel", ui.auswahl.has(g.dataset.mod))); }
@@ -1844,6 +2007,9 @@ function aufbauEreignisse() {
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
     else if (a === "winkel") winkelDialog(s);
+    else if (a === "alle") { ui.auswahl = new Set(s.module.map(m => m.id)); render(); }
+    else if (a === "mehrfach") { ui.mehrfach = !ui.mehrfach; render(); }
+    else if (a === "einrasten") { ui.einrasten = !ui.einrasten; render(); }
   });
   $("#zeichnung").addEventListener("click", e => { if (e.target.closest("[data-a='screen-neu']")) screenAnlegen(); });
   $("#palette").addEventListener("dragstart", e => {
@@ -1853,6 +2019,7 @@ function aufbauEreignisse() {
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "aufbau") return;
     const it = e.target.closest("[data-lib]"); if (!it || it.getAttribute("draggable") !== "true") return;
+    if (Date.now() - ui.klickSperre < 500) return;   // gerade mit dem Finger gezogen
     modulAnfuegen(it.dataset.lib);
   });
   $("#rechts").addEventListener("change", e => {
@@ -4686,6 +4853,7 @@ function start() {
   historieStart();
   ui.screen = P.screens[0]?.id || null;
   gerustEreignisse();
+  touchEreignisse();
   for (const f of [aufbauEreignisse, riggingEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse, mappingEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,

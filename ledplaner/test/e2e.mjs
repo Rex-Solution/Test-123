@@ -367,6 +367,94 @@ async function rexSeite(module) {
   await c.close();
 }
 
+/* ---------- Tablet (Fingerbedienung, simulierte Touch-Ereignisse) ---------- */
+{
+  const c = await browser.newContext({ viewport: { width: 1180, height: 820 }, hasTouch: true });
+  const pg = await c.newPage(); beob(pg);
+  const e = (f, a) => pg.evaluate(f, a);
+  await pg.goto(DATEI); await e(() => localStorage.clear()); await pg.reload(); await pg.waitForTimeout(150);
+  await e(() => { window.confirm = () => true; beispielProjektLaden(); $("#toasts").innerHTML = ""; });
+  const cdp = await c.newCDPSession(pg);
+  const finger = (type, punkte) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: punkte.map(([x, y], id) => ({ x, y, id })) });
+  const box = async sel => pg.locator(sel).first().boundingBox();
+  const mitte = b => [b.x + b.width / 2, b.y + b.height / 2];
+  const pause = () => pg.waitForTimeout(40);
+
+  // Tippen auf ein Modul: Touch erkannt, Modul gewählt
+  const [mx, my] = mitte(await box(`[data-mod="${await e(() => P.screens[0].module[0].id)}"] rect`));
+  await finger("touchStart", [[mx, my]]); await pause(); await finger("touchEnd", []); await pause();
+  pruefe("Tablet: Fingerbedienung erkannt, Touch-Knöpfe sichtbar", await e(() => ui.touch && document.body.classList.contains("touch")) && await pg.locator('[data-a="mehrfach"]').isVisible());
+
+  // Zwei Finger auseinander: hineinzoomen, nichts verschoben
+  const vorher = await e(() => JSON.stringify(P));
+  const [cx, cy] = mitte(await box("#zeichnung"));
+  const b0 = await e(() => ui.ansicht.get(P.screens[0].id).b);
+  await finger("touchStart", [[cx - 60, cy]]); await pause();
+  await finger("touchStart", [[cx - 60, cy], [cx + 60, cy]]); await pause();
+  for (let i = 1; i <= 6; i++) { await finger("touchMove", [[cx - 60 - 10 * i, cy], [cx + 60 + 10 * i, cy]]); await pause(); }
+  await finger("touchEnd", []); await pause();
+  const b1 = await e(() => ui.ansicht.get(P.screens[0].id).b);
+  pruefe("Tablet: Zwei-Finger-Zoom (Abstand ×2 → halbe Breite)", Math.abs(b1 / b0 - 0.5) < 0.03 && await e(v => JSON.stringify(P) === v, vorher), `${b0} → ${b1}`);
+
+  // Zwei Finger, Start auf einem Modul: Verschieben der Ansicht, Modul bleibt liegen
+  await pg.click('[data-zoom="fit"]'); await pause();
+  const [ax, ay] = mitte(await box(`[data-mod="${await e(() => P.screens[0].module[5].id)}"] rect`));
+  const x0 = await e(() => ui.ansicht.get(P.screens[0].id).x);
+  await finger("touchStart", [[ax, ay]]); await pause();
+  await finger("touchMove", [[ax + 30, ay]]); await pause();
+  await finger("touchStart", [[ax + 30, ay], [ax + 130, ay]]); await pause();
+  for (let i = 1; i <= 5; i++) { await finger("touchMove", [[ax + 30 + 20 * i, ay], [ax + 130 + 20 * i, ay]]); await pause(); }
+  await finger("touchEnd", []); await pause();
+  pruefe("Tablet: Zwei-Finger-Verschieben bricht Modul-Ziehen ab", await e(v => JSON.stringify(P) === v, vorher) && await e(x => ui.ansicht.get(P.screens[0].id).x < x - 1, x0));
+
+  // Zoom-Knöpfe
+  const b2 = await e(() => ui.ansicht.get(P.screens[0].id).b);
+  await pg.click('[data-zoom="+"]'); await pause();
+  pruefe("Tablet: Zoom-Knopf +", await e(b => Math.abs(ui.ansicht.get(P.screens[0].id).b - b / 1.4) < 1, b2));
+  await pg.click('[data-zoom="fit"]'); await pause();
+
+  // Modul mit dem Finger aus der Palette ziehen
+  const n0 = await e(() => P.screens[0].module.length);
+  const [px, py] = mitte(await box('#palette [data-lib="beispiel-ledtek-p4swh-pro-v3"]'));
+  const wand = await box(`[data-mod="${await e(() => { const s = P.screens[0]; const g = grenzen(s.module); return s.module.find(m => m.x + 500 === g.x + g.b && m.y === 3000).id; })}"] rect`);
+  const zx = wand.x + wand.width * 1.5, zy = wand.y + wand.height / 2;
+  await finger("touchStart", [[px, py]]); await pause();
+  for (let i = 1; i <= 8; i++) { await finger("touchMove", [[px + (zx - px) * i / 8, py + (zy - py) * i / 8]]); await pause(); }
+  await finger("touchEnd", []); await pg.waitForTimeout(100);
+  pruefe("Tablet: Modul mit dem Finger aus der Palette gesetzt (rastet ein)", await e(n => { const s = P.screens[0]; const m = s.module[s.module.length - 1]; return s.module.length === n + 1 && m.x === 6000 && m.y === 3000; }, n0));
+
+  // Mehrfachauswahl per Antippen
+  await pg.click('[data-a="mehrfach"]');
+  const ids = await e(() => P.screens[0].module.slice(0, 3).map(m => m.id));
+  await e(() => { ui.auswahl.clear(); render(); });
+  for (const id of ids) { const [tx, ty] = mitte(await box(`[data-mod="${id}"] rect`)); await finger("touchStart", [[tx, ty]]); await pause(); await finger("touchEnd", []); await pause(); }
+  pruefe("Tablet: Mehrfachauswahl durch Antippen", await e(() => ui.auswahl.size === 3));
+  await pg.click('[data-a="mehrfach"]');
+
+  // Pinsel im Reiter Strom mit einem Finger
+  await e(() => { ui.reiter = "strom"; render(); });
+  await pg.click('[data-s="pinsel"]');
+  await pg.selectOption('[data-s-feld="pinselziel"]', await e(() => `${P.geraete.find(g => g.art === "verteiler").id}|12`));
+  const [q1, q2] = await e(() => P.screens[0].module.slice(0, 2).map(m => m.id));
+  const [p1x, p1y] = mitte(await box(`[data-mod="${q1}"] rect`)), [p2x, p2y] = mitte(await box(`[data-mod="${q2}"] rect`));
+  await finger("touchStart", [[p1x, p1y]]); await pause();
+  for (let i = 1; i <= 5; i++) { await finger("touchMove", [[p1x + (p2x - p1x) * i / 5, p1y + (p2y - p1y) * i / 5]]); await pause(); }
+  await finger("touchEnd", []); await pause();
+  pruefe("Tablet: Pinsel mit dem Finger", await e(() => P.kreise.find(k => k.kanal === 12)?.module.length === 2));
+  await e(() => { ui.werkzeug = "auswahl"; ui.reiter = "aufbau"; $("#toasts").innerHTML = ""; render(); });
+  await pg.screenshot({ path: path.join(AUSGABE, "tablet-quer.png") });
+
+  // Hochkant: Seitenspalten ausklappbar
+  await pg.setViewportSize({ width: 820, height: 1180 }); await pause();
+  const rechtsVorher = await pg.locator("#rechts").isVisible();
+  await pg.click('[data-spalte="rechts"]'); await pause();
+  pruefe("Tablet hochkant: Details per ⓘ ausklappbar", !rechtsVorher && await pg.locator("#rechts").isVisible());
+  await pg.screenshot({ path: path.join(AUSGABE, "tablet-hochkant.png") });
+  await pg.click('[data-spalte="links"]'); await pause();
+  pruefe("Tablet hochkant: ☰ zeigt Projekt/Library, ⓘ schließt sich", await pg.locator("#palette").isVisible() && !(await pg.locator("#rechts").isVisible()));
+  await c.close();
+}
+
 console.log(`\n${ok} bestanden, ${fehler.length} Fehler`);
 if (fehler.length) { console.log(fehler.join("\n")); process.exitCode = 1; }
 await browser.close();

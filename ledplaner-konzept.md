@@ -378,6 +378,8 @@ Der Signalfluss-Planer wird neu gebaut; der LED-Planer ist ohne ihn voll nutzbar
 Aus Phase 4: Kurven/Winkel – Knick an senkrechten Fugen (je Fuge, für alle/ausgewählte Fugen oder als Radius),
 + konkav / − konvex, Vorderansicht als Abwicklung, Draufsicht mit Sehne, Stich und Radius (Aufbau, Bericht, Großformat),
 Prüfung gegen die möglichen Winkel der Library und auf Flugrahmen über einem Knick.
+Tablet-Bedienung: Zwei-Finger-Zoom/-Verschieben, Zoom-Knöpfe, Module mit dem Finger ziehen, Mehrfachauswahl und
+Einrasten als Schalter (statt Shift/Alt), Pinsel mit dem Finger, größere Bedienelemente, Seitenspalten hochkant ausklappbar.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

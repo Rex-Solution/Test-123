@@ -100,6 +100,7 @@ function mmJePixel(svg) {
 /* Zoom (Mausrad) und Verschieben (Leertaste/mittlere Taste/Hand) für eine Screen-Zeichnung */
 function ansichtSteuerung(el, svg, screen, { leerKlick } = {}) {
   const v = ansicht(screen);
+  svg.dataset.ansicht = screen.id;   // für Zwei-Finger-Gesten und Zoom-Knöpfe
   svg.addEventListener("wheel", e => {
     e.preventDefault();
     const p = svgPunkt(svg, e);
@@ -126,7 +127,8 @@ function ansichtSteuerung(el, svg, screen, { leerKlick } = {}) {
 function zoomAnzeige(el, svg) {
   let z = el.querySelector(".zoomanzeige");
   if (!z) { z = document.createElement("div"); z.className = "zoomanzeige"; el.appendChild(z); }
-  requestAnimationFrame(() => { const f = mmJePixel(svg); z.textContent = `1 px ≈ ${fmtFlex(f, 1)} mm · Mausrad: Zoom · Leertaste + Ziehen: verschieben`; });
+  requestAnimationFrame(() => { const f = mmJePixel(svg); z.textContent = `1 px ≈ ${fmtFlex(f, 1)} mm · ${ui.touch ? "zwei Finger: zoomen und verschieben" : "Mausrad: Zoom · Leertaste + Ziehen: verschieben"}`; });
+  if (!el.querySelector(".zoomknoepfe")) el.insertAdjacentHTML("beforeend", `<div class="zoomknoepfe"><button data-zoom="-" title="Verkleinern">−</button><button data-zoom="+" title="Vergrößern">+</button><button data-zoom="fit" title="Einpassen">⤢</button></div>`);
 }
 const leertaste = { gedrueckt: false };
 document.addEventListener("keydown", e => { if (e.key === " " && !e.target.matches("input, textarea, select, button")) { leertaste.gedrueckt = true; $("#zeichnung")?.classList.add("pan"); if (e.target === document.body) e.preventDefault(); } });

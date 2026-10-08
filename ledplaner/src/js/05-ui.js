@@ -15,6 +15,10 @@ const ui = {
   libSel: null, libFilter: "", libNurOffen: false,
   einst: "datei",
   kabelFilter: { gewerk: "alle", screen: "alle", ohneLaenge: false },
+  touch: false,               // Fingerbedienung erkannt (Tablet)
+  mehrfach: false,            // Antippen fügt zur Auswahl hinzu (statt Shift/Strg)
+  einrasten: true,            // aus = frei setzen (statt Alt)
+  klickSperre: 0,             // Zeitpunkt des letzten Finger-Ziehens aus der Palette
 };
 const REITER = {};
 
