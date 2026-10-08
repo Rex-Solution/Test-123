@@ -181,6 +181,20 @@ Passende Laka/Spinne (generisch, nicht vom Hersteller):
 | Laka „Harting 16-pol, 6 Kreise“ | 6 × 16 A, Längen 10/25/50 m (Bestand ❓) |
 | Spinne „Harting 16-pol → 6 × PowerCON TRUE1“ | 6 Abgänge, Kreise 1–6 der Laka |
 
+## 3a. Stagebox: NovaStar CVT10
+
+Glasfaser-Konverter am Ende der Glasfaser vom Prozessor (z.B. MX30 OPT) zur Wand.
+
+| Wert | Angabe | Quelle |
+| --- | --- | --- |
+| Modelle | CVT10-M (multimode, 850 nm, bis 300 m) · CVT10-S (singlemode, 1310 nm) | Händler |
+| Eingänge | 2 × 10G optisch (SFP, LC), Module ab Werk | Händler |
+| Ausgänge | 10 × Gigabit-Ethernet zur Wand | Händler |
+| Leistung | 22 W, 100–240 V AC, PowerCON TRUE1 | Händler – **mit aktuellem NovaStar-Datenblatt prüfen** (Leistungsangabe wurde in V1.3.2 geändert) |
+| Gewicht · Maße | 2,1 kg · 212 × 266 × 44 mm, 1 HE halbe Breite | Händler |
+| Schutzart | IP20 (nur innen) – für außen gibt es die CVT10 Pro (IP65, eigene Werte) | Händler |
+| Pixel je Port | nicht von der Box begrenzt (Grenze kommt vom Prozessor) | – |
+
 ## 4. Platzhalter für die übrigen Kategorien
 
 Für diese Kategorien wurden keine konkreten Geräte genannt. Die Einträge sind
@@ -190,7 +204,6 @@ durchgespielt werden können. Später durch euren Bestand ersetzen.
 | Kategorie | Beispiel | Wichtige Werte |
 | --- | --- | --- |
 | Hauptverteiler | „Verteiler 125 A → 2 × CEE 63 A“ | für mehrere C24 bzw. Powerlock/Aggregat davor |
-| Stagebox (aktiv) | „Glasfaser-Konverter 10G → 10 × 1G“ (z.B. NovaStar CVT10-Klasse) | 1 × 10G optisch ein, 10 × etherCON aus, eigener Stromanschluss ❓ W |
 | Multicore (passiv) | „Cat-Multicore 4-fach“ | 4 × etherCON, Längen 25/50 m, Cat max. 100 m je Strecke |
 | Bracket / Bumper | „Flugrahmen 1 m“ | für 2 × 500er Module nebeneinander, Eigengewicht ❓, zul. Last ❓, 2 Aufhängepunkte |
 

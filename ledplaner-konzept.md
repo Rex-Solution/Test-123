@@ -375,5 +375,5 @@ zuordenbar, Rest direkt per Cat; Stagebox mit Zuleitung und Strom). Gemischte Pi
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.
-2. Echte Stagebox-/Multicore-Einträge aus dem Bestand in der Library anlegen (Beispiel-Stagebox hat noch keine Leistung).
+2. Echte Multicore-Einträge aus dem Bestand anlegen; Leistung der NovaStar CVT10 mit dem Datenblatt bestätigen.
 3. Bestandsliste und Datenblätter nachreichen (Lakas, Stageboxen, Multicores, Flugrahmen; LEDTEK-Grenzwerte, C24-Phasen).
