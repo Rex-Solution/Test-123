@@ -108,7 +108,9 @@ await p.click('[data-e="beispiel"]');
 await p.waitForTimeout(200);
 const strom = await ev(() => ({ n: P.kreise.length, w: P.kreise.map(k => Math.round(kreisLast(k))), phasen: [...stromBilanz().values()].map(b => PHASEN.map(x => +b.phasen[x].toFixed(2))) }));
 pruefe("Beispiel: 6 Kreise à 1.226 W", strom.n === 6 && strom.w.every(w => w === 1226), JSON.stringify(strom));
-pruefe("Beispiel: Phasen ausgewogen (+ Prozessor auf L1)", Math.abs(strom.phasen[1][1] - 10.66) < 0.01 && Math.abs(strom.phasen[1][0] - 10.9) < 0.05, JSON.stringify(strom.phasen));
+pruefe("Beispiel: Phasen ausgewogen (+ MX30 auf L1, CVT10 auf L2)", Math.abs(strom.phasen[1][2] - 10.66) < 0.01 && Math.abs(strom.phasen[1][0] - 10.9) < 0.05 && Math.abs(strom.phasen[1][1] - 10.76) < 0.01, JSON.stringify(strom.phasen));
+const cvt = await ev(() => { const d = P.geraete.find(g => g.art === "stagebox"); return { lib: d.lib, ports: d.ports, zul: d.zuleitung.laengeM, kabel: kabelListe().filter(z => z.von.startsWith("Stagebox 1 · Ausgang")).length, fiber: kabelListe().find(z => z.key === "weg:" + d.id)?.laengeM, offen: wegePruefungen().filter(x => x.art !== "info").length }; });
+pruefe("Beispiel: MX30 → 60 m Glasfaser → CVT10 → 4 Cat-Ports", cvt.lib === "beispiel-novastar-cvt10" && JSON.stringify(cvt.ports) === "[1,2,3,4]" && cvt.zul === 60 && cvt.fiber === 60 && cvt.kabel === 4 && cvt.offen === 0, JSON.stringify(cvt));
 const sig = await ev(() => P.straenge.map(k => [k.port, k.backupPort, strangPixel(k)]));
 pruefe("Beispiel: 2 Stränge à 454.272 px mit Backup 3/4", JSON.stringify(sig) === JSON.stringify([[1, 3, 454272], [2, 4, 454272]]), JSON.stringify(sig));
 
@@ -171,7 +173,7 @@ await ev(() => { ui.modus.ausgabe = "screen"; render(); });
 
 /* ---------- Stagebox und Multicore ---------- */
 await p.click('[data-reiter="signal"]');
-await ev(() => { ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; render(); });
+await ev(() => { P.geraete = P.geraete.filter(g => g.art !== "stagebox"); ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; P.geraete.find(g => g.art === "prozessor").portLaengeM = 60; render(); });
 await p.click('[data-d="weg-neu"][data-lib="beispiel-multicore-cat4-25"]');
 const mc = await ev(() => { const d = P.geraete.find(g => g.art === "multicore"); return { ports: d.ports, zeilen: kabelListe().filter(z => /Multicore 1/.test(z.von + z.nach)).map(z => z.von) }; });
 pruefe("Multicore: übernimmt die 4 belegten Ports", JSON.stringify(mc.ports) === "[1,2,3,4]", JSON.stringify(mc));

@@ -227,12 +227,13 @@ durchgespielt werden können. Später durch euren Bestand ersetzen.
 - WH und sWH dürfen auf denselben Port (gleiche Serie, A8s) → z.B. Port 1 = linke 6 Spalten inkl. unterer sWH-Reihe, Port 2 = rechte 6 Spalten.
 - Gesamtkapazität 6,5 Mio. px → Prozessor zu ca. 14 % ausgelastet; reicht auch für weitere Screens.
 - Eingang: 1248 × 728 passt in jeden Eingang inkl. 3G-SDI (1920 × 1080).
+- Weg zur Wand: MX30 an FOH → **60 m Glasfaser** (OPT) → **NovaStar CVT10** hinter der Wand → Ports 1–4 (2 × Haupt, 2 × Backup) mit je **5 m Cat** an die Strangenden. Die CVT10 hängt mit 22 W an C24-Kanal 8.
 - Offen ❓: max. Module je Datenstrang laut LEDTEK.
 
 **Strom** (Hausregel-Vorschlag: 16 A, 230 V, 20 % Reserve → 2.944 W je Kreis)
 - 7.356 W ÷ 2.944 W → rechnerisch **mindestens 3 Kreise**.
 - Mit **StageSmarts C24**: eine Laka (Harting-Ausgang 1, 6 Kreise) mit Spinne an der Wand → **6 Kreise à 8 Module**, z.B. je Kreis 2 Spalten (6 × WH + 2 × sWH = 1.050 + 176 = **1.226 W ≈ 5,3 A**, Auslastung 42 % von 2.944 W). Viel Reserve für Einschaltstrom und Brückengrenze.
-- Je 2 Kreise auf L1/L2/L3 → je Phase ca. 2.452 W ≈ **10,7 A**, keine Schieflast (Phasenzuordnung der C24-Kanäle ❓).
+- Je 2 Kreise auf L1/L2/L3 → je Phase ca. 2.452 W ≈ **10,7 A**, keine Schieflast (Phasenzuordnung der C24-Kanäle ❓). Dazu MX30 (55 W, Kanal 7 → L1) und CVT10 (22 W, Kanal 8 → L2): **L1 10,9 A · L2 10,8 A · L3 10,7 A**.
 - Einspeisung C24: **CEE 32 A** reicht rechnerisch, **63 A** lässt Platz für weitere Screens (3 freie Harting-Ausgänge = 18 Kreise).
 - Offen ❓: Einschaltstrom und max. Module je PowerCON-Brücke laut LEDTEK.
 

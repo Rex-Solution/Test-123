@@ -26,7 +26,7 @@ function renderEinstellungen() {
       <p class="klein leise">Projekte werden als Datei <code>.ledplaner.json</code> gespeichert (ohne Datenbank). Zusätzlich sichert der Browser automatisch den letzten Stand.</p>
       <div class="knopfreihe"><button data-e="neu">Neu</button><button data-e="oeffnen">Öffnen …</button><button data-e="speichern" class="primaer">Speichern</button></div>
       <div class="abschnitt">Beispiel</div>
-      <p class="klein leise">Lädt den Beispiel-Screen „Bühne Mitte“ (12 × 3 LEDTEK P4+WH + 1 Reihe P4+sWH) mit StageSmarts C24 und NovaStar MX30.</p>
+      <p class="klein leise">Lädt den Beispiel-Screen „Bühne Mitte“ (12 × 3 LEDTEK P4+WH + 1 Reihe P4+sWH) mit StageSmarts C24, NovaStar MX30 und CVT10.</p>
       <button data-e="beispiel">Beispielprojekt laden</button>
       <div class="abschnitt">Library</div>
       <p class="klein leise">Library-Einträge im Hauptreiter „Library“ importieren und exportieren (<code>.ledlibrary.json</code>).</p></div>`;
@@ -111,6 +111,10 @@ function beispielProjektLaden() {
     const lib = "beispiel-novastar-mx30";
     const g = prozessorAnlegen(lib); g.portLaengeM = 60; g.strom = { verteiler: v.id, kanal: 7 };
     signalVorschlag();
+    // Glasfaser vom MX30 (FOH) zur CVT10 hinter der Wand, von dort Cat zu den Strängen
+    const sb = wegAnlegen("stagebox", "beispiel-novastar-cvt10", g.id);
+    Object.assign(sb, { standort: "hinter der Wand", ausgangLaengeM: 5, strom: { verteiler: v.id, kanal: 8 } });
+    g.portLaengeM = null; ui.sel.weg = null;
     P.outputs.push({ id: neueId("o"), name: "Medienserver 1 · Out 1", zuspieler: "Medienserver 1", b: 3840, h: 2160, hz: 50, anschluss: "HDMI", prozessor: g.id, eingang: "HDMI 2.0" });
     layerVorschlag(g.id);
   } finally { window.confirm = confirmAlt; }
