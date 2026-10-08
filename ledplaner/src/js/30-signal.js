@@ -15,10 +15,6 @@ function passtZuModulen(prozLib, module) {
 function strangModule(k) { const s = screenById(k.screen); const map = new Map((s?.module || []).map(m => [m.id, m])); return k.module.map(id => map.get(id)).filter(Boolean); }
 function strangPixel(k) { return strangModule(k).reduce((a, m) => a + modulPixel(m), 0); }
 function portKapazitaet(g) { return (prozessorLed(g).pxJePort || 0); }
-function maxJeStrang(module) {
-  const w = module.map(m => eintrag(m.lib)?.attribute?.led?.daten?.maxJeStrang).filter(Number.isFinite);
-  return w.length ? Math.min(...w) : Infinity;
-}
 function straengeVon(screenId) {
   const pIdx = id => P.geraete.findIndex(g => g.id === id);
   return P.straenge.filter(k => k.screen === screenId).sort((a, b) => pIdx(a.prozessor) - pIdx(b.prozessor) || a.port - b.port);
@@ -68,7 +64,7 @@ function signalVorschlag() {
   let ueberlast = false;
   for (const [, ms] of gruppen) {
     const reihe = schlangenReihenfolge(ms, s.signal.richtung, s.signal.start);
-    const erg = segmentieren(reihe.map(modulPixel), kap, maxJeStrang(reihe));
+    const erg = segmentieren(reihe.map(modulPixel), kap, Infinity);
     ueberlast = ueberlast || erg.ueberlast;
     for (let i = 0; i + 1 < erg.grenzen.length; i++) segmente.push(reihe.slice(erg.grenzen[i], erg.grenzen[i + 1]));
   }
@@ -120,7 +116,7 @@ function signalPinselMalen(svg, s) {
     P.straenge = P.straenge.filter(x => x.module.length || x === k);
     svg.innerHTML = signalSvgInhalt(s);
     const px = strangPixel(k), kap = portKapazitaet(g);
-    pinselAnzeige(`${strangName(k)}: ${k.module.length} Module · ${fmt(px)} px von ${fmt(kap)} px (${fmt(px / kap * 100)} %)`, px > kap * P.regeln.portMax / 100 || k.module.length > maxJeStrang(strangModule(k)));
+    pinselAnzeige(`${strangName(k)}: ${k.module.length} Module · ${fmt(px)} px von ${fmt(kap)} px (${fmt(px / kap * 100)} %)`, px > kap * P.regeln.portMax / 100);
   };
 }
 
@@ -150,7 +146,7 @@ REITER.signal = {
       <button data-d="strang-loeschen" ${ui.sel.strang ? "" : "disabled"}>Strang löschen</button>
       <button data-d="backup" class="${P.regeln.backup ? "aktiv" : ""}" title="Backup-Ports für neue Stränge">Backup: ${P.regeln.backup ? "an" : "aus"}</button>
       <span class="trenner"></span>
-      <div class="umschalter"><button data-d="modus" data-wert="wand" aria-selected="${!uebersicht}">Wand</button><button data-d="modus" data-wert="prozessoren" aria-selected="${uebersicht}">Alle Prozessoren</button></div>`;
+      <div class="umschalter"><button data-d="modus" data-wert="wand" aria-selected="${ui.modus.signal === "wand"}">Wand</button><button data-d="modus" data-wert="backup" aria-selected="${ui.modus.signal === "backup"}">Backup</button><button data-d="modus" data-wert="prozessoren" aria-selected="${uebersicht}">Alle Prozessoren</button></div>`;
   },
   palette() {
     const s = aktuellerScreen();
@@ -165,6 +161,7 @@ REITER.signal = {
   },
   zeichnung(el) {
     if (ui.modus.signal === "prozessoren") return signalUebersicht(el);
+    if (ui.modus.signal === "backup") return backupUebersicht(el);
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, "Noch kein Screen – im Reiter Aufbau anlegen.");
     if (!s.module.length) return leerZeichnung(el, "Der Screen hat noch keine Module.");
@@ -183,12 +180,12 @@ REITER.signal = {
     });
   },
   liste() {
-    if (ui.modus.signal === "prozessoren") return signalListeAlle();
+    if (ui.modus.signal === "prozessoren" || ui.modus.signal === "backup") return signalListeAlle();
     const s = aktuellerScreen(); if (!s) return "";
     const st = straengeVon(s.id);
     const ohne = s.module.length - st.reduce((a, k) => a + k.module.length, 0);
     const zeilen = zugewiesenePorts(s);
-    return `<div class="kopf"><b>Ports „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
+    return `<div class="kopf"><b>Ports „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b> <span class="leise klein">(<kbd>⌫</kbd> ein Modul zurück · <kbd>Entf</kbd> ganzer Strang)</span><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
       <table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Rolle</th><th>Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Weg</th></tr>
       ${zeilen.map(({ g, nr, ziel, strang: k, rolle }) => {
         const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.signal === (k ? zielText(g.id, k.port) : ziel);
@@ -203,6 +200,15 @@ REITER.signal = {
   pruefungen() { return signalPruefungen(); },
   taste(e) {
     if (e.key === "Escape" && ui.werkzeug === "pinsel") { ui.werkzeug = "auswahl"; render(); return true; }
+    // Pinsel: Backspace = letztes Modul zurück, Entf = ganzen Strang löschen
+    if (ui.werkzeug === "pinsel" && (e.key === "Backspace" || e.key === "Delete")) {
+      const [gId, nr] = (ui.pinsel.signal || "").split("|");
+      const k = P.straenge.find(x => x.prozessor === gId && x.port === Number(nr));
+      if (!k) return true;
+      if (e.key === "Delete") { strangLoeschen(k.id); return true; }
+      k.module.pop(); if (!k.module.length) P.straenge = P.straenge.filter(x => x !== k);
+      aenderung(); return true;
+    }
     if ((e.key === "Delete" || e.key === "Backspace") && ui.sel.strang) { strangLoeschen(ui.sel.strang); return true; }
     return false;
   },
@@ -271,7 +277,8 @@ function signalUebersicht(el) {
       ${wegGeraete(g.id).length ? `<div class="label">Wege zur Wand</div><table class="werte">${wegGeraete(g.id).map(d => `<tr><td>${esc(wegKurz(d))} · ${esc(d.name)}</td><td>${esc(eintrag(d.lib)?.name || "—")} · Ports ${d.ports.join(", ") || "—"} · ${esc(d.standort || "")}</td></tr>`).join("")}</table>` : ""}
       <div class="label">Eingänge</div><table class="werte">${eingaenge.map(a => { const o = (P.outputs || []).filter(x => x.prozessor === g.id && x.eingang === a.name); return `<tr><td>${esc(a.name)}</td><td>${o.length ? o.map(x => esc(`${x.name} · ${x.b} × ${x.h} @ ${fmtFlex(x.hz)} Hz`)).join(", ") : '<span class="leise">frei</span>'}</td></tr>`; }).join("")}</table>
       <div class="label">Auslastung</div><table class="werte"><tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)} (${fmt(led.pxGesamt ? px / led.pxGesamt * 100 : 0)} %)</td></tr>
-      <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>${(P.layer || []).filter(l => l.prozessor === g.id).length} / ${fmt(led.layer)}</td></tr></table></div>`;
+      <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>${(P.layer || []).filter(l => l.prozessor === g.id).length} / ${fmt(led.layer)}</td></tr></table></div>`
+      + wegGeraete(g.id).map(wegKarteUebersicht).join("");
   }).join("")}</div>`;
 }
 
@@ -304,11 +311,8 @@ function signalPruefungen() {
     const px = strangPixel(k), kap = portKapazitaet(g);
     if (px > kap) liste.push({ art: "warn", text: `${s?.name} ${strangName(k)}: ${fmt(px)} px über der Portkapazität ${fmt(kap)} px.`, ziel: "screen:" + k.screen });
     else if (px > kap * P.regeln.portMax / 100) liste.push({ art: "warn", text: `${s?.name} ${strangName(k)}: Auslastung ${fmt(px / kap * 100)} % über ${fmt(P.regeln.portMax)} %.`, ziel: "screen:" + k.screen });
-    const mx = maxJeStrang(ms);
-    if (ms.length > mx) liste.push({ art: "warn", text: `${s?.name} ${strangName(k)}: ${ms.length} Module, erlaubt ${mx} je Strang.`, ziel: "screen:" + k.screen });
     if (P.regeln.backup && !Number.isFinite(k.backupPort)) liste.push({ art: "warn", text: `${s?.name} ${strangName(k)}: kein Backup-Port.`, ziel: "screen:" + k.screen });
   }
-  if (P.straenge.length && P.straenge.some(k => strangModule(k).some(m => !Number.isFinite(eintrag(m.lib)?.attribute?.led?.daten?.maxJeStrang)))) liste.push({ art: "warn", text: "Max. Module je Datenstrang unbekannt – nur Pixelkapazität geprüft." });
   for (const g of ps) {
     const led = prozessorLed(g);
     const px = P.straenge.filter(k => k.prozessor === g.id).reduce((a, k) => a + strangPixel(k), 0);
@@ -324,6 +328,12 @@ function signalPruefungen() {
 }
 
 function signalEreignisse() {
+  $("#zeichnung").addEventListener("click", e => { if (ui.reiter === "signal" && e.target.closest("[data-d='backup-auto']")) backupAutomatisch(); });
+  $("#zeichnung").addEventListener("change", e => {
+    if (ui.reiter !== "signal" || !e.target.dataset.backupPort) return;
+    const k = P.straenge.find(x => x.id === e.target.dataset.backupPort);
+    if (k) backupSetzen(k, e.target.value === "" ? null : Number(e.target.value));
+  });
   $("#werkzeuge").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
     const b = e.target.closest("[data-d]"); if (!b) return;

@@ -36,8 +36,7 @@ function kabelListe() {
   for (const l of P.lakas) {
     const v = geraetById(l.verteiler); const s = screenById(l.screen);
     add({ key: "laka:" + l.id, gewerk: "strom", lib: l.lib, laengeM: l.laengeM, quelleBearbeiten: true, von: `${v?.name || "—"} · ${l.ausgang}`, nach: `Spinne · ${s?.name || "—"}`, screen: l.screen });
-    const stecker = eintrag(l.lib)?.attribute?.led?.stecker;
-    const spinne = libListe("spinne").find(e => e.attribute.led.steckerEin === stecker);
+    const spinne = spinneLib(l);
     add({ key: "spinne:" + l.id, gewerk: "strom", lib: spinne?.id || null, laengeM: spinne?.attribute?.led?.laengeM ?? null, von: `Laka · ${l.ausgang}`, nach: `${s?.name || "—"} · Kreisanfänge`, screen: l.screen });
   }
   // Strom: Kreise ohne Laka (direkt), Brücken je Screen

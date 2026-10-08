@@ -15,6 +15,24 @@ function riggingStandard(s) {
 const bracketPasst = (s, e) => !!e && (RIGGING_ART[s.bauart] || []).includes(e.attribute?.led?.art);
 const bracketPlaetze = e => Math.max(1, Math.round(e?.attribute?.led?.breiteModule || 1));
 
+/* Bauart wechseln: passendes Bracket (Flugrahmen ↔ Stacking) gleich mit wählen, Rest/Seite bleiben */
+function bauartWechseln(s, bauart) {
+  s.bauart = bauart;
+  const r = riggingStandard(s);
+  if (!bracketPasst(s, eintrag(r.lib))) { const v = riggingVorgabe(bauart, s); r.lib = v.lib; r.lib2 = v.lib2; }
+  aenderung();
+}
+
+/* Bracket-Vorgabe für neue Screens: wie der letzte Screen gleicher Bauart, sonst großes + kleines Bracket aus der Library */
+function riggingVorgabe(bauart, ausser = null) {
+  const vorher = [...P.screens].reverse().find(s => s !== ausser && s.bauart === bauart && (RIGGING_ART[bauart] || []).includes(eintrag(s.rigging?.lib)?.attribute?.led?.art));
+  if (vorher) return { ...klon(vorher.rigging) };
+  const passend = libListe("rigging").filter(e => (RIGGING_ART[bauart] || []).includes(e.attribute?.led?.art)).sort((a, b) => bracketPlaetze(b) - bracketPlaetze(a));
+  const gross = passend[0], klein = passend.find(e => bracketPlaetze(e) < bracketPlaetze(gross));
+  for (const e of [gross, klein]) if (e) nutzeEintrag(e.id);
+  return { lib: gross?.id || null, lib2: klein?.id || null, rest: "ergaenzen", seite: "rechts", anzeigen: true };
+}
+
 /* Platz unter der Wand für Stacking-Brackets (Fugen-Marken und Maße rücken darunter) */
 function untenVersatz(s) {
   if (s.bauart !== "gestellt" || !bracketRaster(s) || s.rigging.anzeigen === false) return 0;
@@ -189,7 +207,7 @@ function riggingKarte(s) {
   const d = riggingDaten(s);
   const serien = [...new Set(s.module.map(m => eintrag(m.lib)?.attribute?.led?.serie))];
   const passend = libListe("rigging").filter(e => bracketPasst(s, e));
-  const option = (e, wert) => `<option value="${e.id}"${wert === e.id ? " selected" : ""}${eintragNutzbar(e) ? "" : " disabled"}>${esc(e.name)}${eintragNutzbar(e) ? "" : " (Pflicht fehlt)"}${(e.attribute.led.serien || []).some(x => serien.includes(x)) ? "" : " – andere Serie"}</option>`;
+  const option = (e, wert) => `<option value="${e.id}"${wert === e.id ? " selected" : ""}>${esc(e.name)}${Number.isFinite(e.attribute?.gewicht) ? "" : " (Gewicht fehlt)"}${(e.attribute.led.serien || []).some(x => serien.includes(x)) ? "" : " – andere Serie"}</option>`;
   const haupt = eintrag(r.lib), n = bracketPlaetze(haupt);
   const raster = bracketRaster(s);
   const ausserhalb = raster ? s.module.filter(m => !imRaster(raster, m)).length : 0;

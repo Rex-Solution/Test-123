@@ -229,7 +229,7 @@ pruefe("Library: Pflicht fehlt → Speichern gesperrt", await p.locator('[data-l
 await p.fill('[data-pfad="gewicht"]', "12,5"); await p.press('[data-pfad="gewicht"]', "Tab"); await p.waitForTimeout(100);
 await p.click('[data-l="speichern"]'); await p.waitForTimeout(100);
 pruefe("Library: Eintrag gespeichert (lokal)", await ev(() => LIB.eintraege.get("beispiel-flugrahmen-1m").attribute.gewicht === 12.5 && LIB.herkunft.get("beispiel-flugrahmen-1m") === "lokal"));
-pruefe("Library: Badge-Zählung P4+WH 9/14", await ev(() => { const v = vollstaendigkeit(LIB.eintraege.get("beispiel-ledtek-p4wh-pro-v3")); return v.gefuellt === 9 && v.gesamt === 14; }));
+pruefe("Library: Badge-Zählung P4+WH 9/13", await ev(() => { const v = vollstaendigkeit(LIB.eintraege.get("beispiel-ledtek-p4wh-pro-v3")); return v.gefuellt === 9 && v.gesamt === 13; }));
 await p.screenshot({ path: path.join(AUSGABE, "library.png") });
 
 /* ---------- Rigging (Flugrahmen mit Gewicht 12,5 kg aus der Library) ---------- */
@@ -420,7 +420,10 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "strom"; ui.modus.strom = "wand"; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });
   const laka = await ev(() => P.lakas[0].id);
   pruefe("Symbol: Spinne in der Strom-Zeichnung mit Linien zu 6 Kreisanfängen", await p.locator(`#zeichnung [data-symbol="laka:${laka}"]`).count() === 1 && await ev(() => spinneZiele(P.screens[0], P.lakas[0]).length === 6));
-  pruefe("Symbol: Spinnenbein zu kurz gemeldet", await ev(() => stromPruefungen().some(x => x.text.includes("Spinne an Harting 1"))));
+  pruefe("Spinne: automatisch die kürzeste, die reicht (5 m)", await ev(() => spinneLib(P.lakas[0]).id === "beispiel-spinne-h16-true1-5m" && !stromPruefungen().some(x => x.text.includes("Spinne an Harting 1"))));
+  await ev(() => { P.lakas[0].spinne = "beispiel-spinne-h16-true1"; aenderung(); });
+  pruefe("Spinne: gewählte 1,5-m-Spinne zu kurz gemeldet", await ev(() => stromPruefungen().some(x => x.text.includes("Spinne an Harting 1") && x.text.includes("gewählte Spinne hat 1,5 m"))));
+  pruefe("Spinne: Kabelliste nutzt die gewählte Spinne", await ev(() => kabelListe().find(z => z.key === "spinne:" + P.lakas[0].id).lib === "beispiel-spinne-h16-true1"));
   const sp = await p.locator(`#zeichnung [data-symbol="laka:${laka}"]`).boundingBox();
   const pxMm = await ev(() => 1 / mmJePixel($("#zeichnung svg")));
   const vorher = await ev(() => spinnePos(P.screens[0], P.lakas[0]));
@@ -443,6 +446,65 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   await p.screenshot({ path: path.join(AUSGABE, "symbole-signal.png") });
   await ev(() => { ui.reiter = "strom"; render(); });
   await p.screenshot({ path: path.join(AUSGABE, "symbole-strom.png") });
+}
+
+/* ---------- Rückmeldung 2: Brackets bei neuem Screen, Pinsel-Tasten, Sortieren, Ausgänge, Stagebox-Strom, Backup ---------- */
+{
+  await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "aufbau"; ui.modus.aufbau = "wand"; $("#toasts").innerHTML = ""; render(); });
+  // neuer Screen übernimmt die Brackets
+  await p.click('#baum [data-aktion="screen-neu"]'); await p.waitForTimeout(50);
+  await dialog({ name: "Seite links" });
+  pruefe("Brackets: neuer Screen übernimmt Bracket (Module sofort fest)", await ev(() => { const s = P.screens[P.screens.length - 1]; return s.name === "Seite links" && s.rigging.lib === "beispiel-flugrahmen-1m" && s.rigging.lib2 === "beispiel-flugrahmen-05m"; }));
+  pruefe("Brackets: auch ohne Gewicht wählbar", await ev(() => { const h = riggingKarte(P.screens[0]); return h.includes('value="beispiel-flugrahmen-1m"') && !/value="beispiel-flugrahmen-1m"[^>]*disabled/.test(h); }));
+  await ev(() => { const s = P.screens[P.screens.length - 1]; s.bauart = "geflogen"; bauartWechseln(s, "gestellt"); });
+  pruefe("Brackets: Wechsel auf gestellt wählt Stacking-Bracket", await ev(() => P.screens[P.screens.length - 1].rigging.lib === "beispiel-stacking-1m"));
+  // Projektbaum sortieren: Hausanschluss vor Verteiler ziehen
+  const [vli, eli] = [await p.locator('#baum li[data-geraet^="v"]').first().boundingBox(), await p.locator('#baum li[data-geraet^="e"]').first().boundingBox()];
+  await p.mouse.move(eli.x + 40, eli.y + eli.height / 2); await p.mouse.down();
+  await p.mouse.move(vli.x + 40, vli.y + 3, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(50);
+  pruefe("Baum: Einspeisung per Ziehen vor den Verteiler", await ev(() => { const st = P.geraete.filter(g => g.art === "verteiler" || g.art === "einspeisung"); return st[0].art === "einspeisung"; }));
+  // Pinsel-Tasten im Strom
+  await ev(() => { ui.screen = P.screens[0].id; ui.reiter = "strom"; ui.modus.strom = "wand"; render(); });
+  const v1 = await ev(() => P.geraete.find(g => g.art === "verteiler").id);
+  await p.click(`#liste [data-ziel="${v1}|1"]`); await p.waitForTimeout(30);
+  await p.keyboard.press("Backspace"); await p.waitForTimeout(30);
+  pruefe("Pinsel: Backspace nimmt ein Modul zurück", await ev(v => P.kreise.find(k => k.verteiler === v && k.kanal === 1).module.length === 7, v1));
+  await p.keyboard.press("Delete"); await p.waitForTimeout(30);
+  pruefe("Pinsel: Entf löscht den ganzen Kreis", await ev(v => !P.kreise.some(k => k.verteiler === v && k.kanal === 1), v1));
+  await p.keyboard.press("Control+z"); await p.keyboard.press("Control+z"); await p.waitForTimeout(50);
+  pruefe("Pinsel: Rückgängig stellt den Kreis wieder her", await ev(v => P.kreise.find(k => k.verteiler === v && k.kanal === 1)?.module.length === 8, v1));
+  // Stagebox mit dem Pinsel versorgen (Kanal 1 → über das Symbol streichen)
+  await ev(() => { const d = P.geraete.find(g => g.art === "stagebox"); d.strom = null; aenderung(); });
+  await p.click(`#liste [data-ziel="${v1}|1"]`); await p.waitForTimeout(30);
+  const sbs = await p.locator('#zeichnung [data-strom-geraet]').boundingBox();
+  const m0 = await modulBox(await ev(() => P.kreise.find(k => k.kanal === 1).module[0]));
+  await p.mouse.move(m0.x + m0.width / 2, m0.y + m0.height / 2); await p.mouse.down();
+  await p.mouse.move(sbs.x + sbs.width / 2, sbs.y + sbs.height / 2, { steps: 8 }); await p.mouse.up(); await p.waitForTimeout(50);
+  pruefe("Stagebox im Stromplan: mit dem Pinsel aus Kanal 1 versorgt", await ev(v => { const d = P.geraete.find(g => g.art === "stagebox"); return d.strom?.verteiler === v && d.strom.kanal === 1; }, v1));
+  pruefe("Stagebox im Stromplan: 22 W zählen zum Kreis", await ev(() => { const k = P.kreise.find(k => k.kanal === 1); return Math.round(kreisLast(k) - kreisModule(k).reduce((a, m) => a + modulLast(m), 0)) === 22; }));
+  await ev(() => { ui.werkzeug = "auswahl"; render(); });
+  // Ausgänge tauschen per Drag & Drop (Harting 1 → Harting 3)
+  await ev(() => { ui.sel.verteiler = P.geraete.find(g => g.art === "verteiler").id; ui.sel.kreis = null; render(); });
+  await p.locator(`#rechts [data-ausgang="${v1}|Harting 1"]`).dragTo(p.locator(`#rechts [data-ausgang="${v1}|Harting 3"]`)); await p.waitForTimeout(50);
+  pruefe("Ausgang tauschen: Kreise und Laka auf Harting 3 (Kanäle 13–18)", await ev(() => P.lakas[0].ausgang === "Harting 3" && P.kreise.map(k => k.kanal).sort((a, b) => a - b).join(",") === "13,14,15,16,17,18" && P.geraete.find(g => g.art === "stagebox").strom.kanal === 13));
+  // Schieflast sichtbar
+  await ev(() => { P.kreise = P.kreise.filter(k => k.kanal === 13 || k.kanal === 16); aenderung(); });
+  pruefe("Schieflast: Warnung in der Verteiler-Karte", (await p.locator("#rechts .hinweis.warn", { hasText: "Schieflast" }).count()) >= 1);
+  await p.keyboard.press("Control+z"); await p.waitForTimeout(50);
+  // Signal: Backup-Bereich und Stagebox-Karten
+  await ev(() => { ui.reiter = "signal"; ui.modus.signal = "backup"; render(); });
+  pruefe("Backup: Bereich listet alle Stränge", await p.locator("#zeichnung [data-backup-strang]").count() === 2);
+  const k1 = await ev(() => P.straenge.find(k => k.port === 1).id);
+  await p.selectOption(`[data-backup-port="${k1}"]`, "7"); await p.waitForTimeout(50);
+  pruefe("Backup: Port 7 als Backup zu P1 gesetzt (anderer Weg markiert)", await ev(id => P.straenge.find(k => k.id === id).backupPort === 7, k1) && (await p.locator(`[data-backup-strang="${k1}"] .badge`).count()) === 1);
+  await p.selectOption(`[data-backup-port="${k1}"]`, ""); await p.waitForTimeout(30);
+  await p.click("[data-d='backup-auto']"); await p.waitForTimeout(50);
+  pruefe("Backup: automatisch über denselben Weg (Port 3 via SB1)", await ev(id => P.straenge.find(k => k.id === id).backupPort === 3, k1));
+  await ev(() => { $("#toasts").innerHTML = ""; });
+  await p.screenshot({ path: path.join(AUSGABE, "backup.png") });
+  await p.click('[data-d="modus"][data-wert="prozessoren"]'); await p.waitForTimeout(50);
+  pruefe("Alle Prozessoren: Stagebox als eigene Karte mit Ausgängen", await p.locator(".weg-karte").count() === 1 && await p.locator(".weg-karte .port").count() === 10);
+  await p.screenshot({ path: path.join(AUSGABE, "alle-prozessoren.png") });
 }
 
 /* ---------- Rex-Anbindung (simulierter Datenbank-Agent) ---------- */

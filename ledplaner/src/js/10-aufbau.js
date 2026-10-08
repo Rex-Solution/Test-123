@@ -402,7 +402,7 @@ function aufbauEreignisse() {
     else if (a === "vorne" || a === "hinten") { ui.hinten = a === "hinten"; ui.ansicht3d = false; render(); }
     else if (a === "3d") { ui.ansicht3d = true; ui.hinten = false; render(); }
     else if (a === "einpassen") einpassen();
-    else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
+    else if (a === "bauart") bauartWechseln(s, b.dataset.wert);
     else if (a === "winkel") winkelDialog(s);
     else if (a === "modus") { ui.modus.aufbau = b.dataset.wert; render(); }
     else if (a === "alle") { ui.auswahl = new Set(s.module.map(m => m.id)); render(); }
@@ -427,6 +427,7 @@ function aufbauEreignisse() {
     if (f) {
       if (f === "name" && !e.target.value.trim()) { toast("Name: darf nicht leer sein.", "fehler"); return render(); }
       if (f === "ukM") { const z = leseZahl(e.target.value); if (Number.isNaN(z)) { toast("Unterkante: Zahl in Metern eingeben.", "fehler"); return; } s.ukM = z; }
+      else if (f === "bauart") return bauartWechseln(s, e.target.value);
       else s[f] = f === "name" ? e.target.value.trim() : e.target.value;
       return aenderung();
     }

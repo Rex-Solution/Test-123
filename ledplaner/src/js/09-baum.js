@@ -47,6 +47,12 @@ function baumEintraege(li) {
     ...libAuswahl("verteiler", id => { ui.reiter = "strom"; ui.modus.strom = "wand"; verteilerAnlegen(id); }), { t: "Alle Verteiler anzeigen", f: () => { BAUM_GRUPPEN.strom(); render(); } }];
   if (gruppe === "prozessoren") return [{ kopf: "Prozessor hinzufügen" }, ...libAuswahl("prozessor", id => { ui.reiter = "signal"; ui.modus.signal = "wand"; prozessorAnlegen(id); }),
     { t: "Alle Prozessoren anzeigen", f: () => { BAUM_GRUPPEN.prozessoren(); render(); } }];
+  if (li.dataset.spinne) {
+    const l = P.lakas.find(x => x.id === li.dataset.spinne); if (!l) return [];
+    return [{ kopf: "Spinne wählen" }, { t: "automatisch – " + spinneName({ ...l, spinne: null }), f: () => { l.spinne = null; aenderung(); } },
+      ...spinnenFuer(l).map(e => ({ t: e.name + (l.spinne === e.id ? " ✓" : ""), f: () => { l.spinne = e.id; nutzeEintrag(e.id); aenderung(); } })),
+      { t: "Laka und Spinne entfernen", gefahr: true, f: () => { P.lakas = P.lakas.filter(x => x !== l); aenderung(); } }];
+  }
   if (li.dataset.screen) {
     const s = screenById(li.dataset.screen);
     return [{ t: "Bearbeiten …", f: () => screenBearbeiten(s) }, { t: "Duplizieren", f: () => screenDuplizieren(s) }, { t: "Löschen", gefahr: true, f: () => screenLoeschen(s) }];
@@ -59,16 +65,62 @@ function baumEintraege(li) {
   return basis;
 }
 
+/* ---------- Sortieren per Ziehen ---------- */
+function baumGruppeVon(li) {
+  if (li.dataset.screen) return "screens";
+  const g = geraetById(li.dataset.geraet); if (!g) return null;
+  if (g.art === "verteiler" || g.art === "einspeisung") return "strom";
+  if (g.art === "prozessor") return "prozessoren";
+  return istWeg(g) ? "weg:" + g.prozessor : null;
+}
+function baumVerschieben(quelle, ziel, nachher) {
+  const liste = quelle.dataset.screen ? P.screens : P.geraete;
+  const q = quelle.dataset.screen ? screenById(quelle.dataset.screen) : geraetById(quelle.dataset.geraet);
+  const z = ziel.dataset.screen ? screenById(ziel.dataset.screen) : geraetById(ziel.dataset.geraet);
+  if (!q || !z || q === z) return;
+  liste.splice(liste.indexOf(q), 1);
+  liste.splice(liste.indexOf(z) + (nachher ? 1 : 0), 0, q);
+  aenderung();
+}
+
 function baumEreignisse() {
   const baum = $("#baum");
+  let zug = null, lang = null;
+  const markeWeg = () => baum.querySelectorAll(".drop-vor, .drop-nach").forEach(x => x.classList.remove("drop-vor", "drop-nach"));
+  baum.addEventListener("pointerdown", e => {
+    const li = e.target.closest("li[data-screen], li[data-geraet]");
+    if (!li || e.button !== 0 || e.target.closest("button")) return;
+    if (e.pointerType === "touch" && !e.target.closest("[data-griff]")) return;   // Tablet: nur am Griff, damit die Liste scrollt
+    zug = { li, gruppe: baumGruppeVon(li), x: e.clientX, y: e.clientY, pid: e.pointerId, aktiv: false };
+  });
+  baum.addEventListener("pointermove", e => {
+    if (!zug || e.pointerId !== zug.pid) return;
+    if (!zug.aktiv) {
+      if (Math.hypot(e.clientX - zug.x, e.clientY - zug.y) < 6) return;
+      zug.aktiv = true; zug.li.classList.add("wird-gezogen"); baum.setPointerCapture(e.pointerId);
+      if (lang) clearTimeout(lang.t);
+    }
+    markeWeg();
+    const ziel = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("li[data-screen], li[data-geraet]");
+    zug.ziel = ziel && ziel !== zug.li && baumGruppeVon(ziel) === zug.gruppe ? ziel : null;
+    if (zug.ziel) { const r = zug.ziel.getBoundingClientRect(); zug.nachher = e.clientY > r.top + r.height / 2; zug.ziel.classList.add(zug.nachher ? "drop-nach" : "drop-vor"); }
+  });
+  const loslassen = e => {
+    if (!zug || e.pointerId !== zug.pid) return;
+    const z = zug; zug = null; markeWeg(); z.li.classList.remove("wird-gezogen");
+    if (!z.aktiv) return;
+    ui.klickSperre = Date.now();
+    if (z.ziel && e.type === "pointerup") baumVerschieben(z.li, z.ziel, z.nachher);
+  };
+  baum.addEventListener("pointerup", loslassen);
+  baum.addEventListener("pointercancel", loslassen);
   baum.addEventListener("contextmenu", e => {
-    const li = e.target.closest("li[data-gruppe], li[data-screen], li[data-geraet]"); if (!li) return;
+    const li = e.target.closest("li[data-gruppe], li[data-screen], li[data-geraet], li[data-spinne]"); if (!li) return;
     e.preventDefault();
     const eintraege = baumEintraege(li);
     if (eintraege.length) kontextMenue(e.clientX, e.clientY, eintraege);
   });
   // Tablet: lange drücken = Kontextmenü
-  let lang = null;
   baum.addEventListener("pointerdown", e => {
     if (e.pointerType !== "touch") return;
     const li = e.target.closest("li[data-gruppe], li[data-screen], li[data-geraet]"); if (!li) return;

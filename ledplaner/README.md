@@ -39,9 +39,11 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/13-dreid.js` | 3D-Ansicht ohne Bibliotheken (SVG, Maler-Verfahren): Module, Kurve, Unterkante, Flugrahmen, Boden-Raster, Person 1,80 m; drehen/zoomen mit Maus und Fingern |
 | `js/15-rigging.js` | Rigging: Bracket-Raster (Module fest an Plätzen), Brackets automatisch (Rest ergänzen/halb, Seite), Flugrahmen oben / Stacking unten, Last je Bracket und Punkt, Lücken-Prüfung |
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
+| `js/22-strom-geraete.js` | Spinnen je Laka (Library, Abgangslänge, automatisch die kürzeste passende), Ausgänge per Drag & Drop tauschen, Schieflast-Hinweis, Stageboxen im Stromplan (mit dem Pinsel versorgen) |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
 | `js/35-wege.js` | Stagebox/Multicore als eigene Geräte am Prozessor: Port-Zuordnung, Zuleitung, Strom, Kabel zur Wand, Prüfungen |
 | `js/36-zuweisung.js` | Zuweisung von Verteiler-Kanälen und Prozessor-Ports zur Wand (`screen.zuweisung`), Raster in den Karten, Liste unten = Pinsel-Auswahl |
+| `js/37-backup.js` | Bereich „Backup“ (Backup-Port je Haupt-Port, automatisch über denselben Weg), Stagebox-/Multicore-Karten in „Alle Prozessoren“ |
 | `js/38-symbole.js` | Spinne, Stagebox und Multicore-Auflösung als verschiebbares Symbol in der Wand, Linien zu Kreis-/Stranganfängen, Kabellängen aus Position + Reserve, Prüfung Spinnenbein |
 | `js/40-ausgabe.js` | Reiter Ausgabe: Umschalter Testbild Screen / Outputs & Layer, Testbild, PNG, Live-Ausgabe 1:1 |
 | `js/45-mapping.js` | Ausgabe „Outputs & Layer“: Zuspieler-Outputs → Prozessor-Eingänge, Pixelraum je Prozessor (Screens ziehen), Layer (Ausschnitt → Fläche), Output-Testbild, Prüfungen |
@@ -86,7 +88,7 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-122 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+139 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).

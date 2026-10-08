@@ -21,7 +21,8 @@ function kreisKapazitaet(k) {
   return amp * P.regeln.spannung * (1 - P.regeln.reserve / 100);
 }
 function kreisModule(k) { const s = screenById(k.screen); const map = new Map((s?.module || []).map(m => [m.id, m])); return k.module.map(id => map.get(id)).filter(Boolean); }
-function kreisLast(k, planung) { return kreisModule(k).reduce((a, m) => a + modulLast(m, planung), 0); }
+/* Last eines Kreises: Module + Geräte am selben Kanal (z.B. Stagebox am Ende der Kette) */
+function kreisLast(k, planung) { return kreisModule(k).reduce((a, m) => a + modulLast(m, planung), 0) + geraeteLast(k.verteiler, k.kanal); }
 function maxJeBruecke(module) {
   const w = module.map(m => eintrag(m.lib)?.attribute?.led?.strom?.maxJeBruecke).filter(Number.isFinite);
   return w.length ? Math.min(...w) : Infinity;
@@ -52,6 +53,7 @@ function stromBilanz() {
   // Geräte an Kanälen (Prozessor, Stagebox)
   for (const g of P.geraete) {
     if (!g.strom?.verteiler) continue;
+    if (P.kreise.some(k => k.verteiler === g.strom.verteiler && k.kanal === g.strom.kanal)) continue;   // steckt schon in kreisLast
     const ver = geraetById(g.strom.verteiler); if (!ver) continue;
     const w = eintrag(g.lib)?.attribute?.stromverbrauch || 0;
     add(ver.id, kanalPhase(ver, g.strom.kanal).phase, w, w);
@@ -202,6 +204,7 @@ function stromPinselMalen(svg, s, e) {
   if (kreis && kreis.screen !== s.id) { toast(`Kanal ${kanal} versorgt schon „${screenById(kreis.screen)?.name}“.`, "fehler"); return null; }
   if (!kreis) { kreis = { id: neueId("k"), screen: s.id, verteiler: vId, kanal, module: [] }; P.kreise.push(kreis); }
   const ka = kanalVon(v, kanal); if (ka?.ausgang) sichereLaka(v, ka.ausgang, s.id);
+  let geraetHinweis = false;
   const hinzu = id => {
     if (kreis.module.includes(id)) return;
     for (const k of P.kreise) if (k !== kreis && k.screen === s.id) k.module = k.module.filter(x => x !== id);
@@ -210,6 +213,13 @@ function stromPinselMalen(svg, s, e) {
     svg.innerHTML = stromSvgInhalt(s);
     const last = kreisLast(kreis), kap = kreisKapazitaet(kreis);
     pinselAnzeige(`${kreisName(kreis)}: ${kreis.module.length} Module · ${fmt(last)} W von ${fmt(kap)} W (${fmt(last / kap * 100)} %)`, last > kap || kreis.module.length > maxJeBruecke(kreisModule(kreis)));
+  };
+  // Stagebox mit dem Pinsel überstreichen = aus diesem Kanal versorgen
+  hinzu.geraet = gId => {
+    const d = geraetById(gId); if (!d || (d.strom?.verteiler === vId && d.strom.kanal === kanal)) return;
+    d.strom = { verteiler: vId, kanal };
+    svg.innerHTML = stromSvgInhalt(s);
+    if (!geraetHinweis) { toast(`${d.name} wird aus ${v.name} · Kanal ${kanal} versorgt.`, "ok"); geraetHinweis = true; }
   };
   return hinzu;
 }
@@ -223,15 +233,18 @@ function pinselInteraktion(svg, s, starte) {
   let malen = null;
   svg.addEventListener("pointerdown", e => {
     if (e.button !== 0 || leertaste.gedrueckt || ui.werkzeug !== "pinsel") return;
-    const g = e.target.closest("[data-mod]"); if (!g) return;
+    const g = e.target.closest("[data-mod]"), ger = e.target.closest("[data-strom-geraet]"); if (!g && !ger) return;
     malen = starte(svg, s, e);
     if (!malen) return;
-    malen(g.dataset.mod);
+    if (ger) malen.geraet?.(ger.dataset.stromGeraet); else malen(g.dataset.mod);
     svg.setPointerCapture(e.pointerId);
   });
   svg.addEventListener("pointermove", e => {
     if (!malen) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("[data-mod]");
+    const ziel = document.elementFromPoint(e.clientX, e.clientY);
+    const ger = ziel?.closest?.("[data-strom-geraet]");
+    if (ger) return malen.geraet?.(ger.dataset.stromGeraet);
+    const el = ziel?.closest?.("[data-mod]");
     if (el) malen(el.dataset.mod);
   });
   svg.addEventListener("pointerup", () => { if (malen) { malen = null; aenderung(); } });
@@ -300,17 +313,18 @@ REITER.strom = {
     const kreise = kreiseVon(s.id);
     const ohne = s.module.length - kreise.reduce((a, k) => a + k.module.length, 0);
     const zeilen = zugewieseneKanaele(s);
-    return `<div class="kopf"><b>Kanäle „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
+    return `<div class="kopf"><b>Kanäle „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b> <span class="leise klein">(<kbd>⌫</kbd> ein Modul zurück · <kbd>Entf</kbd> ganzer Kreis)</span><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
       <table><tr><th>Kreis</th><th>Verteiler</th><th>Kanal</th><th>Phase</th><th>Zuleitung</th><th class="zahl">Module</th><th class="zahl">Last max.</th><th class="zahl">Last Ø</th><th>Auslastung</th></tr>
       ${zeilen.map(({ v, nr, ziel, kreis: k, geraet }) => {
         const ph = kanalPhase(v, nr); const l = k ? lakaFuerKreis(k) : P.lakas.find(x => x.verteiler === v.id && x.ausgang === kanalVon(v, nr)?.ausgang);
         const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.strom === ziel;
         const zuleitung = l ? `${esc(kanalVon(v, nr)?.ausgang || "")} · Laka ${fmtFlex(l.laengeM)} m` : "direkt";
-        if (geraet) return `<tr class="leise"><td>—</td><td>${esc(v.name)}</td><td>${nr}</td><td>${ph.phase}</td><td colspan="5">versorgt ${esc(geraet.name)}</td></tr>`;
+        const dazu = geraeteAmKanal(v.id, nr).map(d => " + " + esc(d.name)).join("");
+        if (geraet && !k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px solid var(--text-leise)"></span>Gerät</td><td>${esc(v.name)}</td><td>${nr}</td><td>${ph.phase}</td><td>${zuleitung}</td><td class="zahl">0</td><td colspan="3">versorgt ${esc(geraeteAmKanal(v.id, nr).map(d => d.name).join(", "))} · ${fmt(geraeteLast(v.id, nr))} W</td></tr>`;
         if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(v.name)}</td><td>${nr}</td>
           <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td><td class="zahl">0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
         const last = kreisLast(k), kap = kreisKapazitaet(k);
-        return `<tr class="klickbar${gewaehlt || ui.sel.kreis === k.id ? " sel" : ""}" data-ziel="${ziel}" data-kreis="${k.id}"><td><span class="punkt" style="background:${kreisFarbe(k)}"></span>${kreisName(k)}</td><td>${esc(v.name)}</td><td>${nr}</td>
+        return `<tr class="klickbar${gewaehlt || ui.sel.kreis === k.id ? " sel" : ""}" data-ziel="${ziel}" data-kreis="${k.id}"><td><span class="punkt" style="background:${kreisFarbe(k)}"></span>${kreisName(k)}${dazu}</td><td>${esc(v.name)}</td><td>${nr}</td>
           <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td>
           <td class="zahl">${k.module.length}</td><td class="zahl">${fmt(kreisLast(k, "max"))} W</td><td class="zahl">${fmt(kreisLast(k, "durchschnitt"))} W</td><td>${balken(last / kap)}</td></tr>`;
       }).join("") || `<tr><td colspan="9" class="leise">Noch keine Kanäle zugewiesen – rechts beim Verteiler Kanäle anklicken („ganzer Ausgang“) oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
@@ -319,6 +333,15 @@ REITER.strom = {
   pruefungen() { return stromPruefungen(); },
   taste(e) {
     if (e.key === "Escape" && ui.werkzeug === "pinsel") { ui.werkzeug = "auswahl"; render(); return true; }
+    // Pinsel: Backspace = letztes Modul zurück, Entf = ganzen Kreis löschen
+    if (ui.werkzeug === "pinsel" && (e.key === "Backspace" || e.key === "Delete")) {
+      const [vId, nr] = (ui.pinsel.strom || "").split("|");
+      const k = P.kreise.find(x => x.verteiler === vId && x.kanal === Number(nr));
+      if (!k) return true;
+      if (e.key === "Delete") { kreisLoeschen(k.id); return true; }
+      k.module.pop(); if (!k.module.length) P.kreise = P.kreise.filter(x => x !== k);
+      aenderung(); return true;
+    }
     if ((e.key === "Delete" || e.key === "Backspace") && ui.sel.kreis) { kreisLoeschen(ui.sel.kreis); return true; }
     return false;
   },
@@ -357,15 +380,16 @@ function stromRechts() {
       <label class="feld"><span>Länge (m)</span><input data-g-feld="speisung.laengeM" value="${g.speisung?.laengeM ?? ""}" inputmode="decimal"></label></div>
       <div class="label">Phasen (${P.regeln.planung === "max" ? "max." : "Ø"}) · Anteil an ${fmt(amp)} A</div>
       ${PHASEN.map(p => { const a = (P.regeln.planung === "max" ? b.phasen : b.phasenTyp)[p]; return `<div class="phase"><span style="color:${PHASENFARBE[p]}">${p}</span>${balken(amp ? a / amp : 0, false)}<span>${fmt(a, 1)} / ${fmt(amp)} A</span></div>`; }).join("")}
-      <p class="klein leise">Schieflast ${fmt(schieflast(P.regeln.planung === "max" ? b.phasen : b.phasenTyp) * 100)} % · ${fmt(b.w / 1000, 2)} kW max. · ${fmt(b.wTyp / 1000, 2)} kW Ø</p>
+      ${schieflastHtml(b)}<p class="klein leise">${fmt(b.w / 1000, 2)} kW max. · ${fmt(b.wTyp / 1000, 2)} kW Ø</p>
       ${kanalRasterHtml(g, aktuellerScreen())}
-      <div class="label">Ausgänge und Lakas</div>
+      <div class="label">Ausgänge und Lakas · ⠿ ziehen zum Tauschen</div>
       ${(led.ausgaenge || []).map(a => {
         const l = P.lakas.find(x => x.verteiler === g.id && x.ausgang === a.name);
         const lakas = libListe("laka").filter(e => e.attribute.led.stecker === a.stecker);
-        return `<div style="margin-bottom:8px"><b class="klein">${esc(a.name)}</b> <span class="leise klein">${esc(a.stecker)} · Kanäle ${a.kanaele.join(", ")}</span>
+        return `<div class="ausgang-block" data-ausgang="${g.id}|${esc(a.name)}" draggable="true" style="margin-bottom:8px"><b class="klein"><span class="griff">⠿</span> ${esc(a.name)}</b> <span class="leise klein">${esc(a.stecker)} · Kanäle ${a.kanaele.join(", ")}</span>
           ${l ? `<div style="display:grid;grid-template-columns:1fr 72px;gap:8px"><select data-laka="${l.id}" data-laka-feld="lib">${lakas.map(e => `<option value="${e.id}"${l.lib === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select>
             <input data-laka="${l.id}" data-laka-feld="laengeM" value="${l.laengeM ?? ""}" placeholder="Länge m" inputmode="decimal"></div>
+            <label class="feld" style="margin:4px 0"><span>Spinne</span><select data-laka="${l.id}" data-laka-feld="spinne"><option value="">automatisch – ${esc(spinneName({ ...l, spinne: null }))}</option>${spinnenFuer(l).map(e => `<option value="${e.id}"${l.spinne === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select></label>
             <div class="klein leise">→ ${esc(screenById(l.screen)?.name || "—")} <button data-s="laka-weg" data-laka="${l.id}" style="padding:0 6px">entfernen</button></div>` : `<div class="klein leise">keine Laka</div>`}</div>`;
       }).join("")}
       <div class="knopfreihe"><button data-s="geraet-loeschen" class="gefahr">Verteiler löschen</button></div></div>`;
@@ -377,6 +401,7 @@ function stromRechts() {
       <label class="feld"><span>Absicherung (A)</span><input data-g-feld="ampere" value="${g.ampere}" inputmode="decimal"></label></div>
       <label class="feld"><span>Standort</span><input data-g-feld="standort" value="${esc(g.standort || "")}"></label>
       ${PHASEN.map(p => `<div class="phase"><span style="color:${PHASENFARBE[p]}">${p}</span>${balken(g.ampere ? b.phasen[p] / g.ampere : 0, false)}<span>${fmt(b.phasen[p], 1)} / ${fmt(g.ampere)} A</span></div>`).join("")}
+      ${schieflastHtml(b)}
       <div class="knopfreihe"><button data-s="geraet-loeschen" class="gefahr">Einspeisung löschen</button></div></div>`;
   } else if (!kreis) {
     html += `<div class="karte"><p class="klein leise">Verteiler links im Projektbaum oder in der Library anklicken. Kreise per „Vorschlag erzeugen“ oder mit dem Pinsel anlegen.</p></div>`;
@@ -403,7 +428,7 @@ function stromUebersicht(el) {
       const led = verteilerLed(g);
       kanaele = (led.ausgaenge || []).map(a => {
         const l = P.lakas.find(x => x.verteiler === g.id && x.ausgang === a.name);
-        return `<div class="label">${esc(a.name)}${l ? " · Laka → " + esc(screenById(l.screen)?.name || "") : " · frei"}</div><div class="kanalgitter">${a.kanaele.map(n => {
+        return `<div class="label ausgang-block" data-ausgang="${g.id}|${esc(a.name)}" draggable="true" title="Ziehen auf einen anderen Ausgang: tauschen"><span class="griff">⠿</span> ${esc(a.name)}${l ? " · Laka → " + esc(screenById(l.screen)?.name || "") + " · " + esc(spinneName(l)) : " · frei"}</div><div class="kanalgitter">${a.kanaele.map(n => {
           const k = P.kreise.find(x => x.verteiler === g.id && x.kanal === n);
           const dev = P.geraete.find(x => x.strom?.verteiler === g.id && x.strom.kanal === n);
           const ph = kanalPhase(g, n);
@@ -414,7 +439,7 @@ function stromUebersicht(el) {
       }).join("");
     }
     return `<div class="karte">${kopf}<p class="klein leise">${g.standort ? "Standort: " + esc(g.standort) + " · " : ""}${g.art === "verteiler" ? `Einspeisung ${esc(verteilerLed(g).einspeisung?.typ || "—")}${quelle ? " ← " + esc(quelle) : ""}` : `Anschluss ${esc(g.stecker)} · ${fmt(g.ampere)} A`}</p>
-      ${phasen}<p class="klein leise">Schieflast ${fmt(sl * 100)} % · Max. ${fmt(b.w / 1000, 2)} kW · Ø ${fmt(b.wTyp / 1000, 2)} kW</p>${kanaele}</div>`;
+      ${phasen}${schieflastHtml(b)}<p class="klein leise">Max. ${fmt(b.w / 1000, 2)} kW · Ø ${fmt(b.wTyp / 1000, 2)} kW</p>${kanaele}</div>`;
   }).join("")}</div>`;
 }
 
@@ -489,6 +514,7 @@ function stromPruefungen() {
 
 /* ---------- Ereignisse ---------- */
 function stromEreignisse() {
+  ausgangZiehenEreignisse($("#rechts")); ausgangZiehenEreignisse($("#zeichnung"));
   $("#werkzeuge").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
     const b = e.target.closest("[data-s]"); if (!b) return;
@@ -556,6 +582,7 @@ function stromEreignisse() {
     if (lakaId) {
       const l = P.lakas.find(x => x.id === lakaId); if (!l) return;
       if (e.target.dataset.lakaFeld === "lib") { l.lib = e.target.value; nutzeEintrag(l.lib); l.laengeM = eintrag(l.lib)?.attribute?.led?.laengeM ?? l.laengeM; }
+      else if (e.target.dataset.lakaFeld === "spinne") { l.spinne = e.target.value || null; if (l.spinne) nutzeEintrag(l.spinne); }
       else { const z = leseZahl(e.target.value); if (Number.isNaN(z)) return toast("Länge: Zahl in Metern.", "fehler"); l.laengeM = z; }
       aenderung();
     }

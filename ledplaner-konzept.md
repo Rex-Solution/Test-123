@@ -388,6 +388,10 @@ Lücken-Prüfung, „Ins Bracket-Raster setzen“, gestellt mit Stacking-Bracket
 Bedienung überarbeitet: Projektbaum mit Übersicht je Überschrift und Kontextmenü; Kanäle und Ports werden der Wand
 zugewiesen, die Liste unten zeigt alle zugewiesenen (auch leere) und wählt per Klick den Pinsel (Auswahlfeld oben entfällt);
 Spinne, Stagebox und Multicore-Auflösung als Symbol in der Wand, Kabellängen aus der Position (Hausregel „Reserve je Kabel“).
+Rückmeldung 2: neue Screens übernehmen das Bracket (auch ohne Gewicht wählbar); Pinsel ⌫ = ein Modul zurück, Entf = ganze
+Reihe; Projektbaum per Ziehen sortierbar; Spinnen als eigene Library-Geräte (Abgangslängen); Ausgänge per Drag & Drop
+tauschen; Schieflast als Warnung in den Karten; Stageboxen im Stromplan; Bereich „Backup“; Stageboxen/Multicores in
+„Alle Prozessoren“; „Max. Module je Datenstrang“ entfernt.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

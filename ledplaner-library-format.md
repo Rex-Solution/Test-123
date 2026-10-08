@@ -78,7 +78,6 @@ wird (z.B. Einschaltstrom im Reiter Strom).
 | `wTyp` | Zahl W | Prüf | typische Leistung; Maximalwert steht in `attribute.stromverbrauch` |
 | `einschaltstromA` | Zahl A | Prüf | |
 | `strom.maxJeBruecke` | Zahl | Prüf | max. Module je Strombrücke |
-| `daten.maxJeStrang` | Zahl | Prüf | max. Module je Datenstrang (zusätzlich zur Portkapazität) |
 | `mechanik.maxGeflogen` | Zahl | Prüf | max. Module untereinander |
 | `mechanik.maxGestellt` | Zahl | Prüf | max. Module übereinander |
 | `mechanik.kurve` | ja/nein | – | |

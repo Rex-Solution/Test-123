@@ -109,14 +109,15 @@ function renderBaum() {
   const verteiler = P.geraete.filter(g => g.art === "verteiler");
   const einspeisungen = P.geraete.filter(g => g.art === "einspeisung");
   const prozessoren = P.geraete.filter(g => g.art === "prozessor");
-  const li = (klasse, attr, name, rechts = "") => `<li class="${klasse}" ${attr}><span class="name">${esc(name)}</span>${rechts}</li>`;
+  const li = (klasse, attr, name, rechts = "") => `<li class="${klasse}" ${attr}><span class="griff" data-griff title="Ziehen zum Sortieren">⠿</span><span class="name">${esc(name)}</span>${rechts}</li>`;
+  const strom = P.geraete.filter(g => g.art === "verteiler" || g.art === "einspeisung");   // in Projekt-Reihenfolge, sortierbar
   $("#baum").innerHTML = [
     `<li class="gruppe" data-gruppe="screens" title="Klick: alle Screens · Rechtsklick: Menü">Screens <button data-aktion="screen-neu" title="Neuen Screen anlegen" style="padding:0 8px">+</button></li>`,
     ...P.screens.map(x => li(x.id === s?.id ? "sel" : "", `data-screen="${x.id}"`, x.name, `<span class="leise klein">${x.module.length}</span>`)),
     P.screens.length ? "" : `<li class="leise">noch kein Screen</li>`,
     `<li class="gruppe" data-gruppe="strom" title="Klick: alle Verteiler und Einspeisungen · Rechtsklick: Menü">Stromverteiler</li>`,
-    ...verteiler.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, g.name)),
-    ...einspeisungen.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, "⏚ " + g.name)),
+    ...strom.flatMap(g => [li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, (g.art === "einspeisung" ? "⏚ " : "") + g.name),
+      ...P.lakas.filter(l => l.verteiler === g.id).map(l => `<li data-spinne="${l.id}" title="${esc(spinneName(l))}"><span class="griff" style="visibility:hidden">⠿</span><span class="name">↳ Spinne · ${esc(l.ausgang)}</span><span class="leise klein">${esc(fmtFlex(spinneLib(l)?.attribute?.led?.laengeM ?? 0))} m</span></li>`)]),
     verteiler.length || einspeisungen.length ? "" : `<li class="leise">—</li>`,
     `<li class="gruppe" data-gruppe="prozessoren" title="Klick: alle Prozessoren · Rechtsklick: Menü">Prozessoren</li>`,
     ...prozessoren.flatMap(g => [li(ui.sel.prozessor === g.id && !ui.sel.weg ? "sel" : "", `data-geraet="${g.id}"`, g.name),
@@ -144,6 +145,8 @@ function gerustEreignisse() {
       if (ui.reiter in ui.modus && ui.reiter !== "ausgabe") ui.modus[ui.reiter] = "wand";
       render(); return;
     }
+    const sp = e.target.closest("[data-spinne]");
+    if (sp) { const l = P.lakas.find(x => x.id === sp.dataset.spinne); if (l) { ui.reiter = "strom"; ui.modus.strom = "wand"; ui.sel.verteiler = l.verteiler; if (l.screen) ui.screen = l.screen; render(); } return; }
     const g = e.target.closest("[data-geraet]");
     if (g) {
       const ger = geraetById(g.dataset.geraet);
@@ -183,6 +186,7 @@ async function screenAnlegen() {
   if (!erg.name.trim()) return toast("Name: darf nicht leer sein.", "fehler");
   const s = neuerScreen(erg.name.trim());
   s.beschreibung = erg.beschreibung; s.ukM = Number.isFinite(erg.ukM) ? erg.ukM : null; s.bauart = erg.bauart;
+  s.rigging = riggingVorgabe(s.bauart);   // Module sitzen sofort an Bracket-Plätzen
   P.screens.push(s);
   ui.screen = s.id; ui.auswahl.clear(); ui.reiter = "aufbau";
   aenderung();

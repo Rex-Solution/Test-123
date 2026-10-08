@@ -65,6 +65,7 @@ function symbolSvg(s, art) {
       for (const z of spinneZiele(s, l)) teile.push(linie(p, z.punkt, kreisFarbe(z.kreis)));
       teile.push(symbol("laka:" + l.id, p, "Sp" + (i + 1), libFarbe(l.lib) || "#808000", "kreis"));
     });
+    teile.push(stagboxStromSvg(s));
   } else {
     for (const d of wegeAufScreen(s)) {
       const p = wegPos(s, d);
@@ -79,7 +80,7 @@ function symbolSvg(s, art) {
 function symbolZiehen(svg, s) {
   let zug = null;
   svg.addEventListener("pointerdown", e => {
-    const el = e.target.closest("[data-symbol]"); if (!el || e.button !== 0) return;
+    const el = e.target.closest("[data-symbol]"); if (!el || e.button !== 0 || ui.werkzeug === "pinsel") return;
     e.stopImmediatePropagation(); e.preventDefault();
     zug = { el, id: el.dataset.symbol, start: svgPunkt(svg, e), pid: e.pointerId };
     svg.setPointerCapture(e.pointerId);
@@ -107,11 +108,11 @@ function symbolZiehen(svg, s) {
 function symbolPruefungen() {
   const liste = [];
   for (const s of P.screens) for (const l of P.lakas.filter(l => l.screen === s.id)) {
-    const spinne = libListe("spinne").find(e => e.attribute.led.steckerEin === eintrag(l.lib)?.attribute?.led?.stecker);
+    const spinne = spinneLib(l);
     const bein = spinne?.attribute?.led?.laengeM;
     if (!Number.isFinite(bein)) continue;
     const zuLang = spinneBedarf(s, l).filter(b => b.m > bein + 1e-9);
-    if (zuLang.length) liste.push({ art: "warn", text: `${s.name}: Spinne an ${l.ausgang} – ${zuLang.map(b => `${kreisName(b.kreis)} braucht ${fmtFlex(Math.round(b.m * 10) / 10)} m`).join(", ")}, Spinne hat ${fmtFlex(bein)} m. Spinne näher setzen oder Verlängerung.`, ziel: "screen:" + s.id });
+    if (zuLang.length) liste.push({ art: "warn", text: `${s.name}: Spinne an ${l.ausgang} – ${zuLang.map(b => `${kreisName(b.kreis)} braucht ${fmtFlex(Math.round(b.m * 10) / 10)} m`).join(", ")}, ${l.spinne ? "gewählte" : "längste"} Spinne hat ${fmtFlex(bein)} m. Spinne näher setzen, längere Spinne oder Verlängerung.`, ziel: "screen:" + s.id });
   }
   return liste;
 }
