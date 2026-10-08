@@ -45,7 +45,7 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Testbild | **Teil der Ausgabe**: Testbild je Output + Live-Ausgabe |
 | Prüfungen Ausgabe | Eingangsauflösung, Gesamtkapazität, Anschlussart, Bildrate |
 | Signalfluss-Planer | Beide Module **eigenständig nutzbar**; sind **beide freigeschaltet**, lassen sie sich **verknüpfen** (dann kommen Zuspieler aus dem Signalfluss-Plan) |
-| Hauptmenü | **Dem Rex-System angepasst** (Vorgaben noch einzuholen) |
+| Oberfläche | **Rex-Styleguide** (`rex-styleguide.md`): dunkel, Kopfleiste mit Hauptreitern **Planen · Library · Einstellungen**, Library als Manager-Ansicht |
 | Ausgaben | Pläne (PDF), Listen, Kundenansicht, Rückgabe ans Rex-System |
 | Werkzeugleiste | Duplizieren/Spiegeln, Erweitern/Kürzen, Module auswählen, Ausrichten/Maße |
 | Freischaltung | Über die **Benutzerverwaltung des Rex-Systems**; bis zur DB-Anbindung ein einfacher Schalter |
@@ -58,38 +58,66 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Hausregeln Strom | **Standardwerte je Projekt anpassbar** (Vorschlag: Reserve 20 %, max. Schieflast 20 %, Planung mit Max-Last); firmenweite Vorgaben ab DB-Anbindung |
 | Rigging-Freigabe | **Je nach Projekt intern oder extern**: Plan enthält Punkte, Abstände, Last je Punkt, Gesamtlast, Material (Bumper, Ketten, Schäkel), Bezug zum Hallenraster, Freigabefeld (intern/extern, Name, Datum) |
 
-## 3. Aufbau der Oberfläche
+## 3. Aufbau der Oberfläche (nach Rex-Styleguide)
+
+Verbindlich ist der **Rex-Styleguide** (`rex-styleguide.md`): dunkles Design über
+Farb-Variablen, Segoe UI 14 px, deutsche Texte und Zahlen, Prüfhinweise mit
+farbigem Rand, Toasts statt `alert()`, Zeichnungen im Linienstil (SVG, 1 Einheit
+= 1 mm). Die bisherigen Prototypen (`ledraster.html`, `signalplaner.html`) sind
+noch hell und erfüllen ihn nicht – der LED-Planer wird von Anfang an danach gebaut.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Hauptmenü (nach Rex-Vorgabe): Projekt · Bearbeiten · Ansicht ·       │
-│   Library · Wand · Ausgabe · Hilfe                                   │
+│ [Rex] LED-Planer   [Planen] [Library] [Einstellungen]   Projekt · ungespeichert │  ← Kopfleiste
 ├──────────────────────────────────────────────────────────────────────┤
-│ Reiter: [Aufbau ●] [Strom ●] [Signal ●] [Ausgabe ●]   (Ampel je Reiter)│
+│ [Aufbau ●][Strom ●][Signal ●][Ausgabe ●]  (Umschalter, Ampel je Reiter)│
 ├─────────────┬────────────────────────────────────────┬───────────────┤
 │ Projekt-    │ Werkzeugleiste des aktiven Reiters      │ Eigenschaften │
-│ baum:       │ (Duplizieren, Spiegeln, Pinsel …)       │ der Auswahl   │
-│ · Screens   ├────────────────────────────────────────┤ (Screen,      │
-│ · Geräte    │                                        │  Modul, Gerät,│
-│ · Outputs   │          Zeichenfläche                 │  Kreis, Port, │
-│ · Library   │   (Ansicht je nach Reiter)             │  Output)      │
-│   (ziehen)  │                                        │               │
-│             ├────────────────────────────────────────┤ Prüfungen /   │
-│             │ Liste unten: Anschlüsse + Last (Strom) │ Warnungen     │
-│             │ bzw. Ports + Auslastung (Signal)       │               │
+│ baum:       │ (Duplizieren, Spiegeln, Pinsel …)       │ (Karte mit    │
+│ · Screens   ├────────────────────────────────────────┤  Abschnitten) │
+│ · Geräte    │                                        │               │
+│ · Outputs   │   Zeichenfläche: dunkler Grund,         │ Prüfhinweise  │
+│ · Library   │   helle Linien, maßstäblich (mm)        │ (Fehler/Warn./│
+│   (ziehen)  ├────────────────────────────────────────┤  OK, klickbar)│
+│             │ Tabelle unten: Anschlüsse + Last       │               │
+│             │ bzw. Ports + Auslastung                │               │
 └─────────────┴────────────────────────────────────────┴───────────────┘
 ```
 
-### Hauptmenü (Inhalte; Form nach Rex-System)
-- **Projekt**: Neu, Öffnen, Speichern, Speichern unter, Importieren, Exportieren,
-  Drucken/PDF, Projekteinstellungen (Kunde, Veranstaltung, Ersteller, Datum,
-  Revision – wie Schriftfeld im Signalfluss-Planer)
-- **Bearbeiten**: Rückgängig/Wiederholen, Kopieren/Einfügen, Löschen, Auswahl
-- **Ansicht**: Zoom, Einpassen, Raster, Vorder-/Rückansicht
-- **Library**: öffnen, durchsuchen, eigene Einträge (bis DB-Anbindung)
-- **Wand**: neuer Screen, Vorlagen, duplizieren, löschen
-- **Ausgabe**: Pläne, Listen, Kundenansicht, Live-Ausgabe, an Rex übergeben
-- **Hilfe**
+### Kopfleiste und Hauptreiter (statt klassischer Menüleiste)
+Der Styleguide sieht keine Menüleiste vor, sondern eine **Kopfleiste**: links
+Rex-Zeichen (30 px) + „LED-Planer“, daneben die **Hauptreiter**, rechts der
+**Status** (Projektname, „ungespeichert“). Die Inhalte des geplanten Hauptmenüs
+verteilen sich so:
+
+| Hauptreiter | Inhalt |
+| --- | --- |
+| **Planen** | Arbeitsbereich mit den Unterreitern Aufbau · Strom · Signal · Ausgabe (Umschalter, aktiver Reiter Akzentfarbe mit schwarzer Schrift); Knopfreihe mit Rückgängig/Wiederholen, Zoom, Pläne/Listen drucken, Live-Ausgabe |
+| **Library** | **Manager-Ansicht**: links Liste (+ Neu, Suche, Filter „nur unvollständige“, Gruppen = Kategorien, Badge je Eintrag), rechts Formular als Karte; Pflichtfelder `*`; **Speichern · Verwerfen · Löschen**. Das Badge „4/7“ zeigt fehlende Datenblattwerte (z.B. Einschaltstrom ❓) |
+| **Einstellungen** | Untermenü links: **Speichern/Laden** (Neu, Öffnen, Speichern, Importieren, Exportieren), **Projektdaten** (Kunde, Veranstaltung, Ersteller, Revision, Datum), **Hausregeln** (Reserve, Schieflast …), **Verknüpfte Programme** (Signalfluss-Planer) |
+
+Bedienung laut Styleguide: `Strg+S` speichern, `Entf` Auswahl entfernen, `Esc`
+abbrechen, Ziehen & Ablegen mit Maus **und Touch**, Warnung beim Schließen mit
+ungespeicherten Änderungen, Rückfrage nur vor Löschen/Datenverlust.
+
+### Farben im LED-Planer
+- **Prüfhinweise/Ampel**: OK `--ok`, Warnung `--warnung`, Fehler `--fehler`.
+  Planungsprobleme (Kreis überlastet, Port voll …) sind **Warnungen** und sperren
+  das Speichern nicht; **Fehler** nur für ungültige Daten (z.B. Modul ohne Maße).
+- **Kabel** nach Kabel-Farbsystem: Strom `#a3a3a3`, LAN `#22d3ee`, Fiber `#f97316`,
+  Multicore/Laka (Harting) `#808000`, Socapex `#0f766e`, HDMI/SDI/DP wie festgelegt.
+- **Stecker** nach Gewerk: Strom Orange-Familie, Netzwerk & Daten Türkis, Glasfaser Blau, Video Flieder.
+- Offen: Farben zur Unterscheidung **einzelner Stromkreise, Ports und Phasen**
+  (siehe offene Fragen) – der Styleguide erlaubt keine freien Farben.
+
+### Druck
+Weißes Papier, Kopfzeile mit Logo und Titel, Deckblatt, Überschriften in
+Großbuchstaben, A4 hoch (Ausnahme für große Pläne siehe offene Fragen).
+Zeichnungen dürfen ihren dunklen Grund behalten.
+
+### Verknüpfung
+Braucht der LED-Planer Daten des Signalfluss-Planers, wird dessen Oberfläche
+**eingebettet** („In neuem Fenster öffnen ↗“), nicht nachgebaut.
 
 ### Werkzeugleiste über der Wand
 Gemeinsam für alle Reiter:
@@ -254,10 +282,11 @@ es aber schon in Phase 1.
 
 ## 12. Offene Fragen
 
-1. **Rex-Oberfläche**: Styleguide oder Screenshots (Menü, Dialoge, Farben) – Unterlagen folgen.
-2. **Bestand**: Konkrete LED-Module (Serie, Receiving Card), Prozessoren, Stageboxen, Multicores, Verteiler, Lakas/Spinnen, Brackets – Liste folgt.
-3. **Werte**: Herstellerdatenblätter (Einschaltstrom, max. Module je Brücke/Strang, Lasten) – Unterlagen folgen.
-4. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
+1. **Bestand**: Eigene Stromverteiler, Lakas/Spinnen, Stageboxen, Multicores, Flugrahmen. LED-Module und Prozessor: Beispieldaten in `ledplaner-beispieldaten.md` (LEDTEK P4+WH/P4+sWH PRO V3, NovaStar MX30).
+2. **Datenblätter**: LEDTEK V3 (Einschaltstrom, max. Module je Brücke/Strang, Rigging-Grenzen), NovaStar-Kompatibilität MX30 ↔ A8s.
+3. **Farben für Kreise, Ports und Phasen**: Der Styleguide verbietet freie Farben. Vorschlag: Linienfarbe nach Kabeltyp, Kreise/Ports über Nummer + Strichart unterscheiden, Phasen L1/L2/L3 als Beschriftung – oder das Farbsystem um eine Reihe „Kreise/Ports“ erweitern?
+4. **Druckformat**: Styleguide sagt A4 hoch. Für Rigging-, Strom- und Signalpläne großer Wände A4/A3 **quer** zulassen?
+5. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
 
 ## 13. Stand und nächste Schritte
 
@@ -271,6 +300,6 @@ geteilter Führung, Mehrbenutzer mit Sperre, Laptop + offline, Name, Rolle des
 Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
 **Nächste Schritte:**
-1. Unterlagen sammeln: Rex-Oberfläche (Screenshots/Styleguide), Bestandsliste, Datenblätter.
+1. Fragen 3 und 4 (Farben, Druckformat) klären; Bestandsliste und Datenblätter nachreichen.
 2. Runde zum **Mapping** (Signal und Ausgabe).
 3. Danach Phase 0: Skizzen der vier Reiter und Library-Datenformat.
