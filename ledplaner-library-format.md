@@ -82,7 +82,7 @@ wird (z.B. Einschaltstrom im Reiter Strom).
 | `mechanik.maxGeflogen` | Zahl | Prüf | max. Module untereinander |
 | `mechanik.maxGestellt` | Zahl | Prüf | max. Module übereinander |
 | `mechanik.kurve` | ja/nein | – | |
-| `mechanik.winkelGrad` | Liste Zahlen | – | mögliche Winkel, z.B. `[-10,-5,0,5,10]` |
+| `mechanik.winkelGrad` | Liste Zahlen | – | mögliche Winkel je Fuge, z.B. `[-10,-5,0,5,10]` (+ konkav, − konvex). Nur positive Werte → gelten für beide Richtungen. `null` = unbekannt (nur Hinweis) |
 | `ip` | Text | – | z.B. `"IP65"` |
 | `grafikHinten` | Text | – | Rückansicht (Vorderansicht = `attribute.grafik`) |
 

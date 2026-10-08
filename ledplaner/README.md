@@ -33,6 +33,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/05-ui.js` | Oberflächen-Zustand `ui`, Reiter-Gerüst `REITER`, Projektbaum, Prüfhinweise, Tastenkürzel |
 | `js/06-zeichnen.js` | Screen als SVG (1 Einheit = 1 mm), Wege/Pfeile, Zoom/Verschieben |
 | `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
+| `js/12-kurve.js` | Kurven/Winkel: Knick an senkrechten Fugen (`s.winkel`), Winkel oder Radius, Draufsicht mit Sehne/Stich/Radius, Prüfungen (Library-Winkel, Flugrahmen über Knick) |
 | `js/15-rigging.js` | Rigging: Flugrahmen/Stacking aus der Library, Last je Rahmen und Punkt, Riggingplan, Prüfungen |
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
@@ -69,7 +70,7 @@ registriert und prüfen `ui.reiter`. Prüfhinweise: `{ art: "fehler"|"warn"|"inf
 
 Fertig (Phase 1 + 2): Projekte (Neu/Öffnen/Speichern, Autosave, Rückgängig),
 Library-Manager mit Pflicht-/Prüffeldern, Modul-Editor (Drag & Drop, Einrasten, gemischte Typen,
-Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht), Rigging (Flugrahmen/Stacking,
+Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht, Kurven/Winkel mit Abwicklung + Draufsicht), Rigging (Flugrahmen/Stacking,
 Last je Punkt, Riggingplan, Freigabefeld), Strom komplett (Verteiler-Ebenen, Einspeisungen,
 Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht), Signal
 (Prozessor-Kompatibilität, Port-Regel Serie + RC, Vorschlag + Pinsel, Backup am Strangende,
@@ -80,10 +81,11 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-63 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+73 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).
 - Verknüpfung Signalfluss-Planer (wird neu gebaut; der LED-Planer funktioniert ohne ihn).
-- Kurven/Winkel, Hersteller-Dateien (NovaLCT/Colorlight), 3D, Tablet-Bedienung.
+- Hersteller-Dateien (NovaLCT/Colorlight, Beispieldateien nötig), 3D, Tablet-Bedienung.
+- Kurven: mögliche Winkel der LEDTEK-Module in der Library eintragen (derzeit unbekannt → nur Info).
 - Rex-Logo-Dateien einbinden (derzeit Platzhalter in der Kopfleiste).

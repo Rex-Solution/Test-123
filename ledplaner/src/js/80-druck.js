@@ -88,7 +88,7 @@ function berichtHtml() {
     const typen = [...x.typen.entries()].map(([lib, n]) => `<tr><td>${esc(eintrag(lib)?.name)}</td><td class="z">${n}</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.gewicht || 0), 1)} kg</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.stromverbrauch || 0))} W</td></tr>`).join("");
     blaetter.push(`<div class="blatt">${kopfzeile("Aufbau " + s.name, "Blatt " + (++nr))}<h2>Aufbau · ${esc(s.name)}</h2>
       <p>${esc(s.beschreibung || "")} · ${s.bauart}${s.ukM != null ? " · Unterkante " + fmtFlex(s.ukM) + " m" : ""} · ${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m · ${fmt(pl.b)} × ${fmt(pl.h)} px</p>
-      ${druckSvg(s, { zusatz: riggingSvg(s) }, 120)}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
+      ${druckSvg(s, { zusatz: riggingSvg(s) + kurveMarkenSvg(s, false), masseTiefer: kurveDaten(s).gebogen }, 120)}${kurveDaten(s).gebogen ? `<h3>Draufsicht (Kurve)</h3>${draufsichtSvg(s, 140)}<p style="font-size:8pt;color:#666">${kurveDaten(s).knicke.map(f => `${fmt(f.x - grenzen(s.module).x)} mm: ${f.grad > 0 ? "+" : ""}${fmtFlex(f.grad)}°`).join(" · ")} (+ konkav, − konvex) · Abwicklung oben${kurveDaten(s).radiusMm ? ` · Radius ${fmtFlex(Math.round(kurveDaten(s).radiusMm / 10) / 100)} m` : ""}</p>` : ""}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
       <tr><td><b>Summe</b></td><td class="z"><b>${x.anzahl}</b></td><td class="z"><b>${fmt(x.kg, 1)} kg</b></td><td class="z"><b>${fmt(x.wMax)} W</b></td></tr></table></div>`);
     const kreise = kreiseVon(s.id);
     if (kreise.length) blaetter.push(`<div class="blatt">${kopfzeile("Strom " + s.name, "Blatt " + (++nr))}<h2>Strom · ${esc(s.name)}</h2>${druckSvg(s, stromDruckOpt(s), 120)}
@@ -168,7 +168,7 @@ function grossformatHtml(format) {
   let nr = 0;
   const plaene = [];
   for (const s of P.screens) {
-    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) }, hoehe) + riggingDruckTabelle(s)]);
+    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) + kurveMarkenSvg(s, false), masseTiefer: kurveDaten(s).gebogen }, hoehe) + (kurveDaten(s).gebogen ? draufsichtSvg(s, 110) : "") + riggingDruckTabelle(s)]);
     if (kreiseVon(s.id).length) plaene.push(["Strom · " + s.name, druckSvg(s, stromDruckOpt(s), hoehe)]);
     if (straengeVon(s.id).length) plaene.push(["Signal · " + s.name, druckSvg(s, signalDruckOpt(s), hoehe)]);
   }

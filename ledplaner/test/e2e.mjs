@@ -245,6 +245,40 @@ pruefe("Material: „An Rex übergeben“ ohne Anbindung gesperrt", await p.loca
 await p.screenshot({ path: path.join(AUSGABE, "material.png") });
 await p.click('[data-haupt="planen"]');
 
+/* ---------- Kurven und Winkel ---------- */
+await p.click('[data-reiter="aufbau"]');
+await ev(() => { ui.auswahl.clear(); render(); });
+pruefe("Kurve: 11 durchgehende Fugen", await ev(() => screenFugen(P.screens[0]).filter(f => f.durchgehend).length === 11));
+await p.click('[data-a="winkel"]');
+await dialog({ modus: "winkel", wert: "5", richtung: "konkav" });
+const kv = await ev(() => { const d = kurveDaten(P.screens[0]); return { n: d.knicke.length, ges: d.gesamtGrad, sehne: d.sehneMm, stich: d.stichMm, r: d.radiusMm, ende: d.punkte[0][1], mitte: d.punkte[6][1] }; });
+const sehneSoll = Array.from({ length: 12 }, (_, i) => 500 * Math.cos((-27.5 + 5 * i) * Math.PI / 180)).reduce((a, b) => a + b, 0);
+pruefe("Kurve: 11 × 5° konkav → 55°, Sehne und Radius", kv.n === 11 && kv.ges === 55 && Math.abs(kv.sehne - sehneSoll) < 0.5 && Math.abs(kv.r - 500 / (2 * Math.sin(2.5 * Math.PI / 180))) < 0.5, JSON.stringify(kv));
+pruefe("Kurve: konkav – Enden zum Publikum", kv.ende > kv.mitte && kv.mitte === 0);
+pruefe("Kurve: Flugrahmen über Knick gemeldet", await ev(() => kurvePruefungen(P.screens[0]).some(x => x.text.includes("6 Flugrahmen über einem Knick"))));
+pruefe("Kurve: erlaubte Winkel unbekannt (Info)", await ev(() => kurvePruefungen(P.screens[0]).some(x => x.art === "info" && x.text.includes("mögliche Winkel"))));
+await p.click('[data-a="winkel"]');
+await dialog({ modus: "radius", wert: "10", richtung: "konvex" });
+pruefe("Kurve: Radius 10 m konvex → je −2,9°", await ev(() => kurveDaten(P.screens[0]).knicke.every(f => f.grad === -2.9)));
+// nur an den Rahmenstößen knicken: Fugen bei 1000, 2000 … per Klick auf die Marke
+await p.click('[data-a="winkel"]');
+await dialog({ modus: "gerade" });
+for (const x of [1000, 2000, 3000, 4000, 5000]) {
+  await p.locator(`[data-fuge="${x}"]`).dispatchEvent("pointerdown", { button: 0 });
+  await p.waitForTimeout(50);
+  await dialog({ grad: "7,5", richtung: "konkav" });
+}
+const k2 = await ev(() => ({ w: P.screens[0].winkel, h: kurvePruefungen(P.screens[0]).filter(x => x.art === "warn").map(x => x.text) }));
+pruefe("Kurve: Winkel per Klick auf die Fuge, Rahmen nicht über Knick", Object.keys(k2.w).length === 5 && Object.values(k2.w).every(w => w === 7.5) && !k2.h.length, JSON.stringify(k2));
+await ev(() => { const e = P.library["beispiel-ledtek-p4wh-pro-v3"]; e.attribute.led.mechanik.winkelGrad = [0, 2.5, 5, 10]; });
+pruefe("Kurve: 7,5° nicht in der Library-Liste", await ev(() => kurvePruefungen(P.screens[0]).some(x => x.text.includes("erlaubt 0°, 2,5°, 5°, 10°"))));
+await ev(() => { P.library["beispiel-ledtek-p4wh-pro-v3"].attribute.led.mechanik.winkelGrad = null; });
+await ev(() => { $("#toasts").innerHTML = ""; });
+await p.screenshot({ path: path.join(AUSGABE, "kurve.png") });
+await p.click('[data-a="spiegel-x"]');
+pruefe("Kurve: Spiegeln ↔ nimmt die Winkel mit", await ev(() => JSON.stringify(Object.keys(P.screens[0].winkel).map(Number).sort((a, b) => a - b)) === "[1000,2000,3000,4000,5000]" && P.screens[0].module.length === 48));
+pruefe("Kurve: Draufsicht im Bericht", await ev(() => berichtHtml().includes("Draufsicht (Kurve)")));
+
 /* ---------- Speichern / Laden / Autosave ---------- */
 await p.click('[data-haupt="planen"]');
 const [dl] = await Promise.all([p.waitForEvent("download"), p.keyboard.press("Control+s")]);

@@ -5,7 +5,7 @@
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
-     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], strom: { richtung, start }, signal: { richtung, start } }],
+     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
               | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
@@ -41,7 +41,7 @@ function neuesProjekt() {
 }
 
 function neuerScreen(name) {
-  return { id: neueId("s"), name, beschreibung: "", ukM: null, bauart: "geflogen", module: [],
+  return { id: neueId("s"), name, beschreibung: "", ukM: null, bauart: "geflogen", module: [], winkel: {},
     strom: { richtung: "spalten", start: "ol", verteilung: "minimal" }, signal: { richtung: "spalten", start: "ol" } };
 }
 
@@ -77,6 +77,7 @@ function normalisiereProjekt(roh) {
     s.strom = { richtung: "spalten", start: "ol", verteilung: "minimal", ...(s.strom || {}) };
     s.signal = { richtung: "spalten", start: "ol", ...(s.signal || {}) };
     s.bauart = s.bauart === "gestellt" ? "gestellt" : "geflogen";
+    s.winkel = s.winkel && typeof s.winkel === "object" ? Object.fromEntries(Object.entries(s.winkel).filter(([x, w]) => Number.isFinite(Number(x)) && Number.isFinite(w) && w)) : {};
   }
   return p;
 }

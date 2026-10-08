@@ -756,7 +756,7 @@ function anschluesseAusklappen(liste) {
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
-     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], strom: { richtung, start }, signal: { richtung, start } }],
+     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
               | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
@@ -792,7 +792,7 @@ function neuesProjekt() {
 }
 
 function neuerScreen(name) {
-  return { id: neueId("s"), name, beschreibung: "", ukM: null, bauart: "geflogen", module: [],
+  return { id: neueId("s"), name, beschreibung: "", ukM: null, bauart: "geflogen", module: [], winkel: {},
     strom: { richtung: "spalten", start: "ol", verteilung: "minimal" }, signal: { richtung: "spalten", start: "ol" } };
 }
 
@@ -828,6 +828,7 @@ function normalisiereProjekt(roh) {
     s.strom = { richtung: "spalten", start: "ol", verteilung: "minimal", ...(s.strom || {}) };
     s.signal = { richtung: "spalten", start: "ol", ...(s.signal || {}) };
     s.bauart = s.bauart === "gestellt" ? "gestellt" : "geflogen";
+    s.winkel = s.winkel && typeof s.winkel === "object" ? Object.fromEntries(Object.entries(s.winkel).filter(([x, w]) => Number.isFinite(Number(x)) && Number.isFinite(w) && w)) : {};
   }
   return p;
 }
@@ -1318,7 +1319,7 @@ function balken(anteil, mitText = true) {
 
 const TYPFARBEN = ["rgba(77,163,255,.10)", "rgba(99,230,190,.12)", "rgba(255,212,59,.10)", "rgba(229,153,247,.12)", "rgba(255,192,120,.12)"];
 
-/* opt: { auswahl:Set, hinten, fuellung(m), wege:[{ farbe, module:[ids], start, ende }], fehlerIds:Set, druck, oben:"" } */
+/* opt: { auswahl:Set, hinten, fuellung(m), wege:[{ farbe, module:[ids], start, ende }], fehlerIds:Set, druck, oben:"", zusatz:"", masseTiefer } */
 function screenSvgInhalt(screen, opt = {}) {
   const g = grenzen(screen.module);
   const namen = modulNamen(screen);
@@ -1345,7 +1346,7 @@ function screenSvgInhalt(screen, opt = {}) {
   // Maße
   if (screen.module.length && opt.masse !== false) {
     const a = mm * 0.05, fs = mm * 0.028, st = strich * 0.8;
-    const y = g.y + g.h + a, x = g.x + g.b + a;
+    const y = g.y + g.h + a + (opt.masseTiefer ? mm * 0.035 : 0), x = g.x + g.b + a;   // masseTiefer: Platz für Fugen-Marken
     teile.push(`<g stroke="#9a9a9a" stroke-width="${st}" fill="none">
       <line x1="${g.x}" y1="${y}" x2="${g.x + g.b}" y2="${y}"/><line x1="${g.x}" y1="${y - a / 3}" x2="${g.x}" y2="${y + a / 3}"/><line x1="${g.x + g.b}" y1="${y - a / 3}" x2="${g.x + g.b}" y2="${y + a / 3}"/>
       <line x1="${x}" y1="${g.y}" x2="${x}" y2="${g.y + g.h}"/><line x1="${x - a / 3}" y1="${g.y}" x2="${x + a / 3}" y2="${g.y}"/><line x1="${x - a / 3}" y1="${g.y + g.h}" x2="${x + a / 3}" y2="${g.y + g.h}"/></g>
@@ -1473,6 +1474,7 @@ REITER.aufbau = {
       <button data-a="dup" ${dis} title="Auswahl duplizieren (Strg+D); ohne Auswahl den ganzen Screen">Duplizieren</button>
       <button data-a="spiegel-x" ${dis} title="Auswahl bzw. Screen horizontal spiegeln">Spiegeln ↔</button>
       <button data-a="spiegel-y" ${dis} title="Auswahl bzw. Screen vertikal spiegeln">Spiegeln ↕</button>
+      <button data-a="winkel" ${dis} title="Winkel an den senkrechten Fugen setzen – je Fuge oder als Radius">∠ Kurve …</button>
       <button data-a="loeschen" class="gefahr" ${sel ? "" : "disabled"} title="Auswahl entfernen (Entf)">Entfernen</button>
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten}">Rückansicht</button></div>
@@ -1498,8 +1500,8 @@ REITER.aufbau = {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
     const v = ansicht(s);
-    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s),
-      oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
+    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s) + kurveMarkenSvg(s), masseTiefer: !ui.hinten,
+      oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${kurveDaten(s).gebogen ? " · Abwicklung" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
     if (!s.module.length) el.insertAdjacentHTML("beforeend", `<div class="leer-hinweis">Module aus der Library hierher ziehen<br>oder „Raster einfügen …“ verwenden.</div>`);
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
@@ -1540,7 +1542,7 @@ REITER.aufbau = {
       <div class="karte"><div class="label">Summe Screen</div><table class="werte">
         <tr><td>Module</td><td>${sum.anzahl}</td></tr><tr><td>Fläche</td><td>${fmt(sum.m2, 2)} m²</td></tr>
         <tr><td>Gewicht Module</td><td>${fmt(sum.kg, 1)} kg</td></tr><tr><td>Leistung max. / typ.</td><td>${fmt(sum.wMax)} / ${fmt(sum.wTyp)} W</td></tr></table></div>
-      ${s.module.length ? riggingKarte(s) : ""}
+      ${s.module.length ? riggingKarte(s) + kurveKarte(s) : ""}
       ${auswahl.length ? `<div class="karte"><div class="label">Auswahl · ${auswahl.length} Modul${auswahl.length === 1 ? "" : "e"}</div>
         <label class="feld"><span>Modultyp tauschen</span><select data-a-change="typ-tauschen"><option value="">${typen.length === 1 ? esc(eintrag(typen[0])?.name) : "– gemischt –"}</option>
         ${libListe("modul").filter(eintragNutzbar).map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select></label></div>` : ""}`;
@@ -1564,6 +1566,7 @@ REITER.aufbau = {
       const ueber = new Set();
       for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) if (schneidet(r[i].r, r[j].r)) { ueber.add(r[i].m.id); ueber.add(r[j].m.id); }
       if (ueber.size) liste.push({ art: "fehler", text: `${s.name}: ${ueber.size} Module überlappen.`, ziel: "modul:" + [...ueber][0] });
+      liste.push(...kurvePruefungen(s));
       // Max. Module untereinander / übereinander
       const feld = s.bauart === "geflogen" ? "maxGeflogen" : "maxGestellt";
       const spalten = new Map();
@@ -1736,6 +1739,11 @@ function screenLoeschen(s) {
 
 function aufbauSpiegeln(s, achse) {
   const ms = ui.auswahl.size ? s.module.filter(m => ui.auswahl.has(m.id)) : s.module;
+  // ganzer Screen gespiegelt: Winkel wandern mit (Richtung bleibt)
+  if (achse === "x" && ms.length === s.module.length && s.winkel) {
+    const g = grenzen(s.module);
+    s.winkel = Object.fromEntries(Object.entries(s.winkel).map(([x, w]) => [g.x + g.x + g.b - Number(x), w]));
+  }
   spiegeln(ms, achse);
   aenderung();
 }
@@ -1747,6 +1755,8 @@ function aufbauInteraktion(svg, s) {
   let rahmen = null;   // Auswahlrahmen
   svg.addEventListener("pointerdown", e => {
     if (e.button !== 0 || leertaste.gedrueckt) return;
+    const fuge = e.target.closest("[data-fuge]");
+    if (fuge) { fugeBearbeiten(s, Number(fuge.dataset.fuge)); return; }
     const p = svgPunkt(svg, e);
     const g = e.target.closest("[data-mod]");
     if (g) {
@@ -1833,6 +1843,7 @@ function aufbauEreignisse() {
     else if (a === "vorne" || a === "hinten") { ui.hinten = a === "hinten"; render(); }
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
+    else if (a === "winkel") winkelDialog(s);
   });
   $("#zeichnung").addEventListener("click", e => { if (e.target.closest("[data-a='screen-neu']")) screenAnlegen(); });
   $("#palette").addEventListener("dragstart", e => {
@@ -1872,7 +1883,191 @@ function aufbauEreignisse() {
     const a = e.target.closest("[data-a]")?.dataset.a; const s = aktuellerScreen();
     if (a === "screen-dup") screenDuplizieren(s);
     if (a === "screen-loeschen") screenLoeschen(s);
+    if (a === "winkel") winkelDialog(s);
+    if (a === "gerade" && confirm(`„${s.name}“ gerade machen (alle Winkel 0°)?`)) { s.winkel = {}; aenderung(); }
   });
+}
+
+/* ===== 12-kurve.js ===== */
+/* Kurven und Winkel: Knick an senkrechten Fugen zwischen Modulspalten.
+   s.winkel = { [x der Fuge in mm]: Grad }  + = konkav (Bogen um das Publikum), − = konvex (nach außen).
+   Die Vorderansicht bleibt die Abwicklung (Pixel, Strom, Signal unverändert); dazu kommt eine Draufsicht. */
+
+const rad = g => g * Math.PI / 180;
+
+/* Alle senkrechten Fugen eines Screens; durchgehend = kein Modul überspannt sie */
+function screenFugen(s) {
+  if (!s.module.length) return [];
+  const g = grenzen(s.module);
+  const rects = s.module.map(modRect);
+  const xs = [...new Set(rects.map(r => Math.round(r.x)).filter(x => x > g.x))].sort((a, b) => a - b);
+  return xs.map(x => ({ x, grad: Number(s.winkel?.[x]) || 0, durchgehend: !rects.some(r => r.x < x - 0.5 && r.x + r.b > x + 0.5) }));
+}
+
+/* Draufsicht und Kennzahlen */
+function kurveDaten(s) {
+  const fugen = screenFugen(s);
+  const erg = { fugen, knicke: fugen.filter(f => f.grad && f.durchgehend), punkte: [], sehneMm: 0, stichMm: 0, gesamtGrad: 0, radiusMm: null, gebogen: false };
+  if (!s.module.length) return erg;
+  const g = grenzen(s.module);
+  const kanten = [g.x, ...erg.knicke.map(f => f.x), g.x + g.b];
+  let x = 0, y = 0, h = 0;
+  const pts = [[0, 0]];
+  for (let i = 1; i < kanten.length; i++) {
+    const w = kanten[i] - kanten[i - 1];
+    x += w * Math.cos(h); y += w * Math.sin(h);
+    pts.push([x, y]);
+    if (i < kanten.length - 1) h += rad(erg.knicke[i - 1].grad);   // + dreht zum Publikum (unten)
+  }
+  // Sehne waagerecht legen, oben bündig
+  const [ex, ey] = pts[pts.length - 1];
+  const dreh = -Math.atan2(ey, ex), c = Math.cos(dreh), si = Math.sin(dreh);
+  let rot = pts.map(([px, py]) => [px * c - py * si, px * si + py * c]);
+  const minY = Math.min(...rot.map(p => p[1]));
+  rot = rot.map(([px, py]) => [px, py - minY]);
+  erg.punkte = rot;
+  erg.sehneMm = Math.hypot(ex, ey);
+  erg.stichMm = Math.max(...rot.map(p => p[1]));
+  erg.gesamtGrad = erg.knicke.reduce((a, f) => a + f.grad, 0);
+  erg.gebogen = erg.knicke.length > 0;
+  // Radius nur bei gleichmäßigem Bogen (gleiche Winkel, gleiche Segmentbreiten)
+  const breiten = kanten.slice(1).map((k, i) => k - kanten[i]);
+  if (erg.knicke.length && new Set(erg.knicke.map(f => f.grad)).size === 1 && new Set(breiten.map(b => Math.round(b))).size === 1)
+    erg.radiusMm = breiten[0] / (2 * Math.sin(rad(Math.abs(erg.knicke[0].grad)) / 2));
+  return erg;
+}
+
+/* Winkel aus Radius: Sehne w zwischen zwei Fugen → Knickwinkel */
+function winkelAusRadius(w, radiusMm) { return w >= 2 * radiusMm ? null : 2 * Math.asin(w / (2 * radiusMm)) * 180 / Math.PI; }
+
+function winkelSetzen(s, x, grad) {
+  s.winkel = s.winkel || {};
+  const g = Math.round(grad * 10) / 10;
+  if (g) s.winkel[x] = g; else delete s.winkel[x];
+}
+
+/* Dialog für eine Fuge (Klick auf die Marke unter der Wand) */
+async function fugeBearbeiten(s, x) {
+  const alt = Number(s.winkel?.[x]) || 0;
+  const erg = await formularDialog(`Winkel an der Fuge bei ${fmt(x - grenzen(s.module).x)} mm`, [
+    { name: "grad", label: "Winkel (°), 0 = gerade", art: "zahl", wert: fmtFlex(Math.abs(alt)) },
+    { name: "richtung", label: "Richtung", art: "auswahl", wert: alt < 0 ? "konvex" : "konkav", optionen: [["konkav", "konkav – Bogen um das Publikum"], ["konvex", "konvex – nach außen"]] },
+  ]);
+  if (!erg) return;
+  if (!(erg.grad >= 0 && erg.grad <= 90)) return toast("Winkel: 0 bis 90°.", "fehler");
+  winkelSetzen(s, x, erg.richtung === "konvex" ? -erg.grad : erg.grad);
+  aenderung();
+}
+
+/* Dialog für mehrere Fugen: gleicher Winkel oder Radius */
+async function winkelDialog(s) {
+  const fugen = screenFugen(s).filter(f => f.durchgehend);
+  if (!fugen.length) return toast("Der Screen hat keine durchgehende senkrechte Fuge.", "fehler");
+  const auswahl = s.module.filter(m => ui.auswahl.has(m.id)).map(modRect);
+  const imBereich = f => auswahl.length < 2 || (f.x > Math.min(...auswahl.map(r => r.x)) && f.x < Math.max(...auswahl.map(r => r.x + r.b)));
+  const erg = await formularDialog("Kurve / Winkel", [
+    { name: "hinweis", art: "hinweis", label: auswahl.length >= 2 ? `Gilt für die Fugen innerhalb der Auswahl (${fugen.filter(imBereich).length}).` : `Gilt für alle ${fugen.length} Fugen. Für einen Teilbereich vorher Module auswählen.` },
+    { name: "modus", label: "Angabe", art: "auswahl", wert: "winkel", optionen: [["winkel", "Winkel je Fuge (°)"], ["radius", "Radius (m)"], ["gerade", "gerade machen"]] },
+    { name: "wert", label: "Wert", art: "zahl", wert: "" },
+    { name: "richtung", label: "Richtung", art: "auswahl", wert: "konkav", optionen: [["konkav", "konkav – Bogen um das Publikum"], ["konvex", "konvex – nach außen"]] },
+  ], "Übernehmen");
+  if (!erg) return;
+  const ziel = fugen.filter(imBereich);
+  const vz = erg.richtung === "konvex" ? -1 : 1;
+  if (erg.modus === "gerade") { for (const f of ziel) winkelSetzen(s, f.x, 0); return aenderung(); }
+  if (erg.modus === "winkel") {
+    if (!(erg.wert >= 0 && erg.wert <= 90)) return toast("Winkel: 0 bis 90°.", "fehler");
+    for (const f of ziel) winkelSetzen(s, f.x, vz * erg.wert);
+    return aenderung();
+  }
+  if (!(erg.wert > 0)) return toast("Radius: Zahl in Metern größer 0.", "fehler");
+  // Je Fuge: mittlere Breite der angrenzenden Segmente (exakt bei gleich breiten Spalten)
+  const g = grenzen(s.module);
+  const kanten = [g.x, ...fugen.map(f => f.x), g.x + g.b];
+  for (const f of ziel) {
+    const i = kanten.indexOf(f.x);
+    const w = ((kanten[i] - kanten[i - 1]) + (kanten[i + 1] - kanten[i])) / 2;
+    const grad = winkelAusRadius(w, erg.wert * 1000);
+    if (grad == null) return toast(`Radius zu klein für ${fmt(w)} mm breite Spalten.`, "fehler");
+    winkelSetzen(s, f.x, vz * grad);
+  }
+  aenderung();
+}
+
+/* ---------- Darstellung ---------- */
+/* Marken unter der Abwicklung: alle durchgehenden Fugen (alleFugen) oder nur die Knicke */
+function kurveMarkenSvg(s, alleFugen = true) {
+  if (!s.module.length) return "";
+  const g = grenzen(s.module);
+  const mm = Math.max(g.b, g.h, 1000), fs = mm * 0.02, st = Math.max(4, mm / 900);
+  let t = `<g class="fugen">`;
+  for (const f of screenFugen(s)) {
+    if (!f.grad && (!alleFugen || !f.durchgehend)) continue;
+    const farbe = !f.durchgehend ? "#d29922" : f.grad ? "#4da3ff" : "#6b6b6b";
+    if (f.grad) t += `<line x1="${f.x}" y1="${g.y}" x2="${f.x}" y2="${g.y + g.h}" stroke="${farbe}" stroke-width="${st * 3}" stroke-dasharray="${st * 10} ${st * 6}" pointer-events="none"/>`;
+    t += `<g data-fuge="${f.x}" style="cursor:pointer"><rect x="${f.x - fs * 1.6}" y="${g.y + g.h + fs * 0.25}" width="${fs * 3.2}" height="${fs * 1.3}" rx="${fs * 0.3}" fill="#141414" stroke="${farbe}" stroke-width="${st}"/>
+      <text x="${f.x}" y="${g.y + g.h + fs * 1.25}" font-size="${fs * 0.9}" fill="${farbe}" text-anchor="middle">${f.grad > 0 ? "+" : ""}${fmtFlex(f.grad)}°</text></g>`;
+  }
+  return t + "</g>";
+}
+
+/* Draufsicht als eigenständiges SVG (Publikum unten) */
+function draufsichtSvg(s, hoehePx = 120) {
+  const d = kurveDaten(s);
+  if (!d.punkte.length) return "";
+  const b = d.sehneMm, h = Math.max(d.stichMm, b * 0.04);
+  const rand = b * 0.06, fs = b * 0.045, st = Math.max(4, b / 400);
+  const tiefe = Math.max(...d.punkte.map(p => p[1]));
+  const linie = d.punkte.map(p => p.join(",")).join(" ");
+  return `<svg viewBox="${-rand} ${-rand - fs} ${b + 2 * rand} ${h + 2 * rand + fs * 4}" style="width:100%;height:${hoehePx}px;background:#141414;border-radius:6px" preserveAspectRatio="xMidYMid meet">
+    <polyline points="${linie}" fill="none" stroke="#e8e8e8" stroke-width="${st * 3}" stroke-linejoin="round"/>
+    ${d.punkte.slice(1, -1).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${st * 2.5}" fill="#4da3ff"/>`).join("")}
+    ${d.stichMm > 1 ? `<line x1="0" y1="${tiefe}" x2="${b}" y2="${tiefe}" stroke="#6b6b6b" stroke-width="${st}" stroke-dasharray="${st * 6} ${st * 4}"/>` : ""}
+    <text x="${b / 2}" y="${tiefe + fs * 2.2}" font-size="${fs}" fill="#9a9a9a" text-anchor="middle">Sehne ${fmt(d.sehneMm)} mm${d.stichMm > 1 ? ` · Stich ${fmt(d.stichMm)} mm` : ""} · Publikum ↓</text></svg>`;
+}
+
+function kurveKarte(s) {
+  const d = kurveDaten(s);
+  return `<div class="karte"><div class="label">Kurve / Winkel · Draufsicht</div>
+    ${d.gebogen ? draufsichtSvg(s) + `<table class="werte" style="margin-top:6px"><tr><td>Knicke</td><td>${d.knicke.length}</td></tr>
+      <tr><td>Gesamtwinkel</td><td>${fmtFlex(Math.round(d.gesamtGrad * 10) / 10)}°</td></tr><tr><td>Sehne (Breite gebogen)</td><td>${fmt(d.sehneMm)} mm</td></tr>
+      <tr><td>Stich (Tiefe)</td><td>${fmt(d.stichMm)} mm</td></tr>${d.radiusMm ? `<tr><td>Radius</td><td>${fmtFlex(Math.round(d.radiusMm / 10) / 100)} m</td></tr>` : ""}</table>
+      <div class="knopfreihe" style="margin-top:8px"><button data-a="winkel">Ändern …</button><button data-a="gerade">Gerade machen</button></div>`
+      : `<p class="klein leise">Gerade. Winkel über „∠ Kurve …“ setzen oder eine Fugen-Marke unter der Wand anklicken.</p>`}</div>`;
+}
+
+/* ---------- Prüfungen ---------- */
+function winkelErlaubt(lib, grad) {
+  const led = eintrag(lib)?.attribute?.led || {};
+  if (led.mechanik?.kurve === false) return { ok: false, grund: "keine Kurve möglich" };
+  const liste = led.mechanik?.winkelGrad;
+  if (!Array.isArray(liste) || !liste.length) return { ok: null };
+  const mitVorzeichen = liste.some(w => w < 0);
+  const treffer = liste.some(w => Math.abs((mitVorzeichen ? grad : Math.abs(grad)) - w) < 0.05);
+  return treffer ? { ok: true } : { ok: false, grund: `erlaubt ${liste.map(w => fmtFlex(w) + "°").join(", ")}` };
+}
+
+function kurvePruefungen(s) {
+  const liste = [];
+  const d = kurveDaten(s);
+  const z = "screen:" + s.id;
+  for (const f of d.fugen.filter(f => f.grad && !f.durchgehend)) liste.push({ art: "warn", text: `${s.name}: Knick bei ${fmt(f.x)} mm, aber ein Modul überspannt die Fuge – Winkel wird ignoriert.`, ziel: z });
+  const unbekannt = new Set();
+  for (const f of d.knicke) {
+    const nachbarn = s.module.filter(m => { const r = modRect(m); return Math.abs(r.x + r.b - f.x) < 0.5 || Math.abs(r.x - f.x) < 0.5; });
+    for (const lib of new Set(nachbarn.map(m => m.lib))) {
+      const e = winkelErlaubt(lib, f.grad);
+      if (e.ok === false) liste.push({ art: "warn", text: `${s.name}: ${fmtFlex(f.grad)}° bei ${fmt(f.x)} mm – ${eintrag(lib)?.name}: ${e.grund}.`, ziel: z });
+      if (e.ok === null) unbekannt.add(eintrag(lib)?.name || lib);
+    }
+  }
+  if (unbekannt.size) liste.push({ art: "info", text: `${s.name}: mögliche Winkel für ${[...unbekannt].join(", ")} unbekannt – Library ergänzen.`, ziel: "library:" + s.module.find(m => unbekannt.has(eintrag(m.lib)?.name))?.lib });
+  if (d.gebogen && s.bauart === "geflogen") {
+    const r = riggingDaten(s);
+    const ueber = r.rahmen.filter(x => d.knicke.some(f => f.x > x.x + 0.5 && f.x < x.x + x.b - 0.5));
+    if (ueber.length) liste.push({ art: "warn", text: `${s.name}: ${ueber.length} Flugrahmen über einem Knick (Rahmen ${ueber.map(x => x.nr).join(", ")}) – Kurvenrahmen oder Rahmenbreite prüfen.`, ziel: z });
+  }
+  return liste;
 }
 
 /* ===== 15-rigging.js ===== */
@@ -4382,7 +4577,7 @@ function berichtHtml() {
     const typen = [...x.typen.entries()].map(([lib, n]) => `<tr><td>${esc(eintrag(lib)?.name)}</td><td class="z">${n}</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.gewicht || 0), 1)} kg</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.stromverbrauch || 0))} W</td></tr>`).join("");
     blaetter.push(`<div class="blatt">${kopfzeile("Aufbau " + s.name, "Blatt " + (++nr))}<h2>Aufbau · ${esc(s.name)}</h2>
       <p>${esc(s.beschreibung || "")} · ${s.bauart}${s.ukM != null ? " · Unterkante " + fmtFlex(s.ukM) + " m" : ""} · ${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m · ${fmt(pl.b)} × ${fmt(pl.h)} px</p>
-      ${druckSvg(s, { zusatz: riggingSvg(s) }, 120)}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
+      ${druckSvg(s, { zusatz: riggingSvg(s) + kurveMarkenSvg(s, false), masseTiefer: kurveDaten(s).gebogen }, 120)}${kurveDaten(s).gebogen ? `<h3>Draufsicht (Kurve)</h3>${draufsichtSvg(s, 140)}<p style="font-size:8pt;color:#666">${kurveDaten(s).knicke.map(f => `${fmt(f.x - grenzen(s.module).x)} mm: ${f.grad > 0 ? "+" : ""}${fmtFlex(f.grad)}°`).join(" · ")} (+ konkav, − konvex) · Abwicklung oben${kurveDaten(s).radiusMm ? ` · Radius ${fmtFlex(Math.round(kurveDaten(s).radiusMm / 10) / 100)} m` : ""}</p>` : ""}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
       <tr><td><b>Summe</b></td><td class="z"><b>${x.anzahl}</b></td><td class="z"><b>${fmt(x.kg, 1)} kg</b></td><td class="z"><b>${fmt(x.wMax)} W</b></td></tr></table></div>`);
     const kreise = kreiseVon(s.id);
     if (kreise.length) blaetter.push(`<div class="blatt">${kopfzeile("Strom " + s.name, "Blatt " + (++nr))}<h2>Strom · ${esc(s.name)}</h2>${druckSvg(s, stromDruckOpt(s), 120)}
@@ -4462,7 +4657,7 @@ function grossformatHtml(format) {
   let nr = 0;
   const plaene = [];
   for (const s of P.screens) {
-    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) }, hoehe) + riggingDruckTabelle(s)]);
+    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) + kurveMarkenSvg(s, false), masseTiefer: kurveDaten(s).gebogen }, hoehe) + (kurveDaten(s).gebogen ? draufsichtSvg(s, 110) : "") + riggingDruckTabelle(s)]);
     if (kreiseVon(s.id).length) plaene.push(["Strom · " + s.name, druckSvg(s, stromDruckOpt(s), hoehe)]);
     if (straengeVon(s.id).length) plaene.push(["Signal · " + s.name, druckSvg(s, signalDruckOpt(s), hoehe)]);
   }

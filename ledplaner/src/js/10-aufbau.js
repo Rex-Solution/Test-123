@@ -13,6 +13,7 @@ REITER.aufbau = {
       <button data-a="dup" ${dis} title="Auswahl duplizieren (Strg+D); ohne Auswahl den ganzen Screen">Duplizieren</button>
       <button data-a="spiegel-x" ${dis} title="Auswahl bzw. Screen horizontal spiegeln">Spiegeln ↔</button>
       <button data-a="spiegel-y" ${dis} title="Auswahl bzw. Screen vertikal spiegeln">Spiegeln ↕</button>
+      <button data-a="winkel" ${dis} title="Winkel an den senkrechten Fugen setzen – je Fuge oder als Radius">∠ Kurve …</button>
       <button data-a="loeschen" class="gefahr" ${sel ? "" : "disabled"} title="Auswahl entfernen (Entf)">Entfernen</button>
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten}">Rückansicht</button></div>
@@ -38,8 +39,8 @@ REITER.aufbau = {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
     const v = ansicht(s);
-    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s),
-      oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
+    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s) + kurveMarkenSvg(s), masseTiefer: !ui.hinten,
+      oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${kurveDaten(s).gebogen ? " · Abwicklung" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
     if (!s.module.length) el.insertAdjacentHTML("beforeend", `<div class="leer-hinweis">Module aus der Library hierher ziehen<br>oder „Raster einfügen …“ verwenden.</div>`);
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
@@ -80,7 +81,7 @@ REITER.aufbau = {
       <div class="karte"><div class="label">Summe Screen</div><table class="werte">
         <tr><td>Module</td><td>${sum.anzahl}</td></tr><tr><td>Fläche</td><td>${fmt(sum.m2, 2)} m²</td></tr>
         <tr><td>Gewicht Module</td><td>${fmt(sum.kg, 1)} kg</td></tr><tr><td>Leistung max. / typ.</td><td>${fmt(sum.wMax)} / ${fmt(sum.wTyp)} W</td></tr></table></div>
-      ${s.module.length ? riggingKarte(s) : ""}
+      ${s.module.length ? riggingKarte(s) + kurveKarte(s) : ""}
       ${auswahl.length ? `<div class="karte"><div class="label">Auswahl · ${auswahl.length} Modul${auswahl.length === 1 ? "" : "e"}</div>
         <label class="feld"><span>Modultyp tauschen</span><select data-a-change="typ-tauschen"><option value="">${typen.length === 1 ? esc(eintrag(typen[0])?.name) : "– gemischt –"}</option>
         ${libListe("modul").filter(eintragNutzbar).map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select></label></div>` : ""}`;
@@ -104,6 +105,7 @@ REITER.aufbau = {
       const ueber = new Set();
       for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) if (schneidet(r[i].r, r[j].r)) { ueber.add(r[i].m.id); ueber.add(r[j].m.id); }
       if (ueber.size) liste.push({ art: "fehler", text: `${s.name}: ${ueber.size} Module überlappen.`, ziel: "modul:" + [...ueber][0] });
+      liste.push(...kurvePruefungen(s));
       // Max. Module untereinander / übereinander
       const feld = s.bauart === "geflogen" ? "maxGeflogen" : "maxGestellt";
       const spalten = new Map();
@@ -276,6 +278,11 @@ function screenLoeschen(s) {
 
 function aufbauSpiegeln(s, achse) {
   const ms = ui.auswahl.size ? s.module.filter(m => ui.auswahl.has(m.id)) : s.module;
+  // ganzer Screen gespiegelt: Winkel wandern mit (Richtung bleibt)
+  if (achse === "x" && ms.length === s.module.length && s.winkel) {
+    const g = grenzen(s.module);
+    s.winkel = Object.fromEntries(Object.entries(s.winkel).map(([x, w]) => [g.x + g.x + g.b - Number(x), w]));
+  }
   spiegeln(ms, achse);
   aenderung();
 }
@@ -287,6 +294,8 @@ function aufbauInteraktion(svg, s) {
   let rahmen = null;   // Auswahlrahmen
   svg.addEventListener("pointerdown", e => {
     if (e.button !== 0 || leertaste.gedrueckt) return;
+    const fuge = e.target.closest("[data-fuge]");
+    if (fuge) { fugeBearbeiten(s, Number(fuge.dataset.fuge)); return; }
     const p = svgPunkt(svg, e);
     const g = e.target.closest("[data-mod]");
     if (g) {
@@ -373,6 +382,7 @@ function aufbauEreignisse() {
     else if (a === "vorne" || a === "hinten") { ui.hinten = a === "hinten"; render(); }
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
+    else if (a === "winkel") winkelDialog(s);
   });
   $("#zeichnung").addEventListener("click", e => { if (e.target.closest("[data-a='screen-neu']")) screenAnlegen(); });
   $("#palette").addEventListener("dragstart", e => {
@@ -412,5 +422,7 @@ function aufbauEreignisse() {
     const a = e.target.closest("[data-a]")?.dataset.a; const s = aktuellerScreen();
     if (a === "screen-dup") screenDuplizieren(s);
     if (a === "screen-loeschen") screenLoeschen(s);
+    if (a === "winkel") winkelDialog(s);
+    if (a === "gerade" && confirm(`„${s.name}“ gerade machen (alle Winkel 0°)?`)) { s.winkel = {}; aenderung(); }
   });
 }
