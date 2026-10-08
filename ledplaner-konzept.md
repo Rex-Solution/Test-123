@@ -41,7 +41,10 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Verteiler-Übersicht | Last je Phase, Last je Abgang, **Max. und Durchschnitt**; kein automatischer Ausgleich |
 | Signal | Prozessor → **Stagebox (aktiv)** oder **Multicore (passiv)** → Wand; Prozessoren nur, wenn **Receiving Card** passt; Standort je Prozessor frei |
 | Datenwege | Vorschlag oder Pinsel; **Backup automatisch gespiegelt** mit eigenen Ports |
-| Ausgabe | Zuspieler-Outputs mit **Format + Quelle**; Outputs ↔ Prozessor-Eingänge; **Ausschnitt → Fläche, 1:1** |
+| Ausgabe | Zuspieler-Outputs mit **Format + Quelle**; Outputs ↔ Prozessor-Eingänge; **Ausschnitt → Fläche**, Standard 1:1, Skalierung möglich; **Layer gezählt** mit Grenze je Prozessor |
+| Signal-Mapping | Pixelraum je Prozessor: **Vorschlag nach physischer Lage, frei verschiebbar**; mehrere Prozessoren je Screen möglich |
+| Gemischter Pitch | **Je Screen wählbar**: eigener Ausschnitt je Bereich (1:1) oder gemeinsamer Ausschnitt mit Skalierung |
+| Sonderfälle Ausgabe | Ein Output → mehrere Screens · mehrere Outputs → ein Screen · mehrere Prozessoren je Screen · gleiches Bild doppelt |
 | Testbild | **Teil der Ausgabe**: Testbild je Output + Live-Ausgabe |
 | Prüfungen Ausgabe | Eingangsauflösung, Gesamtkapazität, Anschlussart, Bildrate |
 | Signalfluss-Planer | Beide Module **eigenständig nutzbar**; sind **beide freigeschaltet**, lassen sie sich **verknüpfen** (dann kommen Zuspieler aus dem Signalfluss-Plan) |
@@ -196,12 +199,15 @@ Projekt
  │   │                → frei platziert, gemischte Typen, Lücken einfach „kein Modul“
  │   ├─ Aufbau:       Bumper/Stützen[], Aufhängepunkte[] mit Last
  │   ├─ Strom:        Kreise[] { Abgang, Laka/Kabel, Module in gemalter Reihenfolge }
- │   └─ Signal:       Stränge[] { Port (Prozessor/Stagebox), Module in Reihenfolge, Backup-Port }
+ │   ├─ Signal:       Stränge[] { Port (Prozessor/Stagebox), Module in Reihenfolge, Backup-Port }
+ │   └─ Ausgabe:      Mischpitch-Modus (eigene Ausschnitte | gemeinsam + Skalierung)
  ├─ Outputs[]         { Name, Auflösung, Bildrate, Anschluss, Zuspieler }
  ├─ Verbindungen[]    Einspeisung → Verteiler → Laka/Kabel → Screen
  │                    Prozessor → Stagebox/Multicore → Screen
  │                    Output → Prozessor-Eingang (mit Kabelart/-länge)
- ├─ Zuordnungen[]     { Output, Ausschnitt x/y/b/h → Screen, Fläche x/y } (1:1)
+ ├─ Pixelräume[]      je Prozessor: { Screen bzw. Pitch-Bereich → Position x/y }
+ ├─ Zuordnungen[]     { Prozessor, Layer, Output/Eingang, Ausschnitt x/y/b/h →
+ │                      Fläche im Pixelraum x/y/b/h, 1:1 | skaliert }
  └─ Verknüpfung       optional: Referenz auf Signalfluss-Plan (nur wenn freigeschaltet)
 ```
 
@@ -246,12 +252,29 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - **Liste unten**: jeder Port (Haupt/Backup) mit Gerät, Strang, Modulen, Pixeln, **Portauslastung**.
 - Kabelarten und Längen je Strecke, **Prozessor-Übersicht** zum Abtippen (Port → Startposition, Modulreihenfolge); Hersteller-Dateien später.
 
+**Signal-Mapping (Pixelraum des Prozessors)** – entspricht der Screen-Konfiguration in der Prozessor-Software:
+- Jeder Prozessor hat einen **Pixelraum**, in dem seine Screens bzw. Pitch-Bereiche liegen.
+- **Vorschlag**: Das Programm ordnet die Screens so an, wie sie physisch nebeneinanderstehen (sonst lückenlos von links nach rechts). Danach **frei verschiebbar** (Ziehen, Einrasten, Pfeiltasten – wie im Prototyp).
+- Bereiche mit unterschiedlichem Pitch in einem Screen sind im Pixelraum **eigene Blöcke** (je nach Ausgabe-Einstellung des Screens, siehe 6.4).
+- **Mehrere Prozessoren je Screen**: Ein großer Screen kann auf mehrere Prozessoren aufgeteilt werden (je Prozessor eine Gruppe von Strängen); jeder Prozessor zeigt nur seinen Teil im Pixelraum.
+- Aus Pixelraum + Strängen entsteht die **Prozessor-Übersicht**: je Port Startposition x/y im Pixelraum und Modulreihenfolge.
+
 ### 6.4 Ausgabe
 - **Outputs anlegen**: Name, Auflösung, Bildrate, Anschluss, Zuspieler (z.B. „Medienserver 1 · Out 2 · 3840×2160 · 50p · HDMI 2.0“). Mit verknüpftem Signalfluss-Planer kommen die Zuspieler von dort.
 - Outputs mit **Prozessor-Eingängen** verbinden.
-- Am Prozessor festlegen, **welcher Ausschnitt eines Outputs auf welcher Fläche der Wand** erscheint: Rechteck im Output ziehen → auf den Screen legen, **1:1 ohne Skalierung**, Warnung bei Größenabweichung.
-- **Testbild je Output** (aus dem Prototyp): zeigt genau, welcher Ausschnitt auf welchem Screen landet. PNG-Export und **Live-Ausgabe** je Output mit wandernden Cursorn.
-- Prüfungen: **Eingangsauflösung**, **Gesamtkapazität** des Prozessors, **Anschlussart** (Konverter nötig?), **Bildrate**.
+- Am Prozessor festlegen, **welcher Ausschnitt eines Outputs auf welcher Fläche des Pixelraums** erscheint: Rechteck im Output ziehen → auf den Pixelraum legen. Jede solche Zuordnung belegt einen **Layer** des Prozessors.
+- **Standard 1:1** ohne Skalierung, Warnung bei Größenabweichung. **Skalierung** ist möglich, wo sie gewollt ist (siehe gemischter Pitch).
+- **Layer mit Grenze**: Das Programm zählt die Layer je Prozessor und warnt bei Überschreitung (NovaStar MX30: 3 Layer). Tipp im Programm: Screens im Pixelraum so anordnen wie im Output, dann reicht **ein Layer für mehrere Screens**.
+- **Gemischter Pitch in einem Screen – je Screen wählbar**:
+  1. *Eigener Ausschnitt je Bereich*: jeder Pitch-Bereich eigener Block, eigener Ausschnitt, 1:1 (Content muss dafür vorbereitet sein).
+  2. *Gemeinsamer Ausschnitt + Skalierung*: ein Ausschnitt nach physischer Größe des ganzen Screens; der Prozessor skaliert je Bereich, damit das Bild physisch durchläuft (nicht 1:1, braucht ggf. zusätzliche Layer).
+- **Sonderfälle**, die abgedeckt werden:
+  - *Ein Output → mehrere Screens* (z.B. Mitte + zwei Seiten aus einem 4K-Signal).
+  - *Mehrere Outputs → ein Screen* (z.B. 2 × 4K nebeneinander auf einem breiten Screen).
+  - *Mehrere Prozessoren je Screen* (siehe Signal-Mapping; je Prozessor eigener Eingang und Ausschnitt).
+  - *Gleiches Bild doppelt* (derselbe Ausschnitt auf zwei Screens, z.B. beide Seitenwände).
+- **Testbild je Output** (aus dem Prototyp): zeigt genau, welcher Ausschnitt auf welchem Screen landet – mit Screen-Name, Pitch-Bereich, Modulnummern und Markierung doppelt genutzter Ausschnitte. PNG-Export und **Live-Ausgabe** je Output mit wandernden Cursorn.
+- Prüfungen: **Eingangsauflösung**, **Gesamtkapazität** des Prozessors, **Anschlussart** (Konverter nötig?), **Bildrate**, **Anzahl Layer**, Flächen ohne Bild, Ausschnitt ≠ Fläche bei 1:1.
 
 ## 7. Prüfungen (Ampel je Reiter)
 
@@ -260,7 +283,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 | Aufbau | Last je Punkt überschritten · zu viele Module untereinander · Bracket passt nicht · Lücke/Versatz zwischen Modulen |
 | Strom | Kreis überlastet · zu viele Module an einer Brücke · Schieflast · Einschaltstrom · Modul ohne Kreis · Verteiler-Ebene überlastet |
 | Signal | Kein passender Prozessor · **verschiedene Serien/Receiving Cards an einem Port** · Port überlastet · Strang zu lang · Modul ohne Port · Backup fehlt · Kabel zu lang (z.B. Cat > 100 m) |
-| Ausgabe | Output zu groß für den Eingang · Prozessor-Kapazität überschritten · Anschluss passt nicht · Bildraten unterschiedlich · Wandfläche ohne Bild · Ausschnitt ≠ Fläche |
+| Ausgabe | Output zu groß für den Eingang · Prozessor-Kapazität überschritten · **zu viele Layer** · Anschluss passt nicht · Bildraten unterschiedlich · Wandfläche ohne Bild · Ausschnitt ≠ Fläche (bei 1:1) · Screens eines Prozessors überlappen im Pixelraum |
 
 ## 8. Ausgaben
 
@@ -311,7 +334,6 @@ es aber schon in Phase 1.
 
 1. **Bestand**: Stageboxen, Multicores, Flugrahmen. Beispieldaten für LED-Module, Prozessor und Stromverteiler in `ledplaner-beispieldaten.md` (LEDTEK P4+WH/P4+sWH PRO V3, NovaStar MX30, StageSmarts C24).
 2. **Datenblätter**: LEDTEK V3 (Einschaltstrom, max. Module je Brücke/Strang, Rigging-Grenzen), StageSmarts C24 (Phasenzuordnung der Kanäle).
-3. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
 
 ## 13. Stand und nächste Schritte
 
@@ -320,11 +342,11 @@ Signal → Ausgabe), Oberfläche mit Hauptmenü und Werkzeugleiste, Library-Inha
 Modul-Editor mit gemischten Modulen, Port-Regel (gleiche Serie + Receiving Card),
 Stromverteilung mit Ebenen/Laka/Pinsel/Übersicht, Einspeisungen und Hausregeln,
 Signal mit Kompatibilität, Stagebox/Multicore und gespiegeltem Backup, Ausgabe mit
-Outputs und 1:1-Zuordnung, Rigging-Freigabe, Freischaltung, Verknüpfung mit
+Outputs, Signal- und Ausgabe-Mapping (Pixelraum, Layer, Mischpitch, Sonderfälle),
+StageSmarts C24 als Stromverteiler, interne Farben, Druckformate, Rigging-Freigabe, Freischaltung, Verknüpfung mit
 geteilter Führung, Mehrbenutzer mit Sperre, Laptop + offline, Name, Rolle des
 Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
 **Nächste Schritte:**
-1. Bestandsliste und Datenblätter nachreichen.
-2. Runde zum **Mapping** (Signal und Ausgabe).
-3. Danach Phase 0: Skizzen der vier Reiter und Library-Datenformat.
+1. Bestandsliste und Datenblätter nachreichen (laufend, blockiert nicht).
+2. **Phase 0 starten**: Skizzen (Wireframes) der Oberfläche – Kopfleiste, die vier Reiter mit Werkzeugleiste und Listen, Library-Manager – und das Library-Datenformat festschreiben.
