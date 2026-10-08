@@ -1,4 +1,4 @@
-# LED-Planer – Konzept & Fahrplan (Stand: Konzeptphase, 07.10.2026)
+# LED-Planer – Konzept & Fahrplan (Stand: Konzeptphase, 08.10.2026)
 
 Modul im Rex-System zur vollständigen Planung von LED-Wänden: Aufbau, Strom,
 Signal und Ausgabe in einem Projekt. **Dieses Dokument ist reine
@@ -49,6 +49,14 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Ausgaben | Pläne (PDF), Listen, Kundenansicht, Rückgabe ans Rex-System |
 | Werkzeugleiste | Duplizieren/Spiegeln, Erweitern/Kürzen, Module auswählen, Ausrichten/Maße |
 | Freischaltung | Über die **Benutzerverwaltung des Rex-Systems**; bis zur DB-Anbindung ein einfacher Schalter |
+| Name | **LED-Planer** |
+| Geräte vor Ort | Vorerst **Laptop** (Maus/Tastatur), muss **offline** funktionieren; **Tablet** (Touch) später |
+| Führung bei Verknüpfung | **Geteilt**: LED-Planer führend für Prozessoren, Stageboxen, Ports; Signalfluss-Planer führend für Zuspieler und Outputs; im jeweils anderen Modul nur lesbar bzw. als Vorschlag |
+| Mehrbenutzer | **Nacheinander mit Sperre** („wird gerade von X bearbeitet“), andere lesen; ab DB-Anbindung |
+| Prototyp | `ledraster.html` dient **nur als Referenz**; der LED-Planer wird neu geschrieben |
+| Einspeisungen | CEE 16 A, 32 A, 63 A, 125 A, **Powerlock/Aggregat** |
+| Hausregeln Strom | **Standardwerte je Projekt anpassbar** (Vorschlag: Reserve 20 %, max. Schieflast 20 %, Planung mit Max-Last); firmenweite Vorgaben ab DB-Anbindung |
+| Rigging-Freigabe | **Je nach Projekt intern oder extern**: Plan enthält Punkte, Abstände, Last je Punkt, Gesamtlast, Material (Bumper, Ketten, Schäkel), Bezug zum Hallenraster, Freigabefeld (intern/extern, Name, Datum) |
 
 ## 3. Aufbau der Oberfläche
 
@@ -246,28 +254,23 @@ es aber schon in Phase 1.
 
 ## 12. Offene Fragen
 
-1. **Rex-Oberfläche**: Gibt es einen Styleguide oder Screenshots (Menü, Dialoge, Farben)?
-2. **Bestand**: Welche LED-Module (mit Receiving Card), Prozessoren, Stageboxen, Multicores, Verteiler, Lakas/Spinnen und Brackets habt ihr konkret?
-3. **Werte**: Herstellerdatenblätter für Einschaltstrom, max. Module je Brücke/Strang, Lasten vorhanden?
-4. **Strom**: Übliche Einspeisungen und Hausregeln (Reserve, max. Schieflast)?
-5. **Aufbau**: Wer gibt Riggingpläne frei, welche Angaben braucht der Statiker/Rigger?
-6. **Vor Ort**: Arbeitet der Techniker am Tablet (Touch, Pinsel mit Finger) und offline?
-7. **Verknüpfung**: Wer ist führend, wenn Prozessor- oder Zuspielerdaten in beiden Modulen geändert werden?
-8. **Mehrbenutzer**: Arbeiten mehrere Personen gleichzeitig am selben Projekt?
-9. **Name** des Moduls (Arbeitstitel „LED-Planer“).
-10. **Prototyp**: Bleibt `ledraster.html` als eigenständiges Testbild-Werkzeug für Kunden ohne LED-Planer, oder geht es ganz in der Ausgabe auf?
-11. **Mapping (Signal/Ausgabe) – später**: Wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden (eigene Ausschnitte je Bereich oder gemeinsamer Ausschnitt mit Skalierung) und das Mapping-Konzept im Detail werden in einer eigenen Runde geklärt.
+1. **Rex-Oberfläche**: Styleguide oder Screenshots (Menü, Dialoge, Farben) – Unterlagen folgen.
+2. **Bestand**: Konkrete LED-Module (Serie, Receiving Card), Prozessoren, Stageboxen, Multicores, Verteiler, Lakas/Spinnen, Brackets – Liste folgt.
+3. **Werte**: Herstellerdatenblätter (Einschaltstrom, max. Module je Brücke/Strang, Lasten) – Unterlagen folgen.
+4. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
 
 ## 13. Stand und nächste Schritte
 
-**Stand 07.10.2026** – geklärt: Plattform, Arbeitsablauf (Aufbau → Strom →
+**Stand 08.10.2026** – geklärt: Plattform, Arbeitsablauf (Aufbau → Strom →
 Signal → Ausgabe), Oberfläche mit Hauptmenü und Werkzeugleiste, Library-Inhalte,
 Modul-Editor mit gemischten Modulen, Port-Regel (gleiche Serie + Receiving Card),
-Stromverteilung mit Ebenen/Laka/Pinsel/Übersicht, Signal mit Kompatibilität,
-Stagebox/Multicore und gespiegeltem Backup, Ausgabe mit Outputs und 1:1-Zuordnung,
-Freischaltung und Verknüpfung, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
+Stromverteilung mit Ebenen/Laka/Pinsel/Übersicht, Einspeisungen und Hausregeln,
+Signal mit Kompatibilität, Stagebox/Multicore und gespiegeltem Backup, Ausgabe mit
+Outputs und 1:1-Zuordnung, Rigging-Freigabe, Freischaltung, Verknüpfung mit
+geteilter Führung, Mehrbenutzer mit Sperre, Laptop + offline, Name, Rolle des
+Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
-**Nächste Sitzung:**
-1. Offene Fragen 1–10 durchgehen (Rex-Oberfläche, Bestand, Datenblätter, Hausregeln Strom, Rigging-Freigabe, Tablet/offline, Verknüpfung, Mehrbenutzer, Name, Prototyp).
-2. Eigene Runde zum **Mapping** (Signal und Ausgabe).
-3. Danach Phase 0 starten: Skizzen der vier Reiter und Library-Datenformat.
+**Nächste Schritte:**
+1. Unterlagen sammeln: Rex-Oberfläche (Screenshots/Styleguide), Bestandsliste, Datenblätter.
+2. Runde zum **Mapping** (Signal und Ausgabe).
+3. Danach Phase 0: Skizzen der vier Reiter und Library-Datenformat.
