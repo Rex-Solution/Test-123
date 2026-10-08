@@ -260,7 +260,7 @@ const kv = await ev(() => { const d = kurveDaten(P.screens[0]); return { n: d.kn
 const sehneSoll = Array.from({ length: 12 }, (_, i) => 500 * Math.cos((-27.5 + 5 * i) * Math.PI / 180)).reduce((a, b) => a + b, 0);
 pruefe("Kurve: 11 × 5° konkav → 55°, Sehne und Radius", kv.n === 11 && kv.ges === 55 && Math.abs(kv.sehne - sehneSoll) < 0.5 && Math.abs(kv.r - 500 / (2 * Math.sin(2.5 * Math.PI / 180))) < 0.5, JSON.stringify(kv));
 pruefe("Kurve: konkav – Enden zum Publikum", kv.ende > kv.mitte && kv.mitte === 0);
-pruefe("Kurve: Flugrahmen über Knick gemeldet", await ev(() => kurvePruefungen(P.screens[0]).some(x => x.text.includes("6 Flugrahmen über einem Knick"))));
+pruefe("Kurve: Knick an jeder Fuge → nur 50-cm-Brackets, keins über einem Knick", await ev(() => { const r = riggingDaten(P.screens[0]).rahmen; return r.length === 12 && r.every(x => x.lib.id === "beispiel-flugrahmen-05m") && !kurvePruefungen(P.screens[0]).some(x => x.text.includes("über einem Knick")); }));
 pruefe("Kurve: erlaubte Winkel unbekannt (Info)", await ev(() => kurvePruefungen(P.screens[0]).some(x => x.art === "info" && x.text.includes("mögliche Winkel"))));
 await p.click('[data-a="winkel"]');
 await dialog({ modus: "radius", wert: "10", richtung: "konvex" });
@@ -530,6 +530,35 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   pruefe("Bracket ohne kleines Bracket: leere Hälfte auf die freie Seite (A links außen, L rechts außen)", JSON.stringify(ohneKlein) === JSON.stringify([[-500, true], [5500, false]]), JSON.stringify(ohneKlein));
   await ev(() => { ui.reiter = "aufbau"; ui.modus.aufbau = "wand"; ui.ansicht3d = false; ui.ansicht.clear(); $("#toasts").innerHTML = ""; render(); });
   await p.locator("#zeichnung").screenshot({ path: path.join(AUSGABE, "bracket-versetzt.png") });
+}
+
+/* ---------- Brackets: Knick nachträglich, Bestand je Wand ---------- */
+{
+  const lage = await ev(() => {
+    window.confirm = () => true; beispielProjektLaden();
+    const s = P.screens[0]; const WH = "beispiel-ledtek-p4wh-pro-v3", SWH = "beispiel-ledtek-p4swh-pro-v3";
+    s.module = []; const add = (lib, x, y) => s.module.push({ id: neueId("m"), lib, x, y });
+    add(SWH, 0, 500); for (const y of [1000, 2000, 3000]) add(WH, 0, y);              // Spalte A eine Reihe tiefer
+    for (let x = 500; x <= 5500; x += 500) { add(SWH, x, 0); for (const y of [500, 1500, 2500]) add(WH, x, y); }
+    aenderung();
+    const vorher = riggingDaten(s).rahmen.map(r => [r.lib.id.replace("beispiel-flugrahmen-", ""), r.x]);
+    winkelSetzen(s, 1000, 5); aenderung();                                            // Knick zwischen B und C (wie im Bild)
+    const nachher = riggingDaten(s).rahmen.map(r => [r.lib.id.replace("beispiel-flugrahmen-", ""), r.x]);
+    return { vorher, nachher };
+  });
+  pruefe("Bracket: Knick nachträglich → B bekommt 0,5 m, kein 1-m-Bracket über dem Knick", JSON.stringify(lage.nachher.slice(0, 3)) === JSON.stringify([["05m", 0], ["05m", 500], ["1m", 1000]])
+    && !lage.nachher.some(([t, x]) => t === "1m" && x < 1000 && x + 1000 > 1000), JSON.stringify(lage));
+  // Bestand: nur 3 × 1 m → Rest als 0,5 m
+  await ev(() => { const s = P.screens[0]; s.rigging.bestand = { "beispiel-flugrahmen-1m": 3 }; aenderung(); });
+  const best = await ev(() => { const r = riggingDaten(P.screens[0]).rahmen; return { gross: r.filter(x => x.lib.id.endsWith("1m")).length, klein: r.filter(x => x.lib.id.endsWith("05m")).length, plaetze: r.reduce((a, x) => a + x.belegt, 0) }; });
+  pruefe("Bracket-Bestand: 3 × 1 m, Rest als 0,5 m, alle 12 Spalten getragen", best.gross === 3 && best.klein === 6 && best.plaetze === 12, JSON.stringify(best));
+  await ev(() => { const s = P.screens[0]; s.rigging.bestand = { "beispiel-flugrahmen-1m": 3, "beispiel-flugrahmen-05m": 4 }; aenderung(); });
+  pruefe("Bracket-Bestand: zu wenige 0,5 m gemeldet", await ev(() => riggingPruefungen().some(x => x.text.includes("Bestand: 6 × Flugrahmen 0,5 m") && x.text.includes("4 vorgesehen"))));
+  await ev(() => { ui.reiter = "aufbau"; ui.modus.aufbau = "wand"; ui.ansicht.clear(); $("#toasts").innerHTML = ""; render(); });
+  pruefe("Bracket-Bestand: Eingabefelder in der Rigging-Karte", await p.locator('[data-rig-bestand="beispiel-flugrahmen-1m"]').inputValue() === "3");
+  await p.fill('[data-rig-bestand="beispiel-flugrahmen-05m"]', ""); await p.press('[data-rig-bestand="beispiel-flugrahmen-05m"]', "Tab"); await p.waitForTimeout(50);
+  pruefe("Bracket-Bestand: leer = beliebig", await ev(() => !("beispiel-flugrahmen-05m" in P.screens[0].rigging.bestand) && !riggingPruefungen().some(x => x.text.includes("Bestand:"))));
+  await p.locator("#zeichnung").screenshot({ path: path.join(AUSGABE, "bracket-knick-bestand.png") });
 }
 
 /* ---------- Controller-Backup (ganzer Prozessor als Backup) ---------- */

@@ -252,7 +252,7 @@ body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
     <button role="tab" data-haupt="einstellungen">Einstellungen</button>
   </nav>
   <div class="status">
-    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version 40eebf4</span>
+    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version 08bb5dd</span>
     <span id="status-name"></span>
     <span id="status-gespeichert" class="leise"></span>
   </div>
@@ -2681,8 +2681,10 @@ function bracketBelegung(s) {
     }
   }
   const plaetze = [...kante.keys()].sort((a, b) => a - b);
+  // Knicke (Kurve) liegen nie in einem Bracket: an jeder Fuge mit Winkel endet eine Gruppe
+  const knicke = new Set(screenFugen(s).filter(f => f.grad && f.durchgehend).map(f => Math.round(f.x / raster.platz)));
   const laeufe = [];
-  for (const k of plaetze) { const l = laeufe[laeufe.length - 1]; if (l && k === l.b + 1 && Math.abs(kante.get(k) - l.y) < 1) l.b = k; else laeufe.push({ a: k, b: k, y: kante.get(k) }); }
+  for (const k of plaetze) { const l = laeufe[laeufe.length - 1]; if (l && k === l.b + 1 && Math.abs(kante.get(k) - l.y) < 1 && !knicke.has(k)) l.b = k; else laeufe.push({ a: k, b: k, y: kante.get(k) }); }
   const brackets = [], hinweise = [];
   for (const { a, b, y } of laeufe) {
     const L = b - a + 1, voll = Math.floor(L / n), rest = L % n;
@@ -2715,8 +2717,29 @@ function bracketBelegung(s) {
       k += nutz;
     }
   }
+  bestandAnwenden(r, brackets, haupt, klein, raster, hinweise);
   brackets.sort((p, q) => p.x - q.x || p.anschlag - q.anschlag).forEach((br, i) => br.nr = i + 1);
   return { brackets, raster, hinweise: [...new Set(hinweise)] };
+}
+
+/* Bestand je Wand (rigging.bestand = { libId: max. Anzahl }): überzählige große Brackets von rechts in kleine teilen */
+function bestandAnwenden(r, brackets, haupt, klein, raster, hinweise) {
+  const bestand = r.bestand || {};
+  const zahl = e => brackets.filter(b => b.lib === e).length;
+  const maxGross = bestand[haupt.id];
+  if (Number.isFinite(maxGross) && zahl(haupt) > maxGross) {
+    const n2 = klein ? bracketPlaetze(klein) : 0;
+    const kandidaten = brackets.filter(b => b.lib === haupt).sort((p, q) => (q.halb - p.halb) || q.x - p.x);   // halb belegte zuerst, dann von rechts
+    for (const b of kandidaten) {
+      if (zahl(haupt) <= maxGross) break;
+      if (!klein || b.belegt % n2) continue;
+      const start = b.halb && b.leerLinks ? b.x + (b.plaetze - b.belegt) * raster.platz : b.x;
+      brackets.splice(brackets.indexOf(b), 1);
+      for (let i = 0; i < b.belegt / n2; i++) brackets.push({ lib: klein, x: start + i * n2 * raster.platz, b: n2 * raster.platz, plaetze: n2, belegt: n2, halb: false, leerLinks: false, anschlag: b.anschlag });
+    }
+    if (zahl(haupt) > maxGross) hinweise.push(`Bestand: ${zahl(haupt)} × ${haupt.name} nötig, ${maxGross} vorgesehen${klein ? "" : " – kein kleineres Bracket zum Teilen"}.`);
+  }
+  if (klein && Number.isFinite(bestand[klein.id]) && zahl(klein) > bestand[klein.id]) hinweise.push(`Bestand: ${zahl(klein)} × ${klein.name} nötig, ${bestand[klein.id]} vorgesehen.`);
 }
 
 function riggingDaten(s) {
@@ -2832,6 +2855,10 @@ function riggingKarte(s) {
     ${haupt && n >= 2 ? `<div class="zwei"><label class="feld"><span>Rest (z.B. ungerade)</span><select data-rig="rest"><option value="ergaenzen"${r.rest !== "halb" ? " selected" : ""}>kleines Bracket ergänzen</option><option value="halb"${r.rest === "halb" ? " selected" : ""}>großes halb belegt</option></select></label>
       <label class="feld"><span>Seite</span><select data-rig="seite"><option value="rechts"${r.seite !== "links" ? " selected" : ""}>rechts</option><option value="links"${r.seite === "links" ? " selected" : ""}>links</option></select></label></div>
       ${r.rest !== "halb" ? `<label class="feld"><span>Ergänzungs-Bracket</span><select data-rig="lib2"><option value="">automatisch${(() => { const k = kleinesBracket({ ...s, rigging: { ...r, lib2: null } }, haupt); return k ? " – " + esc(k.name) : " (keins in der Library)"; })()}</option>${passend.filter(e => bracketPlaetze(e) < n).map(e => option(e, r.lib2)).join("")}</select></label>` : ""}` : ""}
+    ${haupt ? `<div class="abschnitt">Brackets an dieser Wand</div><table class="werte"><tr><td class="leise klein">Typ</td><td class="leise klein">verbaut</td><td class="leise klein">Bestand (max.)</td></tr>
+      ${passend.filter(e => e.id === r.lib || bracketPlaetze(e) < n).map(e => `<tr><td>${esc(e.name)}</td><td>${d.rahmen.filter(x => x.lib.id === e.id).length}</td>
+        <td><input class="anzahl" data-rig-bestand="${e.id}" value="${Number.isFinite(r.bestand?.[e.id]) ? r.bestand[e.id] : ""}" placeholder="beliebig" inputmode="numeric" style="width:80px"></td></tr>`).join("")}</table>
+      <p class="klein leise">Leer = beliebig viele. Zu viele große Brackets werden von rechts in kleine geteilt.</p>` : ""}
     <label class="feld check"><input type="checkbox" data-rig="anzeigen" ${r.anzeigen !== false ? "checked" : ""}><span>In der Zeichnung anzeigen</span></label>
     ${raster ? `<p class="klein leise">Module sitzen fest an Bracket-Plätzen (${fmt(raster.platz)} mm). Ziehen und Einfügen rasten nur dort ein.</p>` : ""}
     ${ausserhalb ? `<div class="hinweis warn">${ausserhalb} Module nicht auf Bracket-Plätzen.</div><button data-rig-a="raster" style="margin-bottom:8px">Ins Bracket-Raster setzen</button>` : ""}
@@ -2867,6 +2894,14 @@ function riggingPruefungen() {
 function riggingEreignisse() {
   $("#rechts").addEventListener("change", e => {
     if (ui.reiter !== "aufbau") return;
+    if (e.target.dataset.rigBestand) {
+      const s = aktuellerScreen(); const r = riggingStandard(s);
+      const z = e.target.value.trim() === "" ? null : Math.round(leseZahl(e.target.value));
+      if (z != null && !(z >= 0)) { toast("Bestand: ganze Zahl ab 0 oder leer.", "fehler"); return render(); }
+      r.bestand = { ...(r.bestand || {}) };
+      if (z == null) delete r.bestand[e.target.dataset.rigBestand]; else r.bestand[e.target.dataset.rigBestand] = z;
+      return aenderung();
+    }
     const f = e.target.dataset.rig; if (!f) return;
     const s = aktuellerScreen(); const r = riggingStandard(s);
     if (f === "lib" || f === "lib2") { r[f] = e.target.value || null; if (r[f]) nutzeEintrag(r[f]); }
