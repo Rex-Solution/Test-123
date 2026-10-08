@@ -40,15 +40,17 @@ function dreidSzene(s) {
   // Flugrahmen und Aufhängung
   const r = riggingDaten(s);
   if (r.rahmen.length) {
-    const oben = s.bauart === "geflogen" ? uk + g.h : uk - 120;   // gestellt: Stacking-Bracket unter der Wand
+    const zug = uk + g.h + 2500;   // Aufhängehöhe für alle Punkte
     for (const ra of r.rahmen) {
+      // je Bracket an seiner Anschlagkante (versetzte Spalten); gestellt: Stacking-Bracket darunter
+      const unten = s.bauart === "geflogen" ? hoehe(ra.y) : hoehe(ra.y) - 120;
       const xs = [ra.x, ...kanten.filter(k => k > ra.x + 0.5 && k < ra.x + ra.b - 0.5), ra.x + ra.b];
       for (let i = 0; i + 1 < xs.length; i++) {
         const [x1, z1] = pos(xs[i]), [x2, z2] = pos(xs[i + 1]);
-        flaechen.push({ pts: [[x1, oben + 120, z1], [x2, oben + 120, z2], [x2, oben, z2], [x1, oben, z1]], rahmen: true });
+        flaechen.push({ pts: [[x1, unten + 120, z1], [x2, unten + 120, z2], [x2, unten, z2], [x1, unten, z1]], rahmen: true });
       }
     }
-    if (s.bauart === "geflogen") for (const p of r.punkte) { const [x, z] = pos(p.x); linien.push({ a: [x, oben + 120, z], b: [x, oben + 2500, z], farbe: "#9a9a9a", strich: true }); }
+    if (s.bauart === "geflogen") for (const p of r.punkte) { const [x, z] = pos(p.x); linien.push({ a: [x, hoehe(p.y) + 120, z], b: [x, zug, z], farbe: "#9a9a9a", strich: true }); }
   }
   // Boden-Raster (1 m) und Person
   const breite = Math.ceil((L.sehne / 2 + 3000) / 1000) * 1000;

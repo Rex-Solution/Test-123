@@ -315,14 +315,21 @@ const pxJeMm = await ev(() => 1 / mmJePixel($("#zeichnung svg")));
 await p.mouse.move(zb.x + zb.width / 2, zb.y + zb.height / 2); await p.mouse.down();
 await p.mouse.move(zb.x + zb.width / 2 + 330 * pxJeMm, zb.y + zb.height / 2 + 120 * pxJeMm, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(80);
 pruefe("Bracket: Ziehen rastet auf den nächsten Platz (6000/3000)", await ev(id => { const m = P.screens[0].module.find(m => m.id === id); return m.x === 6000 && m.y === 3000; }, ziel));
-pruefe("Bracket: Lücke gemeldet (Modul hängt ohne Verbindung zum Bracket)", await ev(() => riggingPruefungen().some(x => x.text.includes("Lücke in 1 Spalte "))));
-// ungerade: 13. Spalte belegt → 6 × 1 m + 1 × 0,5 m (ergänzen)
-pruefe("Bracket: ungerade → 50-cm-Bracket ergänzt (rechts)", JSON.stringify((await br()).slice(-2)) === JSON.stringify([["flugrahmen-1m", 5000, 2, 2], ["flugrahmen-05m", 6000, 1, 1]]), JSON.stringify(await br()));
+const anschlag = () => ev(() => riggingDaten(P.screens[0]).rahmen.map(r => [r.lib.id.replace("beispiel-", ""), r.x, r.y]));
+pruefe("Bracket: versetzte Spalte hängt an eigenem 50-cm-Bracket in ihrer Höhe", JSON.stringify((await anschlag()).slice(-1)) === JSON.stringify([["flugrahmen-05m", 6000, 3000]]) && (await br()).length === 7, JSON.stringify(await anschlag()));
+pruefe("Bracket: versetzt ist keine Lücke", await ev(() => !riggingPruefungen().some(x => x.text.includes("Lücke"))));
 await p.selectOption('[data-rig="rest"]', "halb"); await p.waitForTimeout(50);
-pruefe("Bracket: halb belegt → 7 × 1 m, letztes 1/2", JSON.stringify((await br()).slice(-1)) === JSON.stringify([["flugrahmen-1m", 6000, 1, 2]]) && (await br()).length === 7);
+pruefe("Bracket: versetzt → auch bei „halb belegt“ kleines Bracket", JSON.stringify((await br()).slice(-1)) === JSON.stringify([["flugrahmen-05m", 6000, 1, 1]]));
+// 13. Spalte oben auffüllen → 13 Spalten mit gleicher Oberkante
+const neu13 = await ev(() => { const s = P.screens[0]; const ids = [0, 1000, 2000].map(y => { const m = { id: neueId("m"), lib: "beispiel-ledtek-p4wh-pro-v3", x: 6000, y }; s.module.push(m); return m.id; }); aenderung(); return ids; });
+pruefe("Bracket: ungerade, halb belegt → 7 × 1 m, letztes 1/2", JSON.stringify((await br()).slice(-1)) === JSON.stringify([["flugrahmen-1m", 6000, 1, 2]]) && (await br()).length === 7, JSON.stringify(await br()));
 await p.selectOption('[data-rig="seite"]', "links"); await p.waitForTimeout(50);
 pruefe("Bracket: Seite links → halbes Bracket ragt links über", JSON.stringify((await br())[0]) === JSON.stringify(["flugrahmen-1m", -500, 1, 2]), JSON.stringify(await br()));
 await p.selectOption('[data-rig="rest"]', "ergaenzen"); await p.selectOption('[data-rig="seite"]', "rechts"); await p.waitForTimeout(50);
+pruefe("Bracket: ungerade, ergänzen → 6 × 1 m + 50 cm rechts", JSON.stringify((await br()).slice(-2)) === JSON.stringify([["flugrahmen-1m", 5000, 2, 2], ["flugrahmen-05m", 6000, 1, 1]]));
+await ev(([id]) => { const s = P.screens[0]; s.module = s.module.filter(m => m.id !== id); aenderung(); }, [neu13[1]]);
+pruefe("Bracket: Loch in einer Spalte als Lücke gemeldet", await ev(() => riggingPruefungen().some(x => x.text.includes("Lücke in 1 Spalte "))));
+await ev(ids => { const s = P.screens[0]; s.module = s.module.filter(m => !ids.includes(m.id)); ui.auswahl.clear(); aenderung(); }, neu13);
 // Pfeiltaste: ein Platz
 await ev(id => { ui.auswahl = new Set([id]); render(); }, ziel);
 await p.keyboard.press("ArrowLeft"); await p.waitForTimeout(50);

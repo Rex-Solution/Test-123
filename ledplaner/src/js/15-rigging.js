@@ -33,42 +33,58 @@ function bracketRaster(s, libNeu = null) {
 function aufRaster(raster, x, y) { return { x: Math.round(x / raster.platz) * raster.platz, y: Math.round(y / raster.hoehe) * raster.hoehe }; }
 function imRaster(raster, m) { const r = modRect(m); return Math.abs(r.x / raster.platz - Math.round(r.x / raster.platz)) < 1e-6 && Math.abs(r.y / raster.hoehe - Math.round(r.y / raster.hoehe)) < 1e-6; }
 
-/* Brackets automatisch über die belegten Plätze legen */
+/* Brackets automatisch legen. Jede Spalte hängt mit ihrem obersten Modul an einem Bracket in genau dieser Höhe
+   (gestellt: steht mit dem untersten auf einem Stacking-Bracket). Nebeneinanderliegende Spalten mit gleicher
+   Ober- bzw. Unterkante bilden eine Gruppe; je Gruppe volle Brackets + Rest. Ragt der leere Teil eines halb
+   belegten Brackets in eine Nachbarspalte (versetzte Oberkanten), wird immer das kleine Bracket genommen. */
 function bracketBelegung(s) {
   const r = riggingStandard(s);
   const raster = bracketRaster(s);
   if (!raster || !s.module.length) return { brackets: [], raster, hinweise: [] };
   const haupt = eintrag(r.lib), n = bracketPlaetze(haupt);
   const klein = bracketPasst(s, eintrag(r.lib2)) ? eintrag(r.lib2) : null, n2 = klein ? bracketPlaetze(klein) : 0;
-  const belegt = new Set();
-  for (const m of s.module) { const q = modRect(m); for (let k = Math.floor(q.x / raster.platz + 1e-6); k * raster.platz < q.x + q.b - 1e-6; k++) belegt.add(k); }
-  const plaetze = [...belegt].sort((a, b) => a - b);
+  const geflogen = s.bauart === "geflogen";
+  // je Platz: Anschlagkante (oberstes Modul bzw. unterste Kante)
+  const kante = new Map();
+  for (const m of s.module) {
+    const q = modRect(m);
+    for (let k = Math.floor(q.x / raster.platz + 1e-6); k * raster.platz < q.x + q.b - 1e-6; k++) {
+      const y = geflogen ? q.y : q.y + q.h, alt = kante.get(k);
+      kante.set(k, alt == null ? y : geflogen ? Math.min(alt, y) : Math.max(alt, y));
+    }
+  }
+  const plaetze = [...kante.keys()].sort((a, b) => a - b);
   const laeufe = [];
-  for (const k of plaetze) { const l = laeufe[laeufe.length - 1]; if (l && k === l[1] + 1) l[1] = k; else laeufe.push([k, k]); }
+  for (const k of plaetze) { const l = laeufe[laeufe.length - 1]; if (l && k === l.b + 1 && Math.abs(kante.get(k) - l.y) < 1) l.b = k; else laeufe.push({ a: k, b: k, y: kante.get(k) }); }
   const brackets = [], hinweise = [];
-  for (const [a, b] of laeufe) {
+  for (const { a, b, y } of laeufe) {
     const L = b - a + 1, voll = Math.floor(L / n), rest = L % n;
     const teile = [];
     for (let i = 0; i < voll; i++) teile.push({ e: haupt, n });
     if (rest) {
-      if (r.rest === "ergaenzen" && klein && n2 <= rest && rest % n2 === 0) for (let i = 0; i < rest / n2; i++) teile.push({ e: klein, n: n2 });
+      // leerer Teil eines halben großen Brackets läge außen neben der Gruppe – dort steht ggf. eine Nachbarspalte
+      const leer = r.seite === "links" ? [...Array(n - rest)].map((_, i) => a - 1 - i) : [...Array(n - rest)].map((_, i) => b + 1 + i);
+      // versetzte Spalten (Nachbargruppe mit anderer Kante) bekommen immer kleine Brackets
+      const stoesst = leer.some(k => kante.has(k)) || kante.has(a - 1) || kante.has(b + 1);
+      const kleinGeht = klein && n2 <= rest && rest % n2 === 0;
+      if ((r.rest === "ergaenzen" || stoesst) && kleinGeht) for (let i = 0; i < rest / n2; i++) teile.push({ e: klein, n: n2 });
       else {
-        if (r.rest === "ergaenzen") hinweise.push("Ergänzungs-Bracket fehlt oder passt nicht – großes Bracket halb belegt.");
+        if (stoesst) hinweise.push("Versetzte Spalten brauchen ein kleines Bracket (Ergänzungs-Bracket wählen) – großes Bracket ragt in die Nachbarspalte.");
+        else if (r.rest === "ergaenzen") hinweise.push("Ergänzungs-Bracket fehlt oder passt nicht – großes Bracket halb belegt.");
         teile.push({ e: haupt, n, halb: true, belegt: rest });
       }
     }
-    // Reihenfolge: Rest an der gewählten Seite
+    // Rest an der gewählten Seite
     const geordnet = r.seite === "links" ? [...teile.filter(t => t.e !== haupt || t.halb), ...teile.filter(t => t.e === haupt && !t.halb)] : teile;
-    let k = r.seite === "links" ? b + 1 - geordnet.reduce((acc, t) => acc + (t.halb ? t.belegt : t.n), 0) : a;
+    let k = a;
     for (const t of geordnet) {
       const nutz = t.halb ? t.belegt : t.n;
-      // halb belegt: der leere Platz liegt außen (rechts bzw. links)
-      const start = t.halb && r.seite === "links" ? k - (t.n - nutz) : k;
-      brackets.push({ lib: t.e, x: start * raster.platz, b: t.n * raster.platz, plaetze: t.n, belegt: nutz, halb: !!t.halb });
+      const start = t.halb && r.seite === "links" ? k - (t.n - nutz) : k;   // leerer Platz außen
+      brackets.push({ lib: t.e, x: start * raster.platz, b: t.n * raster.platz, plaetze: t.n, belegt: nutz, halb: !!t.halb, anschlag: y });
       k += nutz;
     }
   }
-  brackets.sort((p, q) => p.x - q.x).forEach((br, i) => br.nr = i + 1);
+  brackets.sort((p, q) => p.x - q.x || p.anschlag - q.anschlag).forEach((br, i) => br.nr = i + 1);
   return { brackets, raster, hinweise: [...new Set(hinweise)] };
 }
 
@@ -98,27 +114,26 @@ function riggingDaten(s) {
     if (!Number.isFinite(eigen) && !erg.unbekannt.includes("Bracket-Gewicht")) erg.unbekannt.push("Bracket-Gewicht");
     const unter = erg.spaltenKg.filter(sp => sp.x + sp.b / 2 >= br.x && sp.x + sp.b / 2 < br.x + br.b);
     const kg = unter.reduce((a, sp) => a + sp.kg, 0) + (Number.isFinite(eigen) ? eigen : 0);
-    erg.rahmen.push({ ...br, y: grenzen(s.module).y, kg, spalten: unter.length, lastMaxKg: led.lastMaxKg ?? null });
+    erg.rahmen.push({ ...br, y: br.anschlag, kg, spalten: unter.length, lastMaxKg: led.lastMaxKg ?? null });
     erg.gesamtKg += kg;
     if (s.bauart !== "geflogen") continue;
     const vorlage = Array.isArray(led.punkte) && led.punkte.length ? led.punkte
       : br.plaetze >= 2 ? [{ xMm: br.b * 0.25 }, { xMm: br.b * 0.75 }] : [{ xMm: br.b / 2 }];
-    for (const p of vorlage) erg.punkte.push({ rahmen: br.nr, x: br.x + p.xMm, kg: kg / vorlage.length, lastMaxKg: p.lastMaxKg ?? null });
+    for (const p of vorlage) erg.punkte.push({ rahmen: br.nr, x: br.x + p.xMm, y: br.anschlag, kg: kg / vorlage.length, lastMaxKg: p.lastMaxKg ?? null });
   }
   return erg;
 }
 
-/* Lücken: geflogen hängt jede Spalte von der Oberkante, gestellt steht jede Spalte auf der Unterkante */
+/* Lücken: Loch innerhalb einer Spalte (zwischen Modulen). Spalten dürfen unterschiedlich hoch beginnen –
+   sie hängen dann an eigenen Brackets in ihrer Höhe. */
 function riggingLuecken(s, raster) {
   if (!raster || !s.module.length) return [];
-  const g = grenzen(s.module);
   const spalten = new Map();
   for (const m of s.module) { const r = modRect(m); const k = Math.round(r.x / raster.platz); spalten.set(k, [...(spalten.get(k) || []), r]); }
   const luecken = [];
   for (const [k, rs] of spalten) {
     rs.sort((a, b) => a.y - b.y);
-    const kanten = s.bauart === "geflogen" ? [g.y, ...rs.flatMap(r => [r.y, r.y + r.h])] : [...rs.flatMap(r => [r.y, r.y + r.h]), g.y + g.h];
-    for (let i = 0; i + 1 < kanten.length; i += 2) if (kanten[i + 1] - kanten[i] > 1) { luecken.push({ spalte: k, x: k * raster.platz }); break; }
+    if (rs.some((r, i) => i && r.y - (rs[i - 1].y + rs[i - 1].h) > 1)) luecken.push({ spalte: k, x: k * raster.platz });
   }
   return luecken;
 }
@@ -142,9 +157,11 @@ function riggingSvg(s) {
   const mm = Math.max(g.b, g.h, 1000);
   const h = mm * 0.035, st = Math.max(4, mm / 900), fs = mm * 0.022;
   const oben = s.bauart === "geflogen";
-  const y = oben ? g.y - h - st : g.y + g.h + st;   // gestellt: direkt unter der Wand
+  const yBr = r => oben ? r.y - h - st : r.y + st;   // je Bracket an seiner Anschlagkante (versetzte Spalten)
+  const yZug = g.y - h - st - mm * 0.09;               // Aufhängehöhe: alle Punkte enden auf derselben Höhe
   let t = `<g class="rigging" pointer-events="none">`;
   for (const r of d.rahmen) {
+    const y = yBr(r);
     const ueber = r.lastMaxKg && r.kg > r.lastMaxKg;
     const farbe = ueber ? "#d29922" : "#e8e8e8";
     t += `<rect x="${r.x + st}" y="${y}" width="${r.b - 2 * st}" height="${h}" fill="none" stroke="${farbe}" stroke-width="${st * 1.4}"/>`;
@@ -157,12 +174,12 @@ function riggingSvg(s) {
   if (oben) {
     for (const p of d.punkte) {
       const ueber = p.lastMaxKg && p.kg > p.lastMaxKg;
-      const y1 = y - mm * 0.09;
+      const y = yBr(d.rahmen.find(r => r.nr === p.rahmen)), y1 = yZug;
       t += `<line x1="${p.x}" y1="${y}" x2="${p.x}" y2="${y1}" stroke="#9a9a9a" stroke-width="${st}" stroke-dasharray="${st * 6} ${st * 4}"/>
         <circle cx="${p.x}" cy="${y1}" r="${mm * 0.008}" fill="#141414" stroke="${ueber ? "#d29922" : "#e8e8e8"}" stroke-width="${st * 1.2}"/>
         <text x="${p.x}" y="${y1 - mm * 0.016}" font-size="${fs * 0.85}" fill="#9a9a9a" text-anchor="middle">${fmt(p.kg, 1)}</text>`;
     }
-    t += `<text x="${g.x}" y="${y - mm * 0.15}" font-size="${fs}" fill="#9a9a9a">Aufhängepunkte · Last je Punkt in kg (Richtwert, gleichmäßig verteilt)</text>`;
+    t += `<text x="${g.x}" y="${yZug - mm * 0.06}" font-size="${fs}" fill="#9a9a9a">Aufhängepunkte · Last je Punkt in kg (Richtwert, gleichmäßig verteilt)</text>`;
   }
   return t + "</g>";
 }
