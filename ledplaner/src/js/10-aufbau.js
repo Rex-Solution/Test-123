@@ -38,7 +38,7 @@ REITER.aufbau = {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
     const v = ansicht(s);
-    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten,
+    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s),
       oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
     if (!s.module.length) el.insertAdjacentHTML("beforeend", `<div class="leer-hinweis">Module aus der Library hierher ziehen<br>oder „Raster einfügen …“ verwenden.</div>`);
     const svg = el.querySelector("svg");
@@ -80,6 +80,7 @@ REITER.aufbau = {
       <div class="karte"><div class="label">Summe Screen</div><table class="werte">
         <tr><td>Module</td><td>${sum.anzahl}</td></tr><tr><td>Fläche</td><td>${fmt(sum.m2, 2)} m²</td></tr>
         <tr><td>Gewicht Module</td><td>${fmt(sum.kg, 1)} kg</td></tr><tr><td>Leistung max. / typ.</td><td>${fmt(sum.wMax)} / ${fmt(sum.wTyp)} W</td></tr></table></div>
+      ${s.module.length ? riggingKarte(s) : ""}
       ${auswahl.length ? `<div class="karte"><div class="label">Auswahl · ${auswahl.length} Modul${auswahl.length === 1 ? "" : "e"}</div>
         <label class="feld"><span>Modultyp tauschen</span><select data-a-change="typ-tauschen"><option value="">${typen.length === 1 ? esc(eintrag(typen[0])?.name) : "– gemischt –"}</option>
         ${libListe("modul").filter(eintragNutzbar).map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select></label></div>` : ""}`;
@@ -117,7 +118,7 @@ REITER.aufbau = {
       const pitches = [...new Set(typen.map(t => fmtFlex(eintrag(t)?.attribute?.led?.pitchMm ?? (eintrag(t)?.attribute?.led?.mmB / eintrag(t)?.attribute?.led?.pixelB), 2)))];
       if (pitches.length > 1) liste.push({ art: "info", text: `${s.name}: verschiedene Pixelpitches (${pitches.join(" / ")} mm) – getrennte Datenports nötig.`, ziel: "screen:" + s.id });
     }
-    return liste;
+    return [...liste, ...riggingPruefungen()];
   },
 
   taste(e) {

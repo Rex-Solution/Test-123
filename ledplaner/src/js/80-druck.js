@@ -88,7 +88,7 @@ function berichtHtml() {
     const typen = [...x.typen.entries()].map(([lib, n]) => `<tr><td>${esc(eintrag(lib)?.name)}</td><td class="z">${n}</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.gewicht || 0), 1)} kg</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.stromverbrauch || 0))} W</td></tr>`).join("");
     blaetter.push(`<div class="blatt">${kopfzeile("Aufbau " + s.name, "Blatt " + (++nr))}<h2>Aufbau · ${esc(s.name)}</h2>
       <p>${esc(s.beschreibung || "")} · ${s.bauart}${s.ukM != null ? " · Unterkante " + fmtFlex(s.ukM) + " m" : ""} · ${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m · ${fmt(pl.b)} × ${fmt(pl.h)} px</p>
-      ${druckSvg(s, {}, 120)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
+      ${druckSvg(s, { zusatz: riggingSvg(s) }, 120)}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
       <tr><td><b>Summe</b></td><td class="z"><b>${x.anzahl}</b></td><td class="z"><b>${fmt(x.kg, 1)} kg</b></td><td class="z"><b>${fmt(x.wMax)} W</b></td></tr></table></div>`);
     const kreise = kreiseVon(s.id);
     if (kreise.length) blaetter.push(`<div class="blatt">${kopfzeile("Strom " + s.name, "Blatt " + (++nr))}<h2>Strom · ${esc(s.name)}</h2>${druckSvg(s, stromDruckOpt(s), 120)}
@@ -129,6 +129,15 @@ function berichtHtml() {
   return druckSeite(`${P.daten.titel} – Bericht`, "A4hoch", blaetter.join(""));
 }
 
+function riggingDruckTabelle(s) {
+  const d = riggingDaten(s);
+  if (s.bauart !== "geflogen" || !d.rahmen.length) return `<p style="font-size:9pt">${s.bauart === "gestellt" ? "Gestellt · Bodenlast gesamt " + fmt(d.gesamtKg, 1) + " kg" : "Kein Flugrahmen gewählt."}</p>`;
+  return `<h3>Rigging</h3><table><tr><th>Rahmen</th><th class="z">Spalten</th><th class="z">Last Rahmen</th><th class="z">Last je Punkt</th><th class="z">Zulässig</th></tr>
+    ${d.rahmen.map(r => `<tr><td>${esc(d.lib.name)} · ${r.nr}</td><td class="z">${r.spalten}</td><td class="z">${fmt(r.kg, 1)} kg</td><td class="z">${fmt(r.kg / (d.punkte.length / d.rahmen.length), 1)} kg</td><td class="z">${r.lastMaxKg ? fmt(r.lastMaxKg) + " kg" : "—"}</td></tr>`).join("")}
+    <tr><td><b>Gesamt</b></td><td></td><td class="z"><b>${fmt(d.gesamtKg, 1)} kg${d.unbekannt.length ? " + ?" : ""}</b></td><td></td><td></td></tr></table>
+    <p style="font-size:8pt;color:#666">Richtwerte, gleichmäßig auf die Punkte verteilt${d.unbekannt.length ? " · fehlt: " + esc(d.unbekannt.join(", ")) : ""}. Freigabe: ${P.regeln.riggingFreigabe === "extern" ? "extern (Location/Statiker)" : "intern"} · Name: ____________ Datum: ________</p>`;
+}
+
 function schriftfeld(planTitel, blatt) {
   const d = P.daten;
   return `<div class="schriftfeld"><div><span>Projekt</span>${esc(d.titel)}</div><div><span>Plan</span>${esc(planTitel)}</div><div><span>Kunde</span>${esc(d.kunde || "—")}</div>
@@ -140,7 +149,7 @@ function grossformatHtml(format) {
   let nr = 0;
   const plaene = [];
   for (const s of P.screens) {
-    plaene.push(["Aufbau · " + s.name, druckSvg(s, {}, hoehe)]);
+    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) }, hoehe) + riggingDruckTabelle(s)]);
     if (kreiseVon(s.id).length) plaene.push(["Strom · " + s.name, druckSvg(s, stromDruckOpt(s), hoehe)]);
     if (straengeVon(s.id).length) plaene.push(["Signal · " + s.name, druckSvg(s, signalDruckOpt(s), hoehe)]);
   }

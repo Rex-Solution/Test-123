@@ -14,6 +14,7 @@ const REGEL_FELDER = [
   { k: "catMax", label: "Max. Cat-Länge (m)", art: "zahl", min: 1, max: 500 },
   { abschnitt: "Druck" },
   { k: "druckZusatz", label: "Zusatz Großformat", art: "auswahl", optionen: [["A3", "A3 quer"], ["A4", "A4 quer"], ["keins", "keins"]] },
+  { k: "riggingFreigabe", label: "Freigabefeld Rigging", art: "auswahl", optionen: [["intern", "intern"], ["extern", "extern (Location/Statiker)"]] },
 ];
 const PROJEKT_FELDER = [["titel", "Titel / Projektname *"], ["kunde", "Kunde"], ["veranstaltung", "Veranstaltung"], ["ort", "Ort / Location"], ["ersteller", "Ersteller"], ["revision", "Revision"], ["datum", "Datum"]];
 
@@ -99,6 +100,7 @@ function beispielProjektLaden() {
   const v = verteilerAnlegen("beispiel-stagesmarts-c24", false);
   v.standort = "Bühne links hinten"; v.speisung.von = ein.id; v.speisung.laengeM = 25;
   s.strom.verteilung = "ausgang";
+  s.rigging = { lib: "beispiel-flugrahmen-1m", anzeigen: true }; nutzeEintrag("beispiel-flugrahmen-1m");
   gespeicherterStand = null;
   historieStart();
   ui.haupt = "planen"; ui.reiter = "strom";

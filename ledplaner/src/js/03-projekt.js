@@ -23,7 +23,7 @@ const SPEICHER_AKTUELL = "rex-ledplaner-aktuell";
 
 function standardRegeln() {
   return { reserve: 20, schieflast: 20, planung: "max", spannung: 230, absicherung: 16, einschaltPruefen: true,
-    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3" };
+    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern" };
 }
 
 function neuesProjekt() {

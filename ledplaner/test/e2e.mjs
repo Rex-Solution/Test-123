@@ -172,6 +172,12 @@ pruefe("Library: Eintrag gespeichert (lokal)", await ev(() => LIB.eintraege.get(
 pruefe("Library: Badge-Zählung P4+WH 9/14", await ev(() => { const v = vollstaendigkeit(LIB.eintraege.get("beispiel-ledtek-p4wh-pro-v3")); return v.gefuellt === 9 && v.gesamt === 14; }));
 await p.screenshot({ path: path.join(AUSGABE, "library.png") });
 
+/* ---------- Rigging (Flugrahmen mit Gewicht 12,5 kg aus der Library) ---------- */
+await p.click('[data-haupt="planen"]'); await p.click('[data-reiter="aufbau"]');
+const rig = await ev(() => { const d = riggingDaten(P.screens[0]); return { n: d.rahmen.length, kg: d.rahmen.map(r => +r.kg.toFixed(2)), punkt: +Math.max(...d.punkte.map(x => x.kg)).toFixed(2) }; });
+pruefe("Rigging: 6 Flugrahmen à 112,9 kg, 56,45 kg je Punkt", rig.n === 6 && rig.kg.every(k => k === 112.9) && rig.punkt === 56.45, JSON.stringify(rig));
+await p.screenshot({ path: path.join(AUSGABE, "rigging.png") });
+
 /* ---------- Speichern / Laden / Autosave ---------- */
 await p.click('[data-haupt="planen"]');
 const [dl] = await Promise.all([p.waitForEvent("download"), p.keyboard.press("Control+s")]);

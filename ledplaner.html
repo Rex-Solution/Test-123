@@ -703,7 +703,7 @@ const SPEICHER_AKTUELL = "rex-ledplaner-aktuell";
 
 function standardRegeln() {
   return { reserve: 20, schieflast: 20, planung: "max", spannung: 230, absicherung: 16, einschaltPruefen: true,
-    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3" };
+    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern" };
 }
 
 function neuesProjekt() {
@@ -1238,7 +1238,8 @@ function screenSvgInhalt(screen, opt = {}) {
       <text x="${g.x + g.b / 2}" y="${y - a / 4}" font-size="${fs}" fill="#9a9a9a" text-anchor="middle">${fmt(g.b)} mm</text>
       <text x="${x + a / 4}" y="${g.y + g.h / 2}" font-size="${fs}" fill="#9a9a9a" text-anchor="middle" transform="rotate(90 ${x + a / 4} ${g.y + g.h / 2})">${fmt(g.h)} mm</text>`);
   }
-  if (opt.oben) teile.push(`<text x="${g.x}" y="${g.y - mm * 0.03}" font-size="${mm * 0.028}" fill="#9a9a9a">${esc(opt.oben)}</text>`);
+  if (opt.zusatz) teile.push(opt.zusatz);
+  if (opt.oben) teile.push(`<text x="${g.x}" y="${g.y - mm * (opt.zusatz ? 0.22 : 0.03)}" font-size="${mm * 0.028}" fill="#9a9a9a">${esc(opt.oben)}</text>`);
   return teile.join("");
 }
 
@@ -1272,8 +1273,9 @@ function wegSvg(screen, w, lx, mm) {
 function einpassAnsicht(screen) {
   const g = grenzen(screen.module);
   if (!screen.module.length) return { x: -1000, y: -1000, b: 8000, h: 5000 };
-  const rand = Math.max(g.b, g.h) * 0.12 + 300;
-  return { x: g.x - rand, y: g.y - rand, b: g.b + 2 * rand, h: g.h + 2 * rand };
+  const mm = Math.max(g.b, g.h, 1000);
+  const rand = mm * 0.12 + 300, oben = rand + mm * 0.18; // oben Platz für Rigging und Titel
+  return { x: g.x - rand, y: g.y - oben, b: g.b + 2 * rand, h: g.h + rand + oben };
 }
 function ansicht(screen) {
   if (!ui.ansicht.has(screen.id)) ui.ansicht.set(screen.id, einpassAnsicht(screen));
@@ -1382,7 +1384,7 @@ REITER.aufbau = {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
     const v = ansicht(s);
-    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten,
+    el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s),
       oben: `${s.name}${ui.hinten ? " · Rückansicht" : ""}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""} · ${s.bauart}` })}</svg>`;
     if (!s.module.length) el.insertAdjacentHTML("beforeend", `<div class="leer-hinweis">Module aus der Library hierher ziehen<br>oder „Raster einfügen …“ verwenden.</div>`);
     const svg = el.querySelector("svg");
@@ -1424,6 +1426,7 @@ REITER.aufbau = {
       <div class="karte"><div class="label">Summe Screen</div><table class="werte">
         <tr><td>Module</td><td>${sum.anzahl}</td></tr><tr><td>Fläche</td><td>${fmt(sum.m2, 2)} m²</td></tr>
         <tr><td>Gewicht Module</td><td>${fmt(sum.kg, 1)} kg</td></tr><tr><td>Leistung max. / typ.</td><td>${fmt(sum.wMax)} / ${fmt(sum.wTyp)} W</td></tr></table></div>
+      ${s.module.length ? riggingKarte(s) : ""}
       ${auswahl.length ? `<div class="karte"><div class="label">Auswahl · ${auswahl.length} Modul${auswahl.length === 1 ? "" : "e"}</div>
         <label class="feld"><span>Modultyp tauschen</span><select data-a-change="typ-tauschen"><option value="">${typen.length === 1 ? esc(eintrag(typen[0])?.name) : "– gemischt –"}</option>
         ${libListe("modul").filter(eintragNutzbar).map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join("")}</select></label></div>` : ""}`;
@@ -1461,7 +1464,7 @@ REITER.aufbau = {
       const pitches = [...new Set(typen.map(t => fmtFlex(eintrag(t)?.attribute?.led?.pitchMm ?? (eintrag(t)?.attribute?.led?.mmB / eintrag(t)?.attribute?.led?.pixelB), 2)))];
       if (pitches.length > 1) liste.push({ art: "info", text: `${s.name}: verschiedene Pixelpitches (${pitches.join(" / ")} mm) – getrennte Datenports nötig.`, ziel: "screen:" + s.id });
     }
-    return liste;
+    return [...liste, ...riggingPruefungen()];
   },
 
   taste(e) {
@@ -1755,6 +1758,113 @@ function aufbauEreignisse() {
     const a = e.target.closest("[data-a]")?.dataset.a; const s = aktuellerScreen();
     if (a === "screen-dup") screenDuplizieren(s);
     if (a === "screen-loeschen") screenLoeschen(s);
+  });
+}
+
+/* ===== 15-rigging.js ===== */
+/* Rigging (im Reiter Aufbau): Flugrahmen über geflogenen Screens bzw. Bodenlast bei gestellten,
+   Last je Rahmen und Aufhängepunkt (Richtwerte, gleichmäßige Verteilung auf die Punkte eines Rahmens).
+   screen.rigging = { lib: <Library-ID Flugrahmen/Stacking> | null, anzeigen: true } */
+
+function riggingDaten(s) {
+  s.rigging = { lib: null, anzeigen: true, ...(s.rigging || {}) };
+  const erg = { rahmen: [], punkte: [], gesamtKg: 0, unbekannt: [], lib: null, spaltenKg: [] };
+  if (!s.module.length) return erg;
+  const g = grenzen(s.module);
+  // Spalten (linke Kante) mit Gewicht
+  const spalten = new Map();
+  for (const m of s.module) {
+    const k = Math.round(m.x);
+    const r = modRect(m);
+    const sp = spalten.get(k) || { x: r.x, b: r.b, kg: 0, anzahl: 0, unbekannt: false };
+    const kg = eintrag(m.lib)?.attribute?.gewicht;
+    if (Number.isFinite(kg)) sp.kg += kg; else sp.unbekannt = true;
+    sp.anzahl++; sp.b = Math.max(sp.b, r.b);
+    spalten.set(k, sp);
+  }
+  erg.spaltenKg = [...spalten.values()].sort((a, b) => a.x - b.x);
+  if (erg.spaltenKg.some(x => x.unbekannt)) erg.unbekannt.push("Modulgewicht");
+  const e = eintrag(s.rigging.lib);
+  erg.lib = e;
+  if (s.bauart !== "geflogen" || !e) { erg.gesamtKg = erg.spaltenKg.reduce((a, x) => a + x.kg, 0); return erg; }
+  const led = e.attribute.led || {};
+  const breite = (led.breiteModule || 1) * (erg.spaltenKg[0]?.b || 500);
+  const n = Math.max(1, Math.ceil(g.b / breite - 1e-6));
+  const rahmenKg = e.attribute.gewicht;
+  if (!Number.isFinite(rahmenKg)) erg.unbekannt.push("Rahmengewicht");
+  const punkteVorlage = Array.isArray(led.punkte) && led.punkte.length ? led.punkte : [{ xMm: breite * 0.25, lastMaxKg: null }, { xMm: breite * 0.75, lastMaxKg: null }];
+  for (let i = 0; i < n; i++) {
+    const x0 = g.x + i * breite;
+    const unter = erg.spaltenKg.filter(sp => sp.x + sp.b / 2 >= x0 && sp.x + sp.b / 2 < x0 + breite);
+    const kg = unter.reduce((a, sp) => a + sp.kg, 0) + (Number.isFinite(rahmenKg) ? rahmenKg : 0);
+    const rahmen = { nr: i + 1, x: x0, b: breite, y: g.y, kg, spalten: unter.length, lastMaxKg: led.lastMaxKg ?? null };
+    erg.rahmen.push(rahmen);
+    for (const p of punkteVorlage) erg.punkte.push({ rahmen: i + 1, x: x0 + p.xMm, kg: kg / punkteVorlage.length, lastMaxKg: p.lastMaxKg ?? null });
+    erg.gesamtKg += kg;
+  }
+  return erg;
+}
+
+/* SVG-Zusatz: Rahmen und Punkte über dem Screen */
+function riggingSvg(s) {
+  const d = riggingDaten(s);
+  if (s.bauart !== "geflogen" || !d.rahmen.length || !s.rigging.anzeigen) return "";
+  const g = grenzen(s.module);
+  const mm = Math.max(g.b, g.h, 1000);
+  const h = mm * 0.035, st = Math.max(4, mm / 900), fs = mm * 0.022;
+  let t = `<g class="rigging" pointer-events="none">`;
+  for (const r of d.rahmen) {
+    const ueber = r.lastMaxKg && r.kg > r.lastMaxKg;
+    t += `<rect x="${r.x + st}" y="${g.y - h - st}" width="${r.b - 2 * st}" height="${h}" fill="none" stroke="${ueber ? "#d29922" : "#e8e8e8"}" stroke-width="${st * 1.4}"/>
+      <text x="${r.x + r.b / 2}" y="${g.y - h - st * 3}" font-size="${fs}" fill="#e8e8e8" text-anchor="middle">${fmt(r.kg, 1)} kg</text>`;
+  }
+  for (const p of d.punkte) {
+    const ueber = p.lastMaxKg && p.kg > p.lastMaxKg;
+    const y0 = g.y - h - st, y1 = y0 - mm * 0.09;
+    t += `<line x1="${p.x}" y1="${y0}" x2="${p.x}" y2="${y1}" stroke="#9a9a9a" stroke-width="${st}" stroke-dasharray="${st * 6} ${st * 4}"/>
+      <circle cx="${p.x}" cy="${y1}" r="${mm * 0.008}" fill="#141414" stroke="${ueber ? "#d29922" : "#e8e8e8"}" stroke-width="${st * 1.2}"/>
+      <text x="${p.x}" y="${y1 - mm * 0.016}" font-size="${fs * 0.85}" fill="#9a9a9a" text-anchor="middle">${fmt(p.kg, 1)}</text>`;
+  }
+  return t + `<text x="${g.x}" y="${g.y - h - mm * 0.15}" font-size="${fs}" fill="#9a9a9a">Aufhängepunkte · Last je Punkt in kg (Richtwert, gleichmäßig verteilt)</text></g>`;
+}
+
+function riggingKarte(s) {
+  const d = riggingDaten(s);
+  const serien = [...new Set(s.module.map(m => eintrag(m.lib)?.attribute?.led?.serie))];
+  const passend = libListe("rigging").filter(e => (e.attribute.led.art === (s.bauart === "geflogen" ? "flugrahmen" : "stacking")));
+  const maxPunkt = Math.max(0, ...d.punkte.map(p => p.kg));
+  return `<div class="karte"><div class="label">Rigging · ${s.bauart}</div>
+    <label class="feld"><span>${s.bauart === "geflogen" ? "Flugrahmen" : "Stacking / Bodenstütze"}</span><select data-rig="lib"><option value="">— keiner —</option>
+      ${passend.map(e => `<option value="${e.id}"${s.rigging?.lib === e.id ? " selected" : ""}${eintragNutzbar(e) ? "" : " disabled"}>${esc(e.name)}${eintragNutzbar(e) ? "" : " (Pflicht fehlt)"}${(e.attribute.led.serien || []).some(x => serien.includes(x)) ? "" : " – andere Serie"}</option>`).join("")}</select></label>
+    <label class="feld check"><input type="checkbox" data-rig="anzeigen" ${s.rigging?.anzeigen !== false ? "checked" : ""}><span>In der Zeichnung anzeigen</span></label>
+    <table class="werte">${s.bauart === "geflogen" && d.rahmen.length ? `<tr><td>Flugrahmen</td><td>${d.rahmen.length}</td></tr><tr><td>Aufhängepunkte</td><td>${d.punkte.length}</td></tr>
+      <tr><td>Max. Last je Punkt</td><td>${fmt(maxPunkt, 1)} kg</td></tr>` : ""}
+      <tr><td>${s.bauart === "geflogen" ? "Gesamtlast" : "Bodenlast gesamt"}</td><td>${fmt(d.gesamtKg, 1)} kg${d.unbekannt.length ? " + ?" : ""}</td></tr>
+      ${s.bauart === "gestellt" ? `<tr><td>Max. je Spalte</td><td>${fmt(Math.max(0, ...d.spaltenKg.map(x => x.kg)), 1)} kg</td></tr>` : ""}</table>
+    <p class="klein leise">Richtwerte. Ersetzt keine Statik – Freigabe ${P.regeln.riggingFreigabe === "extern" ? "extern" : "intern"} durch fachkundige Person.</p></div>`;
+}
+
+function riggingPruefungen() {
+  const liste = [];
+  for (const s of P.screens.filter(s => s.module.length)) {
+    const d = riggingDaten(s);
+    if (s.bauart === "geflogen" && !d.lib) liste.push({ art: "info", text: `${s.name}: kein Flugrahmen gewählt – Lasten je Punkt nicht berechnet.`, ziel: "screen:" + s.id });
+    if (d.unbekannt.length) liste.push({ art: "warn", text: `${s.name}: Rigging-Last unvollständig (${d.unbekannt.join(", ")} fehlt).`, ziel: "screen:" + s.id });
+    for (const r of d.rahmen) if (r.lastMaxKg && r.kg > r.lastMaxKg) liste.push({ art: "warn", text: `${s.name}: Flugrahmen ${r.nr} trägt ${fmt(r.kg, 1)} kg, zulässig ${fmt(r.lastMaxKg)} kg.`, ziel: "screen:" + s.id });
+    for (const p of d.punkte) if (p.lastMaxKg && p.kg > p.lastMaxKg) liste.push({ art: "warn", text: `${s.name}: Punkt an Rahmen ${p.rahmen} mit ${fmt(p.kg, 1)} kg über ${fmt(p.lastMaxKg)} kg.`, ziel: "screen:" + s.id });
+    if (d.lib && d.rahmen.some(r => !r.lastMaxKg)) liste.push({ art: "warn", text: `${s.name}: zulässige Last des Flugrahmens unbekannt – nicht geprüft.`, ziel: "library:" + d.lib.id });
+  }
+  return liste;
+}
+
+function riggingEreignisse() {
+  $("#rechts").addEventListener("change", e => {
+    if (ui.reiter !== "aufbau") return;
+    const f = e.target.dataset.rig; if (!f) return;
+    const s = aktuellerScreen(); riggingDaten(s);
+    if (f === "lib") { s.rigging.lib = e.target.value || null; if (s.rigging.lib) nutzeEintrag(s.rigging.lib); }
+    if (f === "anzeigen") s.rigging.anzeigen = e.target.checked;
+    aenderung();
   });
 }
 
@@ -3332,6 +3442,7 @@ const REGEL_FELDER = [
   { k: "catMax", label: "Max. Cat-Länge (m)", art: "zahl", min: 1, max: 500 },
   { abschnitt: "Druck" },
   { k: "druckZusatz", label: "Zusatz Großformat", art: "auswahl", optionen: [["A3", "A3 quer"], ["A4", "A4 quer"], ["keins", "keins"]] },
+  { k: "riggingFreigabe", label: "Freigabefeld Rigging", art: "auswahl", optionen: [["intern", "intern"], ["extern", "extern (Location/Statiker)"]] },
 ];
 const PROJEKT_FELDER = [["titel", "Titel / Projektname *"], ["kunde", "Kunde"], ["veranstaltung", "Veranstaltung"], ["ort", "Ort / Location"], ["ersteller", "Ersteller"], ["revision", "Revision"], ["datum", "Datum"]];
 
@@ -3417,6 +3528,7 @@ function beispielProjektLaden() {
   const v = verteilerAnlegen("beispiel-stagesmarts-c24", false);
   v.standort = "Bühne links hinten"; v.speisung.von = ein.id; v.speisung.laengeM = 25;
   s.strom.verteilung = "ausgang";
+  s.rigging = { lib: "beispiel-flugrahmen-1m", anzeigen: true }; nutzeEintrag("beispiel-flugrahmen-1m");
   gespeicherterStand = null;
   historieStart();
   ui.haupt = "planen"; ui.reiter = "strom";
@@ -3524,7 +3636,7 @@ function berichtHtml() {
     const typen = [...x.typen.entries()].map(([lib, n]) => `<tr><td>${esc(eintrag(lib)?.name)}</td><td class="z">${n}</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.gewicht || 0), 1)} kg</td><td class="z">${fmt(n * (eintrag(lib)?.attribute?.stromverbrauch || 0))} W</td></tr>`).join("");
     blaetter.push(`<div class="blatt">${kopfzeile("Aufbau " + s.name, "Blatt " + (++nr))}<h2>Aufbau · ${esc(s.name)}</h2>
       <p>${esc(s.beschreibung || "")} · ${s.bauart}${s.ukM != null ? " · Unterkante " + fmtFlex(s.ukM) + " m" : ""} · ${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m · ${fmt(pl.b)} × ${fmt(pl.h)} px</p>
-      ${druckSvg(s, {}, 120)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
+      ${druckSvg(s, { zusatz: riggingSvg(s) }, 120)}${riggingDruckTabelle(s)}<h3>Module</h3><table><tr><th>Typ</th><th class="z">Anzahl</th><th class="z">Gewicht</th><th class="z">Leistung max.</th></tr>${typen}
       <tr><td><b>Summe</b></td><td class="z"><b>${x.anzahl}</b></td><td class="z"><b>${fmt(x.kg, 1)} kg</b></td><td class="z"><b>${fmt(x.wMax)} W</b></td></tr></table></div>`);
     const kreise = kreiseVon(s.id);
     if (kreise.length) blaetter.push(`<div class="blatt">${kopfzeile("Strom " + s.name, "Blatt " + (++nr))}<h2>Strom · ${esc(s.name)}</h2>${druckSvg(s, stromDruckOpt(s), 120)}
@@ -3565,6 +3677,15 @@ function berichtHtml() {
   return druckSeite(`${P.daten.titel} – Bericht`, "A4hoch", blaetter.join(""));
 }
 
+function riggingDruckTabelle(s) {
+  const d = riggingDaten(s);
+  if (s.bauart !== "geflogen" || !d.rahmen.length) return `<p style="font-size:9pt">${s.bauart === "gestellt" ? "Gestellt · Bodenlast gesamt " + fmt(d.gesamtKg, 1) + " kg" : "Kein Flugrahmen gewählt."}</p>`;
+  return `<h3>Rigging</h3><table><tr><th>Rahmen</th><th class="z">Spalten</th><th class="z">Last Rahmen</th><th class="z">Last je Punkt</th><th class="z">Zulässig</th></tr>
+    ${d.rahmen.map(r => `<tr><td>${esc(d.lib.name)} · ${r.nr}</td><td class="z">${r.spalten}</td><td class="z">${fmt(r.kg, 1)} kg</td><td class="z">${fmt(r.kg / (d.punkte.length / d.rahmen.length), 1)} kg</td><td class="z">${r.lastMaxKg ? fmt(r.lastMaxKg) + " kg" : "—"}</td></tr>`).join("")}
+    <tr><td><b>Gesamt</b></td><td></td><td class="z"><b>${fmt(d.gesamtKg, 1)} kg${d.unbekannt.length ? " + ?" : ""}</b></td><td></td><td></td></tr></table>
+    <p style="font-size:8pt;color:#666">Richtwerte, gleichmäßig auf die Punkte verteilt${d.unbekannt.length ? " · fehlt: " + esc(d.unbekannt.join(", ")) : ""}. Freigabe: ${P.regeln.riggingFreigabe === "extern" ? "extern (Location/Statiker)" : "intern"} · Name: ____________ Datum: ________</p>`;
+}
+
 function schriftfeld(planTitel, blatt) {
   const d = P.daten;
   return `<div class="schriftfeld"><div><span>Projekt</span>${esc(d.titel)}</div><div><span>Plan</span>${esc(planTitel)}</div><div><span>Kunde</span>${esc(d.kunde || "—")}</div>
@@ -3576,7 +3697,7 @@ function grossformatHtml(format) {
   let nr = 0;
   const plaene = [];
   for (const s of P.screens) {
-    plaene.push(["Aufbau · " + s.name, druckSvg(s, {}, hoehe)]);
+    plaene.push(["Aufbau / Rigging · " + s.name, druckSvg(s, { zusatz: riggingSvg(s) }, hoehe) + riggingDruckTabelle(s)]);
     if (kreiseVon(s.id).length) plaene.push(["Strom · " + s.name, druckSvg(s, stromDruckOpt(s), hoehe)]);
     if (straengeVon(s.id).length) plaene.push(["Signal · " + s.name, druckSvg(s, signalDruckOpt(s), hoehe)]);
   }
@@ -3604,7 +3725,7 @@ function start() {
   historieStart();
   ui.screen = P.screens[0]?.id || null;
   gerustEreignisse();
-  for (const f of [aufbauEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
+  for (const f of [aufbauEreignisse, riggingEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,
     typeof einstellungenEreignisse === "function" && einstellungenEreignisse]) if (f) f();

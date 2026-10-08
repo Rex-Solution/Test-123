@@ -5,7 +5,7 @@ function start() {
   historieStart();
   ui.screen = P.screens[0]?.id || null;
   gerustEreignisse();
-  for (const f of [aufbauEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
+  for (const f of [aufbauEreignisse, riggingEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,
     typeof einstellungenEreignisse === "function" && einstellungenEreignisse]) if (f) f();

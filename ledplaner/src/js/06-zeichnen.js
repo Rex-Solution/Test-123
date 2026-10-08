@@ -37,7 +37,8 @@ function screenSvgInhalt(screen, opt = {}) {
       <text x="${g.x + g.b / 2}" y="${y - a / 4}" font-size="${fs}" fill="#9a9a9a" text-anchor="middle">${fmt(g.b)} mm</text>
       <text x="${x + a / 4}" y="${g.y + g.h / 2}" font-size="${fs}" fill="#9a9a9a" text-anchor="middle" transform="rotate(90 ${x + a / 4} ${g.y + g.h / 2})">${fmt(g.h)} mm</text>`);
   }
-  if (opt.oben) teile.push(`<text x="${g.x}" y="${g.y - mm * 0.03}" font-size="${mm * 0.028}" fill="#9a9a9a">${esc(opt.oben)}</text>`);
+  if (opt.zusatz) teile.push(opt.zusatz);
+  if (opt.oben) teile.push(`<text x="${g.x}" y="${g.y - mm * (opt.zusatz ? 0.22 : 0.03)}" font-size="${mm * 0.028}" fill="#9a9a9a">${esc(opt.oben)}</text>`);
   return teile.join("");
 }
 
@@ -71,8 +72,9 @@ function wegSvg(screen, w, lx, mm) {
 function einpassAnsicht(screen) {
   const g = grenzen(screen.module);
   if (!screen.module.length) return { x: -1000, y: -1000, b: 8000, h: 5000 };
-  const rand = Math.max(g.b, g.h) * 0.12 + 300;
-  return { x: g.x - rand, y: g.y - rand, b: g.b + 2 * rand, h: g.h + 2 * rand };
+  const mm = Math.max(g.b, g.h, 1000);
+  const rand = mm * 0.12 + 300, oben = rand + mm * 0.18; // oben Platz für Rigging und Titel
+  return { x: g.x - rand, y: g.y - oben, b: g.b + 2 * rand, h: g.h + rand + oben };
 }
 function ansicht(screen) {
   if (!ui.ansicht.has(screen.id)) ui.ansicht.set(screen.id, einpassAnsicht(screen));
