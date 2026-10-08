@@ -34,7 +34,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/06-zeichnen.js` | Screen als SVG (1 Einheit = 1 mm), Wege/Pfeile, Zoom/Verschieben |
 | `js/07-touch.js` | Tablet: Zwei-Finger-Zoom/-Verschieben (bricht laufende Aktionen ab), Zoom-Knöpfe, Module mit dem Finger aus der Palette ziehen, ausklappbare Seitenspalten (≤ 900 px) |
 | `js/09-baum.js` | Projektbaum: Überschrift = Übersicht (Screens/Verteiler/Prozessoren), Kontextmenü (Rechtsklick, Tablet lange drücken): hinzufügen, duplizieren, löschen; Übersicht aller Screens |
-| `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
+| `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Palette-Klick setzt X × Y Module (fragt die Anzahl), Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
 | `js/12-kurve.js` | Kurven/Winkel: Knick an senkrechten Fugen (`s.winkel`), Winkel oder Radius, Draufsicht mit Sehne/Stich/Radius, Prüfungen (Library-Winkel, Flugrahmen über Knick) |
 | `js/13-dreid.js` | 3D-Ansicht ohne Bibliotheken (SVG, Maler-Verfahren): Module, Kurve, Unterkante, Flugrahmen, Boden-Raster, Person 1,80 m; drehen/zoomen mit Maus und Fingern |
 | `js/15-rigging.js` | Rigging: Bracket-Raster (Module fest an Plätzen), Brackets automatisch (Rest ergänzen/halb, Seite), Flugrahmen oben / Stacking unten, Last je Bracket und Punkt, Lücken-Prüfung |
@@ -89,7 +89,7 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-158 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+163 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).

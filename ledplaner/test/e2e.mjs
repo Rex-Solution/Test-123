@@ -99,6 +99,22 @@ await ev(() => { ui.auswahl.clear(); });
 await p.click('[data-a="spiegel-y"]');
 pruefe("Spiegeln ↕ legt sWH-Reihe nach oben", await ev(() => P.screens[0].module.filter(m => m.lib.includes("p4swh")).every(m => m.y === 0)));
 await p.click('[data-a="spiegel-y"]');
+
+// Klick auf ein Modul in der Palette fragt nach Anzahl X/Y
+const vorPalette = await ev(() => P.screens[0].module.length);
+await p.click('#palette [data-lib="beispiel-ledtek-p4wh-pro-v3"]');
+pruefe("Palette-Klick öffnet Dialog mit Anzahl X/Y", await p.locator('#dialog [name="spalten"]').isVisible() && await p.locator('#dialog [name="reihen"]').isVisible());
+await p.click('#dialog button[value="abbruch"]'); await p.waitForTimeout(80);
+pruefe("Abbrechen setzt nichts", await ev(n => P.screens[0].module.length === n, vorPalette));
+await p.click('#palette [data-lib="beispiel-ledtek-p4wh-pro-v3"]');
+await dialog({ spalten: 10, reihen: 4 });
+const gesetzt = await ev(n => { const neu = P.screens[0].module.slice(n); const g = grenzen(neu); return { n: neu.length, x: g.x, y: g.y, b: g.b, h: g.h, sel: ui.auswahl.size }; }, vorPalette);
+pruefe("Palette-Klick setzt 10 × 4 Module rechts daneben, oben bündig", gesetzt.n === 40 && gesetzt.x === 3000 && gesetzt.y === 0 && gesetzt.b === 5000 && gesetzt.h === 4000 && gesetzt.sel === 40, JSON.stringify(gesetzt));
+await p.click('#palette [data-lib="beispiel-ledtek-p4wh-pro-v3"]');
+pruefe("Dialog merkt sich die letzte Anzahl", await p.locator('#dialog [name="spalten"]').inputValue() === "10" && await p.locator('#dialog [name="reihen"]').inputValue() === "4");
+await dialog({ x: 0, y: 0 });
+pruefe("Überlappung beim Setzen wird abgelehnt", await ev(n => P.screens[0].module.length === n + 40, vorPalette));
+await ev(n => { const s = P.screens[0]; s.module.splice(n); ui.auswahl.clear(); render(); }, vorPalette);
 await p.screenshot({ path: path.join(AUSGABE, "aufbau.png") });
 
 /* ---------- Beispielprojekt: Strom, Signal, Kabel ---------- */

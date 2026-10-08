@@ -35,8 +35,8 @@ REITER.aufbau = {
       return `<div class="palette-item" draggable="${nutzbar}" data-lib="${e.id}" title="${nutzbar ? "In die Zeichnung ziehen oder anklicken" : "Pflichtangaben fehlen – in der Library ergänzen"}" style="${nutzbar ? "" : "opacity:.5"}">
         <span class="form" style="width:${Math.max(6, (led.mmB || 500) * f)}px;height:${Math.max(6, (led.mmH || 500) * f)}px"></span>
         <span class="name">${esc(e.name)}</span>${badgeHtml(e)}</div>`;
-    }).join("") + (bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? `<p class="klein leise">Bracket-Raster aktiv: Module sitzen fest an Bracket-Plätzen und rasten beim Ziehen, Einfügen und mit den Pfeiltasten nur dort ein.</p>` : "") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: rechts anfügen.
-      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen${bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? "" : " (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei)"}. Klick: rechts anfügen.
+    }).join("") + (bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? `<p class="klein leise">Bracket-Raster aktiv: Module sitzen fest an Bracket-Plätzen und rasten beim Ziehen, Einfügen und mit den Pfeiltasten nur dort ein.</p>` : "") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: Anzahl in X und Y wählen und setzen.
+      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen${bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? "" : " (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei)"}. Klick: Anzahl in X und Y wählen und setzen.
       <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`);
   },
 
@@ -179,13 +179,40 @@ function modulHinzufuegen(s, lib, x, y) {
   return m;
 }
 
-/* Klick in der Palette: rechts neben den vorhandenen Modulen (oben bündig) anfügen */
-function modulAnfuegen(lib) {
+/* Klick in der Palette: fragen, wie viele Module in X und Y – Standard rechts neben den vorhandenen (oben bündig) */
+async function modulAnfuegen(lib) {
   const s = aktuellerScreen();
   if (!s) return toast("Bitte zuerst einen Screen anlegen.", "fehler");
   const g = grenzen(s.module);
-  const m = modulHinzufuegen(s, lib, s.module.length ? g.x + g.b : 0, s.module.length ? g.y : 0);
-  if (m) { ui.auswahl = new Set([m.id]); aenderung(); }
+  const vorher = ui.letzteAnzahl || { x: 1, y: 1 };
+  const erg = await formularDialog(`Module setzen · ${eintrag(lib)?.name || lib}`, [
+    { name: "spalten", label: "Anzahl X (nebeneinander)", art: "zahl", wert: vorher.x },
+    { name: "reihen", label: "Anzahl Y (untereinander)", art: "zahl", wert: vorher.y },
+    { name: "x", label: "Position X (mm, links)", art: "zahl", wert: s.module.length ? g.x + g.b : 0 },
+    { name: "y", label: "Position Y (mm, oben)", art: "zahl", wert: s.module.length ? g.y : 0 },
+    { name: "hinweis", art: "hinweis", label: "Standard: rechts neben den vorhandenen Modulen, oben bündig. Y wächst nach unten." },
+  ], "Setzen");
+  if (!erg) return;
+  if (rasterSetzen(s, lib, erg.spalten, erg.reihen, erg.x, erg.y)) ui.letzteAnzahl = { x: Math.round(erg.spalten), y: Math.round(erg.reihen) };
+}
+
+/* Raster aus sp × re Modulen ab (x, y) setzen; rastet auf Bracket-Plätze ein. true = gesetzt */
+function rasterSetzen(s, lib, spalten, reihen, x, y) {
+  const sp = Math.round(spalten), re = Math.round(reihen);
+  if (!(sp >= 1 && sp <= 200 && re >= 1 && re <= 200)) return toast("Anzahl X/Y: 1 bis 200.", "fehler"), false;
+  nutzeEintrag(lib);
+  const { b, h } = modMass({ lib });
+  const raster = bracketRaster(s, lib);
+  const start = raster ? aufRaster(raster, x || 0, y || 0) : { x: Math.round(x || 0), y: Math.round(y || 0) };
+  const neu = [];
+  for (let r = 0; r < re; r++) for (let c = 0; c < sp; c++) neu.push({ id: neueId("m"), lib, x: start.x + c * b, y: start.y + r * h });
+  if (!platzFrei(s, neu.map(modRect))) return toast("Dort ist kein Platz – die Module würden vorhandene überlappen.", "fehler"), false;
+  const ganzSichtbar = !s.module.length || neu.length > 1;
+  s.module.push(...neu);
+  ui.auswahl = new Set(neu.map(m => m.id));
+  if (ganzSichtbar) ui.ansicht.delete(s.id);
+  aenderung();
+  return true;
 }
 
 async function rasterEinfuegen() {
@@ -202,19 +229,7 @@ async function rasterEinfuegen() {
     { name: "hinweis", art: "hinweis", label: "Standard: unter den vorhandenen Modulen. Y wächst nach unten." },
   ], "Einfügen");
   if (!erg) return;
-  const sp = Math.round(erg.spalten), re = Math.round(erg.reihen);
-  if (!(sp >= 1 && sp <= 200 && re >= 1 && re <= 200)) return toast("Spalten/Reihen: 1 bis 200.", "fehler");
-  nutzeEintrag(erg.lib);
-  const { b, h } = modMass({ lib: erg.lib });
-  const raster = bracketRaster(s, erg.lib);
-  const start = raster ? aufRaster(raster, erg.x || 0, erg.y || 0) : { x: erg.x || 0, y: erg.y || 0 };
-  const neu = [];
-  for (let r = 0; r < re; r++) for (let c = 0; c < sp; c++) neu.push({ id: neueId("m"), lib: erg.lib, x: start.x + c * b, y: start.y + r * h });
-  if (!platzFrei(s, neu.map(modRect))) return toast("Das Raster überlappt vorhandene Module.", "fehler");
-  s.module.push(...neu);
-  ui.auswahl = new Set(neu.map(m => m.id));
-  ui.ansicht.delete(s.id);
-  aenderung();
+  rasterSetzen(s, erg.lib, erg.spalten, erg.reihen, erg.x, erg.y);
 }
 
 async function erweiternKuerzen() {

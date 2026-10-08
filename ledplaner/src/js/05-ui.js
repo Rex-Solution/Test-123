@@ -9,6 +9,7 @@ const ui = {
   auswahl: new Set(),         // gewählte Module (ids)
   werkzeug: "auswahl",        // auswahl | pinsel
   ansicht: new Map(),         // je Screen: viewBox { x, y, b, h }
+  letzteAnzahl: null,         // zuletzt gewählte Anzahl X/Y beim Setzen aus der Palette
   hinten: false,              // Rückansicht im Aufbau
   sel: { verteiler: null, kreis: null, prozessor: null, strang: null, kabel: null, laka: null, output: null, weg: null },
   pinsel: { strom: null, signal: null },  // Ziel des Pinsels: { verteiler, kanal } bzw. { prozessor, port }
