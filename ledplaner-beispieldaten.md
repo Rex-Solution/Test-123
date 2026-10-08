@@ -107,7 +107,7 @@ A8s)** → sie dürfen laut Port-Regel **auf denselben Datenport**.
 | Genlock | BNC ein + Loop ✅ |
 | Steuerung | 2 × RJ45 Control, RS-232, USB; VMP-Software, SNMP, Art-Net ✅ |
 | Leistung | max. 55 W, 100–240 V AC ✅ |
-| Unterstützte Receiving Cards | NovaStar Armor-Serie, u.a. **A8s** 🔢 (COEX-Familie – mit NovaStar-Kompatibilitätsliste prüfen) |
+| Unterstützte Receiving Cards | NovaStar **A8s** ✅ (Kompatibilität vom Anwender bestätigt, 08.10.2026) |
 | Bauform | 19″, Höhe ❓, Gewicht ❓ |
 
 ```jsonc
@@ -118,7 +118,7 @@ A8s)** → sie dürfen laut Port-Regel **auf denselben Datenport**.
   "attribute": {
     "hersteller": "NovaStar",
     "familie": "COEX",
-    "receivingCards": ["NovaStar A8s"],      // 🔢 prüfen, ggf. weitere Armor-Karten
+    "receivingCards": ["NovaStar A8s"],      // ✅ vom Anwender bestätigt
     "eingaenge": [
       { "name": "HDMI 2.0", "typ": "HDMI", "maxB": 4096, "maxH": 2160, "maxHz": 60, "loop": true },
       { "name": "HDMI 1.4", "typ": "HDMI", "maxB": 4096, "maxH": 1080, "maxHz": 60, "loop": true },
@@ -137,7 +137,51 @@ A8s)** → sie dürfen laut Port-Regel **auf denselben Datenport**.
 }
 ```
 
-## 3. Platzhalter für die übrigen Kategorien
+## 3. Stromverteiler: StageSmarts C24
+
+24-Kanal-Stromverteiler im 19″-Rack, typisch für LED-Wände – passt zum
+Konzept „Laka mit Spinne“: je Harting-Ausgang eine Laka, an der Wand eine Spinne.
+
+| Eigenschaft | Wert |
+| --- | --- |
+| Bauform | 19″, 6 HE, 483 × 266 × 359 mm ✅ |
+| Gewicht | 18 kg ⚠️ (ältere Angaben 23 kg) |
+| Einspeisung | Harting 4-pol + PE, **63 A**, 230/400 V TN-S ✅; Zuleitung fest oder steckbar mit **CEE 32 A oder 63 A** ✅ (ältere Version: ILME 80 A ⚠️) |
+| Hauptschalter | Lasttrenner 4-pol 63 A ✅ |
+| Kanäle | **24 × 16 A**, je Kanal **FI/LS 16 A / 30 mA, C-Charakteristik**, FI Typ A ✅ |
+| Ausgänge (Varianten) | **4 × Harting 16-pol, je 6 Kanäle** ✅ · 3 × Harting 16-pol, je 8 Kanäle ✅ · 4 × Socapex 19-pol (je 6 Kanäle) ⚠️ |
+| Phasenzuordnung | ❓ (vermutlich gleichmäßig 8 Kanäle je Phase – aus Handbuch prüfen) |
+| Messung | Spannungen, Ströme (inkl. Neutralleiter), Leistungsfaktor, Frequenz; Last je Kanal in Echtzeit ✅; Webserver optional ✅ |
+| Hinweis | Ein Handbuch beschreibt eine abweichende Variante (Powerlock 500 A, 20 Ausgänge) ⚠️ – Variante bei Bestellung beachten |
+
+```jsonc
+{
+  "id": "stagesmarts-c24-4h6",
+  "name": "StageSmarts C24 (4 × Harting, 6 Kanäle)",
+  "kategorie": "Stromverteiler",
+  "attribute": {
+    "hersteller": "StageSmarts",
+    "einspeisung": { "typ": "Harting 4P+PE / CEE", "ampere": 63, "netz": "TN-S 230/400 V" },
+    "hauptschalter": { "ampere": 63, "pole": 4 },
+    "kanaele": { "anzahl": 24, "ampere": 16, "charakteristik": "C", "fi": "30 mA Typ A", "phasen": null },  // ❓ Zuordnung
+    "ausgaenge": [
+      { "typ": "Harting 16-pol", "anzahl": 4, "kanaeleJeAusgang": 6 }
+    ],
+    "messung": ["Spannung", "Strom je Kanal", "Neutralleiter", "Leistungsfaktor"],
+    "he": 6, "kg": 18,
+    "quelle": "StageSmarts Datenblatt / Händler, Stand 10/2026"
+  }
+}
+```
+
+Passende Laka/Spinne (generisch, nicht vom Hersteller):
+
+| Eintrag | Werte |
+| --- | --- |
+| Laka „Harting 16-pol, 6 Kreise“ | 6 × 16 A, Längen 10/25/50 m (Bestand ❓) |
+| Spinne „Harting 16-pol → 6 × PowerCON TRUE1“ | 6 Abgänge, Kreise 1–6 der Laka |
+
+## 4. Platzhalter für die übrigen Kategorien
 
 Für diese Kategorien wurden keine konkreten Geräte genannt. Die Einträge sind
 **generische Beispiele** (keine Herstellerdaten), damit Strom und Signal schon
@@ -145,14 +189,12 @@ durchgespielt werden können. Später durch euren Bestand ersetzen.
 
 | Kategorie | Beispiel | Wichtige Werte |
 | --- | --- | --- |
-| Stromverteiler | „Verteiler 32 A → 6 × 16 A“ | Einspeisung CEE 32 A 5-pol; 6 Abgänge 16 A (PowerCON TRUE1), je 2 pro Phase, Charakteristik C, FI 30 mA |
-| Stromverteiler | „Verteiler 63 A → 2 × 32 A + 6 × 16 A“ | Einspeisung CEE 63 A; Unterverteiler-Abgänge 2 × CEE 32 A |
-| Laka + Spinne | „Laka 16-pol, 6 Kreise“ | 6 × 16 A, Längen 10/25/50 m, Spinne 6 × PowerCON TRUE1 |
+| Hauptverteiler | „Verteiler 125 A → 2 × CEE 63 A“ | für mehrere C24 bzw. Powerlock/Aggregat davor |
 | Stagebox (aktiv) | „Glasfaser-Konverter 10G → 10 × 1G“ (z.B. NovaStar CVT10-Klasse) | 1 × 10G optisch ein, 10 × etherCON aus, eigener Stromanschluss ❓ W |
 | Multicore (passiv) | „Cat-Multicore 4-fach“ | 4 × etherCON, Längen 25/50 m, Cat max. 100 m je Strecke |
 | Bracket / Bumper | „Flugrahmen 1 m“ | für 2 × 500er Module nebeneinander, Eigengewicht ❓, zul. Last ❓, 2 Aufhängepunkte |
 
-## 4. Durchgerechnetes Beispiel
+## 5. Durchgerechnetes Beispiel
 
 **Screen „Bühne Mitte“**, geflogen, Unterkante 2,50 m: 12 Spalten × 3 Reihen
 **P4+WH PRO V3** (500 × 1000), darunter 1 Reihe **P4+sWH PRO V3** (500 × 500).
@@ -167,6 +209,7 @@ durchgespielt werden können. Später durch euren Bestand ersetzen.
 | Leistung max. / typ. | 36 × 175 + 12 × 88 / 36 × 90 + 12 × 45 | **7.356 W / 3.780 W** 🔢 |
 
 **Signal (NovaStar MX30)**
+- MX30 und A8s sind kompatibel ✅.
 - 908.544 px ÷ 659.722 px je Port → **2 Ports** (Auslastung je ca. 69 %), mit gespiegeltem Backup **4 Ports** von 10.
 - WH und sWH dürfen auf denselben Port (gleiche Serie, A8s) → z.B. Port 1 = linke 6 Spalten inkl. unterer sWH-Reihe, Port 2 = rechte 6 Spalten.
 - Gesamtkapazität 6,5 Mio. px → Prozessor zu ca. 14 % ausgelastet; reicht auch für weitere Screens.
@@ -174,21 +217,30 @@ durchgespielt werden können. Später durch euren Bestand ersetzen.
 - Offen ❓: max. Module je Datenstrang laut LEDTEK.
 
 **Strom** (Hausregel-Vorschlag: 16 A, 230 V, 20 % Reserve → 2.944 W je Kreis)
-- 7.356 W ÷ 2.944 W → **mindestens 3 Kreise**; gleichmäßig verteilt je ca. 2.452 W ≈ **10,7 A** → je Kreis eine Phase (L1/L2/L3), keine Schieflast.
-- Einspeisung: CEE 32 A reicht rechnerisch (je Phase 10,7 A) – mit Prozessor und Reserve für Erweiterung eher **CEE 63 A** über Verteiler.
-- Offen ❓: Einschaltstrom und max. Module je PowerCON-Brücke laut LEDTEK – davon hängt ab, ob 3 Kreise wirklich reichen oder mehr Kreise wegen der Brückengrenze nötig sind.
+- 7.356 W ÷ 2.944 W → rechnerisch **mindestens 3 Kreise**.
+- Mit **StageSmarts C24**: eine Laka (Harting-Ausgang 1, 6 Kreise) mit Spinne an der Wand → **6 Kreise à 8 Module**, z.B. je Kreis 2 Spalten (6 × WH + 2 × sWH = 1.050 + 176 = **1.226 W ≈ 5,3 A**, Auslastung 42 % von 2.944 W). Viel Reserve für Einschaltstrom und Brückengrenze.
+- Je 2 Kreise auf L1/L2/L3 → je Phase ca. 2.452 W ≈ **10,7 A**, keine Schieflast (Phasenzuordnung der C24-Kanäle ❓).
+- Einspeisung C24: **CEE 32 A** reicht rechnerisch, **63 A** lässt Platz für weitere Screens (3 freie Harting-Ausgänge = 18 Kreise).
+- Offen ❓: Einschaltstrom und max. Module je PowerCON-Brücke laut LEDTEK.
 
 **Aufbau**
 - 12 Spalten → z.B. 6 Flugrahmen à 1 m (je 2 Spalten) → Last je Rahmen ca. 100,4 kg + Rahmen.
 - Offen ❓: zulässige Anzahl Module untereinander (hier 3 × WH + 1 × sWH), Rahmengewicht und -last.
 
-## 5. Was für echte Planungen noch fehlt
+## 6. Was für echte Planungen noch fehlt
 
 1. LEDTEK-Datenblatt V3 (aktuell): Gewicht V3, Einschaltstrom, max. Module je Strom- und Datenbrücke, Rigging-Grenzen, Tiefe sWH.
-2. NovaStar: offizielle Kompatibilitätsliste MX30 ↔ A8s, Kapazität je Port bei 10 bit / 50 Hz.
-3. Eigene Stromverteiler, Lakas/Spinnen, Stageboxen, Multicores und Flugrahmen aus dem Bestand.
+2. NovaStar: Kapazität je Port bei 10 bit / 50 Hz.
+3. StageSmarts: Phasenzuordnung der 24 Kanäle, genaue Variante im Bestand.
+4. Eigene Lakas/Spinnen (Längen), Stageboxen, Multicores und Flugrahmen aus dem Bestand.
 
 ## Quellen
+
+- StageSmarts C24: https://www.stagesmarts.com/products/c24/
+- StageSmarts C24 Datenblatt (Trendco): https://www.trendco.de/wp-content/uploads/2019/09/StageSmarts_C24_en.pdf
+- C24 bei Gobo (Varianten): https://gobo.se/produkter/pdus-cables/smart-pdus/c24-pdu-all-versions
+- soundlightup – StageSmarts C24: https://en.soundlightup.com/news/stagesmarts-c24-distro-experts-with-brains.html
+- LEDTEK – The C24: https://www.led-tek.de/en/2021/06/c24-power-distribution-stagesmarts/
 
 - NovaStar MX30 Benutzerhandbuch V1.0.1: https://oss.novastar.tech/uploads/2023/07/MX30-LED-Display-Controller-User-Manual-V1.0.1.pdf
 - NovaStar MX30 bei B&H: https://www.bhphotovideo.com/c/product/1865470-REG/novastar_mx30_controller.html

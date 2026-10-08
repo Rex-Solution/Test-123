@@ -122,8 +122,9 @@ ungespeicherten Änderungen, Rückfrage nur vor Löschen/Datenverlust.
   | 4 | `#ffd43b` Gelb | 9 | `#ffc078` Apricot |
   | 5 | `#b197fc` Lila | 10 | `#91a7ff` Indigo |
 
-  Ab Kreis/Port 11 wiederholen sich die Farben mit **gestrichelter** Linie.
-  Backup-Wege: gleiche Farbe wie der Hauptweg, **gepunktet**. Überlastete Wege:
+  Ab Kreis/Port 11 wiederholen sich die Farben, ebenfalls **durchgezogen**
+  (Unterscheidung über die Nummer). Backup-Wege: gleiche Farbe wie der
+  Hauptweg, **gestrichelt**. Überlastete Wege:
   zusätzlich orange Umrandung (`--warnung`) und Prüfhinweis. Im Druck werden
   dieselben Töne dunkler abgestuft, damit sie auf Weiß lesbar bleiben.
 - **Phasen** (intern): L1 `#c08050` Braun · L2 `#e8e8e8` (steht für Schwarz; auf
@@ -308,8 +309,8 @@ es aber schon in Phase 1.
 
 ## 12. Offene Fragen
 
-1. **Bestand**: Eigene Stromverteiler, Lakas/Spinnen, Stageboxen, Multicores, Flugrahmen. LED-Module und Prozessor: Beispieldaten in `ledplaner-beispieldaten.md` (LEDTEK P4+WH/P4+sWH PRO V3, NovaStar MX30).
-2. **Datenblätter**: LEDTEK V3 (Einschaltstrom, max. Module je Brücke/Strang, Rigging-Grenzen), NovaStar-Kompatibilität MX30 ↔ A8s.
+1. **Bestand**: Stageboxen, Multicores, Flugrahmen. Beispieldaten für LED-Module, Prozessor und Stromverteiler in `ledplaner-beispieldaten.md` (LEDTEK P4+WH/P4+sWH PRO V3, NovaStar MX30, StageSmarts C24).
+2. **Datenblätter**: LEDTEK V3 (Einschaltstrom, max. Module je Brücke/Strang, Rigging-Grenzen), StageSmarts C24 (Phasenzuordnung der Kanäle).
 3. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
 
 ## 13. Stand und nächste Schritte
