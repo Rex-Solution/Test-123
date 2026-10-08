@@ -364,17 +364,15 @@ es aber schon in Phase 1.
 
 ## 13. Stand und nächste Schritte
 
-**Stand 08.10.2026** – geklärt: Plattform, Arbeitsablauf (Aufbau → Strom →
-Signal → Ausgabe), Oberfläche mit Hauptmenü und Werkzeugleiste, Library-Inhalte,
-Modul-Editor mit gemischten Modulen, Port-Regel (gleiche Serie + Receiving Card),
-Stromverteilung mit Ebenen/Laka/Pinsel/Übersicht, Einspeisungen und Hausregeln,
-Signal mit Kompatibilität, Stagebox/Multicore und gespiegeltem Backup, Ausgabe mit
-Outputs, Signal- und Ausgabe-Mapping (Pixelraum, Layer, Mischpitch, Sonderfälle),
-StageSmarts C24 als Stromverteiler, interne Farben, Druckformate, Rigging-Freigabe, Freischaltung, Verknüpfung mit
-geteilter Führung, Mehrbenutzer mit Sperre, Laptop + offline, Name, Rolle des
-Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
+**Stand 08.10.2026** – Konzeptphase (Phase 0) abgeschlossen, **Umsetzung begonnen**:
+`ledplaner.html` (Quellcode `ledplaner/src/`, Tests `ledplaner/test/e2e.mjs`, Übergabe `ledplaner/README.md`).
+
+Umgesetzt: Phase 1 vollständig (Projekte, Library-Manager, Modul-Editor, Strom mit Verteilern/Phasen/Laka/Pinsel,
+Verteiler-Übersicht, Kabel-Reiter, Testbild + Live je Screen, Bericht/Großformat/Kundenansicht, Hausregeln) und aus
+Phase 2 der Reiter Signal (Prozessoren, Port-Regel, Vorschlag + Pinsel, Backup am Strangende, Prozessor-Übersicht,
+Signalkabel).
 
 **Nächste Schritte:**
-1. Bestandsliste und Datenblätter nachreichen (laufend, blockiert nicht).
-2. **Phase 0 ist inhaltlich abgeschlossen**: Konzept, Rex-Styleguide, Beispieldaten (`ledplaner-beispieldaten.md`), Oberflächen-Skizze (`ledplaner-skizze.html`, abgestimmt) und Library-Datenformat (`ledplaner-library-format.md`) liegen vor.
-3. Nächster Schritt nach Freigabe: **Phase 1** (Modul-Editor + Strom + Kabel-Reiter für Strom) – Start der Programmierung erst auf ausdrückliche Entscheidung.
+1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.
+2. Phase 2 fertigstellen: Ausgabe-Mapping (Outputs → Eingänge → Layer, Pixelraum), Rigging-Lasten und Riggingplan, Stagebox/Multicore als Geräte.
+3. Bestandsliste und Datenblätter nachreichen (Lakas, Stageboxen, Multicores, Flugrahmen; LEDTEK-Grenzwerte, C24-Phasen).

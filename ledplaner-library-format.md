@@ -128,6 +128,7 @@ Anschlüsse: Eingang (z.B. Glasfaser), Ausgangs-Ports (Daten), Strom ein (`attri
 | `einspeisung.netz` | Text | – | z.B. `"TN-S 230/400 V"` |
 | `kanaele` | Liste | ✔ | je Kanal: `nr`, `ampere`, `charakteristik` (`B`/`C`/`D`), `fi` (z.B. `"30 mA Typ A"`), `phase` (`L1`/`L2`/`L3`/`null`), `ausgang` (Name des Ausgangs) |
 | `ausgaenge` | Liste | ✔ | je Ausgang: `name`, `stecker`, `kanaele` (Liste der Kanalnummern) |
+| `phasenBekannt` | ja/nein | Prüf | Phasenzuordnung der Kanäle bekannt; sonst nimmt der Planer L1/L2/L3 reihum an (Warnung) |
 | `messung` | ja/nein | – | Lastmessung je Kanal vorhanden |
 | `he` | Zahl | – | |
 
