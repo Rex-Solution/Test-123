@@ -40,7 +40,7 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Stromwege | **Vorschlag** des Programms oder **Pinsel**: Reihenfolge wird gemalt |
 | Verteiler-Übersicht | Last je Phase, Last je Abgang, **Max. und Durchschnitt**; kein automatischer Ausgleich |
 | Signal | Prozessor → **Stagebox (aktiv)** oder **Multicore (passiv)** → Wand; Prozessoren nur, wenn **Receiving Card** passt; Standort je Prozessor frei |
-| Datenwege | Vorschlag oder Pinsel; **Backup automatisch gespiegelt** mit eigenen Ports |
+| Datenwege | Vorschlag oder Pinsel; **Backup** automatisch auf eigenem Port, **gleicher Weg** wie der Hauptweg, eingespeist am Strangende; in der Zeichnung nur Marke „B1“ am Endpunkt |
 | Ausgabe | Zuspieler-Outputs mit **Format + Quelle**; Outputs ↔ Prozessor-Eingänge; **Ausschnitt → Fläche**, Standard 1:1, Skalierung möglich; **Layer gezählt** mit Grenze je Prozessor |
 | Signal-Mapping | Pixelraum je Prozessor: **Vorschlag nach physischer Lage, frei verschiebbar**; mehrere Prozessoren je Screen möglich |
 | Gemischter Pitch | **Je Screen wählbar**: eigener Ausschnitt je Bereich (1:1) oder gemeinsamer Ausschnitt mit Skalierung |
@@ -128,8 +128,9 @@ ungespeicherten Änderungen, Rückfrage nur vor Löschen/Datenverlust.
   | 5 | `#b197fc` Lila | 10 | `#91a7ff` Indigo |
 
   Ab Kreis/Port 11 wiederholen sich die Farben, ebenfalls **durchgezogen**
-  (Unterscheidung über die Nummer). Backup-Wege: gleiche Farbe wie der
-  Hauptweg, **gestrichelt**. Überlastete Wege:
+  (Unterscheidung über die Nummer). **Backup** läuft immer denselben Weg wie der
+  Hauptweg – keine eigene Linie, nur eine **Endpunkt-Marke** am letzten Modul
+  des Hauptwegs (z.B. „B1“ in der Farbe des Strangs). Überlastete Wege:
   zusätzlich orange Umrandung (`--warnung`) und Prüfhinweis. Im Druck werden
   dieselben Töne dunkler abgestuft, damit sie auf Weiß lesbar bleiben.
 - **Phasen** (intern): L1 `#c08050` Braun · L2 `#e8e8e8` (steht für Schwarz; auf
@@ -252,7 +253,7 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - Datenwege: **Vorlage** des Programms oder **Pinsel** (Port wählen → Module malen), wie beim Strom.
 - **Regel: ein Port = eine Serie mit derselben Receiving Card.** Verschiedene Größen derselben Serie dürfen auf denselben Port (z.B. 1 × 0,5 m und 0,5 × 0,5 m). Der Vorschlag bildet Stränge nur innerhalb einer Serie; der Pinsel überspringt Module einer anderen Serie bzw. Receiving Card (Hinweis). Screens mit mehreren Serien brauchen mindestens einen Port je Serie.
 - Die Library braucht dafür beim LED-Modul das Feld **Serie** (z.B. Herstellerserie), zusätzlich zu Receiving Card und Pitch.
-- **Backup automatisch gespiegelt**: Zu jedem Strang ein Rückweg vom letzten Modul, auf eigenem Port.
+- **Backup automatisch**: Zu jedem Strang ein Backup-Port, der am **letzten Modul** einspeist und denselben Weg rückwärts nutzt. Keine eigene Linie in der Zeichnung – nur die Marke „B1“ am Endpunkt des Hauptwegs; das Backup-Kabel steht im Kabel-Reiter.
 - **Liste unten**: jeder Port (Haupt/Backup) mit Gerät, Strang, Modulen, Pixeln, **Portauslastung**.
 - Kabelarten und Längen je Strecke, **Prozessor-Übersicht** zum Abtippen (Port → Startposition, Modulreihenfolge); Hersteller-Dateien später.
 

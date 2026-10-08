@@ -316,7 +316,7 @@
       </div>
       <div class="abschnitt">Signal</div>
       <div class="raster3">
-        <label class="feld"><span>Backup standardmäßig</span><select><option>an (gespiegelt)</option></select></label>
+        <label class="feld"><span>Backup standardmäßig</span><select><option>an (ab Strangende)</option></select></label>
         <label class="feld"><span>Max. Port-Auslastung (%)</span><input value="90"></label>
         <label class="feld"><span>Max. Cat-Länge (m)</span><input value="100"></label>
       </div>
@@ -384,7 +384,7 @@ function weg(g, mods, farbe, opts = {}) {
   const pts = mods.map(m => [m.x + m.b / 2 + (opts.versatz || 0), m.y + m.h / 2 + (opts.versatz || 0)]);
   add(g, "polyline", { points: pts.map(p => p.join(",")).join(" "), fill: "none", stroke: "#000", "stroke-width": 44, "stroke-linejoin": "round", opacity: .6 });
   add(g, "polyline", { points: pts.map(p => p.join(",")).join(" "), fill: "none", stroke: farbe, "stroke-width": 26,
-    "stroke-linejoin": "round", "stroke-dasharray": opts.gestrichelt ? "90 60" : "none" });
+    "stroke-linejoin": "round" });
   for (let i = 1; i < pts.length; i++) {
     const [x1, y1] = pts[i - 1], [x2, y2] = pts[i];
     const a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
@@ -521,14 +521,17 @@ const REITER = {
         const mods = [];
         for (let i = 0; i < 6; i++) mods.push(...spalte(p * 6 + i, i % 2 === 0));
         weg(g, mods, KREISFARBEN[p], { name: "P" + (p + 1) });
-        // gespiegeltes Backup: vom letzten Modul zurück
-        weg(g, [...mods].reverse(), KREISFARBEN[p], { name: "B" + (p + 1), gestrichelt: true, versatz: 130 });
+        // Backup läuft denselben Weg wie der Hauptweg – nur Endpunkt-Marke am letzten Modul
+        const ende = mods[mods.length - 1];
+        const ex = ende.x + ende.b / 2, ey = ende.y + ende.h / 2;
+        add(g, "rect", { x: ex - 125, y: ey - 105, width: 250, height: 210, rx: 40, fill: "#141414", stroke: KREISFARBEN[p], "stroke-width": 22 });
+        add(g, "text", { x: ex, y: ey + 40, "font-size": 115, "font-weight": 700, "text-anchor": "middle", fill: KREISFARBEN[p] }, "B" + (p + 1));
         add(g, "line", { x1: p * 3000 + 250, y1: -300, x2: p * 3000 + 250, y2: 380, stroke: "var(--kabel-lan)", "stroke-width": 14 });
       }
       add(g, "line", { x1: 250, y1: -300, x2: 3250, y2: -300, stroke: "var(--kabel-lan)", "stroke-width": 14 });
       add(g, "rect", { x: 1300, y: -460, width: 1000, height: 260, rx: 30, fill: "#1c1c1c", stroke: "var(--kabel-lan)", "stroke-width": 12 });
       add(g, "text", { x: 1800, y: -290, "font-size": 100, fill: "#e8e8e8", "text-anchor": "middle" }, "MX30 · FOH (Cat 60 m)");
-      add(g, "text", { x: 3000, y: -760, fill: "#9a9a9a", "font-size": 110, "text-anchor": "middle" }, "Durchgezogen = Hauptweg · gestrichelt = Backup (gleiche Farbe)");
+      add(g, "text", { x: 3000, y: -760, fill: "#9a9a9a", "font-size": 110, "text-anchor": "middle" }, "● Start Hauptweg (P) · ▢ Endpunkt = Einspeisung Backup (B), gleicher Weg");
       masse(g);
       el.appendChild(s);
     },
@@ -536,8 +539,8 @@ const REITER = {
       <table><tr><th>Port</th><th>Art</th><th>Screen</th><th>Strang</th><th class="zahl">Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Kabel</th></tr>
       <tr class="sel"><td><span class="punkt" style="background:var(--k1)"></span>1</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 1–6</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
       <tr><td><span class="punkt" style="background:var(--k2)"></span>2</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 7–12</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
-      <tr><td><span class="punkt" style="background:var(--k1)"></span>3</td><td>Backup zu 1</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
-      <tr><td><span class="punkt" style="background:var(--k2)"></span>4</td><td>Backup zu 2</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
+      <tr><td><span class="punkt" style="background:var(--k1)"></span>3</td><td>Backup zu 1</td><td>Bühne Mitte</td><td>gleicher Weg, ab Ende</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
+      <tr><td><span class="punkt" style="background:var(--k2)"></span>4</td><td>Backup zu 2</td><td>Bühne Mitte</td><td>gleicher Weg, ab Ende</td><td class="zahl">24</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat · 60 m</td></tr>
       <tr><td class="leise">5–10</td><td class="leise">frei</td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table>`,
     rechts: `
       <div class="karte"><div class="label">Prozessor 1 · NovaStar MX30</div>
@@ -656,7 +659,7 @@ REITER["signal:prozessoren"] = {
   zeichnen(el) {
     el.classList.add("liste-modus");
     const port = (n) => {
-      const belegt = { 1: ["Haupt", "Bühne Mitte · 1–6", 69, 0], 2: ["Haupt", "Bühne Mitte · 7–12", 69, 1], 3: ["Backup 1", "gespiegelt", 69, 0], 4: ["Backup 2", "gespiegelt", 69, 1] }[n];
+      const belegt = { 1: ["Haupt", "Bühne Mitte · 1–6", 69, 0], 2: ["Haupt", "Bühne Mitte · 7–12", 69, 1], 3: ["Backup 1", "Ende Strang 1", 69, 0], 4: ["Backup 2", "Ende Strang 2", 69, 1] }[n];
       return belegt
         ? `<div class="port" style="border-color:${KREISFARBEN[belegt[3]]}${n > 2 ? ";border-style:dashed" : ""}"><b>Port ${n}</b>${belegt[0]}<br>${belegt[1]}<br>${belegt[2]} %</div>`
         : `<div class="port frei"><b>Port ${n}</b>frei</div>`;
@@ -684,8 +687,8 @@ REITER["signal:prozessoren"] = {
     <table><tr><th>Prozessor</th><th>Port</th><th>Art</th><th>Screen</th><th>Strang</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Kabel</th></tr>
     <tr><td>MX30 · Prozessor 1</td><td>1</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 1–6</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
     <tr><td>MX30 · Prozessor 1</td><td>2</td><td>Haupt</td><td>Bühne Mitte</td><td>Spalten 7–12</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
-    <tr><td>MX30 · Prozessor 1</td><td>3</td><td>Backup zu 1</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
-    <tr><td>MX30 · Prozessor 1</td><td>4</td><td>Backup zu 2</td><td>Bühne Mitte</td><td>gespiegelt</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr></table>`,
+    <tr><td>MX30 · Prozessor 1</td><td>3</td><td>Backup zu 1</td><td>Bühne Mitte</td><td>gleicher Weg, ab Ende</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr>
+    <tr><td>MX30 · Prozessor 1</td><td>4</td><td>Backup zu 2</td><td>Bühne Mitte</td><td>gleicher Weg, ab Ende</td><td class="zahl">454.272</td><td><span class="balken"><i style="width:69%"></i></span>69 %</td><td>Cat6 · 60 m</td></tr></table>`,
   rechts: `
     <div class="karte"><div class="label">Projekt gesamt</div>
       <table class="werte"><tr><td>Prozessoren</td><td>2</td></tr><tr><td>Belegte Ports</td><td>4 / 20</td></tr>
