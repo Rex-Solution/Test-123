@@ -507,6 +507,31 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   await p.screenshot({ path: path.join(AUSGABE, "alle-prozessoren.png") });
 }
 
+/* ---------- Brackets: versetzte Spalte ohne gewähltes Ergänzungs-Bracket (Fehlerbild aus der Rückmeldung) ---------- */
+{
+  const lage = await ev(() => {
+    window.confirm = () => true; beispielProjektLaden();
+    const s = P.screens[0]; const WH = "beispiel-ledtek-p4wh-pro-v3", SWH = "beispiel-ledtek-p4swh-pro-v3";
+    s.module = []; const add = (lib, x, y) => s.module.push({ id: neueId("m"), lib, x, y });
+    add(SWH, 0, 1500); add(WH, 0, 2000); add(WH, 0, 3000); add(WH, 0, 4000);            // Spalte A tiefer
+    for (let x = 500; x <= 5500; x += 500) { add(SWH, x, 0); add(WH, x, 500); add(WH, x, 1500); add(WH, x, 2500); }
+    s.rigging.lib2 = null; s.rigging.rest = "ergaenzen"; s.rigging.seite = "rechts"; aenderung();
+    return riggingDaten(s).rahmen.map(r => [r.lib.id.replace("beispiel-flugrahmen-", ""), r.x, r.y, r.belegt, r.plaetze]);
+  });
+  pruefe("Bracket ohne Ergänzung: versetzte Spalte A bekommt automatisch 0,5 m in ihrer Höhe", JSON.stringify(lage[0]) === JSON.stringify(["05m", 0, 1500, 1, 1]), JSON.stringify(lage));
+  pruefe("Bracket ohne Ergänzung: kein Bracket ragt über eine Nachbarspalte", await ev(() => { const s = P.screens[0]; const d = riggingDaten(s); return d.rahmen.every(r => !r.halb) && !riggingPruefungen().some(x => x.text.includes("Nachbarspalte")); }));
+  const ohneKlein = await ev(() => {
+    const ids = ["beispiel-flugrahmen-05m"]; const alt = ids.map(id => [id, LIB.eintraege.get(id), P.library[id]]);
+    for (const id of ids) { LIB.eintraege.delete(id); delete P.library[id]; }
+    const erg = riggingDaten(P.screens[0]).rahmen.filter(r => r.halb).map(r => [r.x, r.leerLinks]);
+    for (const [id, e, pe] of alt) { LIB.eintraege.set(id, e); if (pe) P.library[id] = pe; }
+    return erg;
+  });
+  pruefe("Bracket ohne kleines Bracket: leere Hälfte auf die freie Seite (A links außen, L rechts außen)", JSON.stringify(ohneKlein) === JSON.stringify([[-500, true], [5500, false]]), JSON.stringify(ohneKlein));
+  await ev(() => { ui.reiter = "aufbau"; ui.modus.aufbau = "wand"; ui.ansicht3d = false; ui.ansicht.clear(); $("#toasts").innerHTML = ""; render(); });
+  await p.locator("#zeichnung").screenshot({ path: path.join(AUSGABE, "bracket-versetzt.png") });
+}
+
 /* ---------- Controller-Backup (ganzer Prozessor als Backup) ---------- */
 {
   await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "signal"; ui.modus.signal = "wand"; ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; ui.sel.weg = null; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });

@@ -39,6 +39,18 @@ function untenVersatz(s) {
   const g = grenzen(s.module); return Math.max(g.b, g.h, 1000) * 0.075;
 }
 
+/* Kleines Bracket für Rest und versetzte Spalten: gewähltes Ergänzungs-Bracket, sonst automatisch das passende
+   kleinere aus Projekt/Library (gleiche Bauart, möglichst gleiche Serie) */
+function kleinesBracket(s, haupt) {
+  const n = bracketPlaetze(haupt);
+  const gewaehlt = eintrag(s.rigging?.lib2);
+  if (bracketPasst(s, gewaehlt) && bracketPlaetze(gewaehlt) < n) return gewaehlt;
+  const serien = haupt?.attribute?.led?.serien || [];
+  const ids = new Set([...Object.keys(P.library), ...LIB.eintraege.keys()]);
+  return [...ids].map(eintrag).filter(e => e && libTyp(e) === "rigging" && bracketPasst(s, e) && bracketPlaetze(e) < n)
+    .sort((x, y) => ((y.attribute.led.serien || []).some(z => serien.includes(z)) - (x.attribute.led.serien || []).some(z => serien.includes(z))) || bracketPlaetze(y) - bracketPlaetze(x))[0] || null;
+}
+
 /* Raster der Bracket-Plätze; null = nicht gebunden (kein passendes Bracket gewählt) */
 function bracketRaster(s, libNeu = null) {
   const r = riggingStandard(s);
@@ -60,7 +72,7 @@ function bracketBelegung(s) {
   const raster = bracketRaster(s);
   if (!raster || !s.module.length) return { brackets: [], raster, hinweise: [] };
   const haupt = eintrag(r.lib), n = bracketPlaetze(haupt);
-  const klein = bracketPasst(s, eintrag(r.lib2)) ? eintrag(r.lib2) : null, n2 = klein ? bracketPlaetze(klein) : 0;
+  const klein = kleinesBracket(s, haupt), n2 = klein ? bracketPlaetze(klein) : 0;
   const geflogen = s.bauart === "geflogen";
   // je Platz: Anschlagkante (oberstes Modul bzw. unterste Kante)
   const kante = new Map();
@@ -79,26 +91,30 @@ function bracketBelegung(s) {
     const L = b - a + 1, voll = Math.floor(L / n), rest = L % n;
     const teile = [];
     for (let i = 0; i < voll; i++) teile.push({ e: haupt, n });
+    let seite = r.seite === "links" ? "links" : "rechts";
     if (rest) {
-      // leerer Teil eines halben großen Brackets läge außen neben der Gruppe – dort steht ggf. eine Nachbarspalte
-      const leer = r.seite === "links" ? [...Array(n - rest)].map((_, i) => a - 1 - i) : [...Array(n - rest)].map((_, i) => b + 1 + i);
+      // leere Plätze eines halb belegten großen Brackets lägen außen neben der Gruppe
+      const leerAuf = sd => [...Array(n - rest)].map((_, i) => sd === "links" ? a - 1 - i : b + 1 + i);
+      const belegtAuf = sd => leerAuf(sd).some(k => kante.has(k));
       // versetzte Spalten (Nachbargruppe mit anderer Kante) bekommen immer kleine Brackets
-      const stoesst = leer.some(k => kante.has(k)) || kante.has(a - 1) || kante.has(b + 1);
+      const versetzt = kante.has(a - 1) || kante.has(b + 1);
       const kleinGeht = klein && n2 <= rest && rest % n2 === 0;
-      if ((r.rest === "ergaenzen" || stoesst) && kleinGeht) for (let i = 0; i < rest / n2; i++) teile.push({ e: klein, n: n2 });
+      if ((r.rest === "ergaenzen" || versetzt || belegtAuf(seite)) && kleinGeht) for (let i = 0; i < rest / n2; i++) teile.push({ e: klein, n: n2 });
       else {
-        if (stoesst) hinweise.push("Versetzte Spalten brauchen ein kleines Bracket (Ergänzungs-Bracket wählen) – großes Bracket ragt in die Nachbarspalte.");
-        else if (r.rest === "ergaenzen") hinweise.push("Ergänzungs-Bracket fehlt oder passt nicht – großes Bracket halb belegt.");
+        // kein kleines Bracket: leere Hälfte auf die freie Seite, nie über eine Nachbarspalte
+        if (belegtAuf(seite)) { const andere = seite === "links" ? "rechts" : "links"; if (!belegtAuf(andere)) seite = andere; }
+        if (belegtAuf(seite)) hinweise.push("Großes Bracket ragt in eine Nachbarspalte – kleines Bracket (z.B. 50 cm) in der Library anlegen.");
+        else if (r.rest === "ergaenzen" || versetzt) hinweise.push("Kein kleineres Bracket in der Library – großes Bracket halb belegt.");
         teile.push({ e: haupt, n, halb: true, belegt: rest });
       }
     }
-    // Rest an der gewählten Seite
-    const geordnet = r.seite === "links" ? [...teile.filter(t => t.e !== haupt || t.halb), ...teile.filter(t => t.e === haupt && !t.halb)] : teile;
+    // Rest an der gewählten (bzw. freien) Seite
+    const geordnet = seite === "links" ? [...teile.filter(t => t.e !== haupt || t.halb), ...teile.filter(t => t.e === haupt && !t.halb)] : teile;
     let k = a;
     for (const t of geordnet) {
       const nutz = t.halb ? t.belegt : t.n;
-      const start = t.halb && r.seite === "links" ? k - (t.n - nutz) : k;   // leerer Platz außen
-      brackets.push({ lib: t.e, x: start * raster.platz, b: t.n * raster.platz, plaetze: t.n, belegt: nutz, halb: !!t.halb, anschlag: y });
+      const start = t.halb && seite === "links" ? k - (t.n - nutz) : k;   // leerer Platz außen
+      brackets.push({ lib: t.e, x: start * raster.platz, b: t.n * raster.platz, plaetze: t.n, belegt: nutz, halb: !!t.halb, leerLinks: !!t.halb && seite === "links", anschlag: y });
       k += nutz;
     }
   }
@@ -184,7 +200,7 @@ function riggingSvg(s) {
     const farbe = ueber ? "#d29922" : "#e8e8e8";
     t += `<rect x="${r.x + st}" y="${y}" width="${r.b - 2 * st}" height="${h}" fill="none" stroke="${farbe}" stroke-width="${st * 1.4}"/>`;
     if (r.halb) {
-      const leerX = s.rigging.seite === "links" ? r.x : r.x + r.belegt * (r.b / r.plaetze);
+      const leerX = r.leerLinks ? r.x : r.x + r.belegt * (r.b / r.plaetze);
       t += `<rect x="${leerX + st * 3}" y="${y + st * 3}" width="${(r.plaetze - r.belegt) * r.b / r.plaetze - st * 6}" height="${h - st * 6}" fill="none" stroke="#9a9a9a" stroke-width="${st}" stroke-dasharray="${st * 5} ${st * 4}"/>`;
     }
     t += `<text x="${r.x + r.b / 2}" y="${oben ? y - st * 2 : y + h + fs * 1.1}" font-size="${fs}" fill="#e8e8e8" text-anchor="middle">${fmt(r.kg, 1)} kg</text>`;
@@ -218,7 +234,7 @@ function riggingKarte(s) {
     <label class="feld"><span>${s.bauart === "geflogen" ? "Bracket / Flugrahmen" : "Stacking-Bracket"}</span><select data-rig="lib"><option value="">— keins (Module frei) —</option>${passend.map(e => option(e, r.lib)).join("")}</select></label>
     ${haupt && n >= 2 ? `<div class="zwei"><label class="feld"><span>Rest (z.B. ungerade)</span><select data-rig="rest"><option value="ergaenzen"${r.rest !== "halb" ? " selected" : ""}>kleines Bracket ergänzen</option><option value="halb"${r.rest === "halb" ? " selected" : ""}>großes halb belegt</option></select></label>
       <label class="feld"><span>Seite</span><select data-rig="seite"><option value="rechts"${r.seite !== "links" ? " selected" : ""}>rechts</option><option value="links"${r.seite === "links" ? " selected" : ""}>links</option></select></label></div>
-      ${r.rest !== "halb" ? `<label class="feld"><span>Ergänzungs-Bracket</span><select data-rig="lib2"><option value="">— keins —</option>${passend.filter(e => bracketPlaetze(e) < n).map(e => option(e, r.lib2)).join("")}</select></label>` : ""}` : ""}
+      ${r.rest !== "halb" ? `<label class="feld"><span>Ergänzungs-Bracket</span><select data-rig="lib2"><option value="">automatisch${(() => { const k = kleinesBracket({ ...s, rigging: { ...r, lib2: null } }, haupt); return k ? " – " + esc(k.name) : " (keins in der Library)"; })()}</option>${passend.filter(e => bracketPlaetze(e) < n).map(e => option(e, r.lib2)).join("")}</select></label>` : ""}` : ""}
     <label class="feld check"><input type="checkbox" data-rig="anzeigen" ${r.anzeigen !== false ? "checked" : ""}><span>In der Zeichnung anzeigen</span></label>
     ${raster ? `<p class="klein leise">Module sitzen fest an Bracket-Plätzen (${fmt(raster.platz)} mm). Ziehen und Einfügen rasten nur dort ein.</p>` : ""}
     ${ausserhalb ? `<div class="hinweis warn">${ausserhalb} Module nicht auf Bracket-Plätzen.</div><button data-rig-a="raster" style="margin-bottom:8px">Ins Bracket-Raster setzen</button>` : ""}
