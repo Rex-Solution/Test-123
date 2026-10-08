@@ -189,6 +189,13 @@ flexiblen JSON-Feld `attribute` – wie beim Signalfluss-Planer.
 Fehlende Daten werden wie im Signalfluss-Planer abgefangen: Platzhalter mit
 Warnung statt Abbruch.
 
+**Das Datenformat ist festgelegt in `ledplaner-library-format.md`** (Version 1):
+Rex-Material-Eintrag mit gemeinsamen Feldern (`hersteller`, `gewicht`,
+`stromverbrauch`, `grafik`, `anschluesse` – wie Signalfluss-Planer) und
+LED-Planer-Feldern unter `attribute.led` je Typ (`modul`, `prozessor`,
+`stagebox`, `multicore`, `verteiler`, `laka`, `spinne`, `rigging`, `kabel`);
+Pflicht- und Prüffelder, Badge-Regel, Projekt speichert Kopie der verwendeten Einträge.
+
 ## 5. Datenmodell (Skizze)
 
 ```
@@ -369,4 +376,5 @@ Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
 **Nächste Schritte:**
 1. Bestandsliste und Datenblätter nachreichen (laufend, blockiert nicht).
-2. **Phase 0**: Skizze der Oberfläche liegt vor (`ledplaner-skizze.html`, klickbar, ohne Funktion, nach Rex-Styleguide, mit Beispiel-Screen) – Rückmeldung einarbeiten, danach Library-Datenformat festschreiben.
+2. **Phase 0 ist inhaltlich abgeschlossen**: Konzept, Rex-Styleguide, Beispieldaten (`ledplaner-beispieldaten.md`), Oberflächen-Skizze (`ledplaner-skizze.html`, abgestimmt) und Library-Datenformat (`ledplaner-library-format.md`) liegen vor.
+3. Nächster Schritt nach Freigabe: **Phase 1** (Modul-Editor + Strom + Kabel-Reiter für Strom) – Start der Programmierung erst auf ausdrückliche Entscheidung.
