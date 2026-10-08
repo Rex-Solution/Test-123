@@ -240,9 +240,11 @@ const BEISPIEL_LIBRARY = [
 const SPEICHER_LIBRARY = "rex-ledplaner-library";
 const LIB = { eintraege: new Map(), herkunft: new Map() };
 
-function libLaden() {
+/* Reihenfolge: eingebaute Beispiele < Rex-Library (Datenbank-Agent) < lokal bearbeitete Einträge */
+function libLaden(rexListe = null) {
   LIB.eintraege.clear(); LIB.herkunft.clear();
   for (const e of BEISPIEL_LIBRARY) { LIB.eintraege.set(e.id, klon(e)); LIB.herkunft.set(e.id, "beispiel"); }
+  for (const e of rexListe || []) { LIB.eintraege.set(e.id, e); LIB.herkunft.set(e.id, "rex"); }
   const lokal = speicher.lesen(SPEICHER_LIBRARY);
   if (lokal && Array.isArray(lokal.eintraege)) {
     for (const e of lokal.eintraege) if (e && e.id) { LIB.eintraege.set(e.id, e); LIB.herkunft.set(e.id, "lokal"); }

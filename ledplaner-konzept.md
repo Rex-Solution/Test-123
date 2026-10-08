@@ -372,6 +372,9 @@ Rigging (Flugrahmen/Stacking, Last je Punkt, Riggingplan, Freigabefeld) und Ausg
 Pixelraum je Prozessor mit frei verschiebbaren Screens, Layer-Vorschlag mit Grenze je Prozessor, Testbild/Live je
 Output, Videokabel, Ausgabe-Blatt im Bericht) sowie Stagebox und Multicore als eigene Geräte (je Prozessor, Ports frei
 zuordenbar, Rest direkt per Cat; Stagebox mit Zuleitung und Strom). Gemischte Pitches bleiben 1:1 je Modultyp.
+Phase 3 vorbereitet, soweit ohne Signalfluss-Planer möglich: eine Datenquelle für den Datenbank-Agent (Library,
+Freischaltung mit „nur ansehen“, Projekte, Material-Rückgabe), Materialliste (Einstellungen, Bericht, CSV, Datei).
+Der Signalfluss-Planer wird neu gebaut; der LED-Planer ist ohne ihn voll nutzbar.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

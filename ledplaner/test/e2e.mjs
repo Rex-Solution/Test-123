@@ -233,6 +233,18 @@ const rig = await ev(() => { const d = riggingDaten(P.screens[0]); return { n: d
 pruefe("Rigging: 6 Flugrahmen à 112,9 kg, 56,45 kg je Punkt", rig.n === 6 && rig.kg.every(k => k === 112.9) && rig.punkt === 56.45, JSON.stringify(rig));
 await p.screenshot({ path: path.join(AUSGABE, "rigging.png") });
 
+/* ---------- Materialliste ---------- */
+const mat = await ev(() => Object.fromEntries(materialListe().filter(x => x.gruppe !== "Kabel").map(x => [x.materialId, [x.anzahl, x.gewichtKg != null ? +x.gewichtKg.toFixed(1) : null]])));
+pruefe("Material: 36 WH, 12 sWH, 6 Flugrahmen, C24, MX30", JSON.stringify(mat["beispiel-ledtek-p4wh-pro-v3"]) === "[36,500.4]" && mat["beispiel-ledtek-p4swh-pro-v3"][0] === 12
+  && JSON.stringify(mat["beispiel-flugrahmen-1m"]) === "[6,75]" && mat["beispiel-stagesmarts-c24"][0] === 1 && mat["beispiel-novastar-mx30"][0] === 1, JSON.stringify(mat));
+pruefe("Material: Kabel aus der Packliste", await ev(() => { const k = materialListe().filter(x => x.gruppe === "Kabel"); const pk = packliste(kabelListe()); return k.reduce((a, x) => a + x.anzahl, 0) === pk.reduce((a, x) => a + x.anzahl, 0); }));
+await p.click('[data-haupt="einstellungen"]'); await p.click('[data-einst="material"]');
+const [mcsv] = await Promise.all([p.waitForEvent("download"), p.click('[data-e="material-csv"]')]);
+pruefe("Material: CSV", (await mcsv.suggestedFilename()).endsWith("_material.csv"));
+pruefe("Material: „An Rex übergeben“ ohne Anbindung gesperrt", await p.locator('[data-e="material-rex"]').isDisabled());
+await p.screenshot({ path: path.join(AUSGABE, "material.png") });
+await p.click('[data-haupt="planen"]');
+
 /* ---------- Speichern / Laden / Autosave ---------- */
 await p.click('[data-haupt="planen"]');
 const [dl] = await Promise.all([p.waitForEvent("download"), p.keyboard.press("Control+s")]);
@@ -267,6 +279,59 @@ await lw.waitForTimeout(300);
 const h2 = await lw.evaluate(() => [...document.getElementById("c").getContext("2d").getImageData(0, 0, 400, 400).data].reduce((a, v, i) => (a * 31 + v * (i % 7 + 1)) % 1000003, 7));
 pruefe("Live-Ausgabe 1248 × 728 mit wandernden Cursorn", (await lw.evaluate(() => document.getElementById("c").width)) === 1248 && h1 !== h2);
 await lw.close();
+
+/* ---------- Rex-Anbindung (simulierter Datenbank-Agent) ---------- */
+async function rexSeite(module) {
+  const c = await browser.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
+  await c.addInitScript(() => { window.REX_KONFIG = { API_BASIS_URL: "http://rex.test/api" }; });
+  const log = [], projekte = new Map();
+  await c.route("http://rex.test/api/**", async route => {
+    const r = route.request(); const u = new URL(r.url()); const pfad = u.pathname.replace("/api", "");
+    log.push(`${r.method()} ${pfad}${u.search}`);
+    const json = d => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(d) });
+    if (pfad === "/material") return json([{ id: "4711", name: "NovaStar MX30 (Rex)", kategorie: "Video · LED-Prozessor", attribute: { hersteller: "NovaStar", stromverbrauch: 55,
+      anschluesse: [{ name: "Port", typ: "LAN", richtung: "out", rolle: "port", anzahl: 10 }], led: { typ: "prozessor", receivingCards: ["NovaStar A8s"], pxJePort: 659722, pxGesamt: 6500000, layer: 3, backup: true } } },
+      { id: "9999", name: "Kein LED-Material", attribute: {} }]);
+    if (pfad === "/freischaltung") return json({ module });
+    if (pfad === "/projekte" && r.method() === "POST") { projekte.set("p-1", r.postData()); return json({ id: "p-1" }); }
+    if (pfad === "/projekte" && r.method() === "GET") return json([...projekte.keys()].map(id => ({ id, titel: JSON.parse(projekte.get(id)).daten.titel })));
+    if (pfad.startsWith("/projekte/") && r.method() === "PUT") { projekte.set(pfad.slice(10), r.postData()); return json({ id: pfad.slice(10) }); }
+    if (pfad.startsWith("/projekte/")) return json(JSON.parse(projekte.get(pfad.slice(10))));
+    if (pfad === "/material-rueckgabe") { log.push(JSON.parse(r.postData())); return json({ ok: true }); }
+    return route.fulfill({ status: 404, body: "" });
+  });
+  const pg = await c.newPage(); beob(pg);
+  await pg.goto(DATEI); await pg.waitForTimeout(300);
+  return { c, pg, log };
+}
+{
+  const { c, pg, log } = await rexSeite(["ledplaner"]);
+  const e = (f, a) => pg.evaluate(f, a);
+  pruefe("Rex: Library aus dem Datenbank-Agent (nur LED-Material)", await e(() => LIB.herkunft.get("4711") === "rex" && !LIB.eintraege.has("9999") && LIB.herkunft.get("beispiel-ledtek-p4wh-pro-v3") === "beispiel"));
+  await e(() => { window.confirm = () => true; beispielProjektLaden(); });
+  await pg.click("#btn-speichern"); await pg.waitForTimeout(150);
+  await e(() => { P.daten.titel = "Rex Projekt"; aenderung(); });
+  await pg.keyboard.press("Control+s"); await pg.waitForTimeout(150);
+  pruefe("Rex: erst POST, dann PUT mit Projekt-Nr.", log.includes("POST /projekte") && log.includes("PUT /projekte/p-1") && await e(() => P.rexId === "p-1" && !istUngespeichert()), JSON.stringify(log.filter(x => typeof x === "string")));
+  await e(() => { P = neuesProjekt(); gespeicherterStand = JSON.stringify(P); render(); });
+  await pg.click('[data-haupt="einstellungen"]'); await pg.click('[data-einst="datei"]');
+  await pg.click('[data-e="rex-oeffnen"]'); await pg.waitForTimeout(150);
+  await pg.click('#dialog button[value="ok"]'); await pg.waitForTimeout(200);
+  pruefe("Rex: Projekt aus Rex öffnen", await e(() => P.daten.titel === "Rex Projekt" && P.rexId === "p-1" && P.screens[0].module.length === 48));
+  await pg.click('[data-einst="material"]'); await pg.click('[data-e="material-rex"]'); await pg.waitForTimeout(150);
+  const doc = log.find(x => x.format === "rex-materialliste");
+  pruefe("Rex: Materialliste übergeben", doc && doc.projekt.rexId === "p-1" && doc.positionen.some(x => x.materialId === "beispiel-ledtek-p4wh-pro-v3" && x.anzahl === 36));
+  pruefe("Rex: Hinweis auf Material, das Rex nicht kennt", (await pg.locator("#einst-inhalt .hinweis", { hasText: "nicht aus der Rex-Library" }).count()) === 1);
+  await pg.click('[data-einst="verknuepfung"]');
+  pruefe("Rex: Status-Seite", (await pg.locator("#einst-inhalt").innerText()).includes("Datenbank-Agent · http://rex.test/api"));
+  await pg.screenshot({ path: path.join(AUSGABE, "rex.png") });
+  await c.close();
+}
+{
+  const { c, pg } = await rexSeite([]);
+  pruefe("Rex: nicht freigeschaltet → nur ansehen", await pg.locator("#btn-speichern").isDisabled() && (await pg.locator("#status-gespeichert").innerText()).includes("nur ansehen"));
+  await c.close();
+}
 
 console.log(`\n${ok} bestanden, ${fehler.length} Fehler`);
 if (fehler.length) { console.log(fehler.join("\n")); process.exitCode = 1; }

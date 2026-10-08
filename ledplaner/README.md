@@ -25,6 +25,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | --- | --- |
 | `geruest.html` | HTML-Gerüst mit Platzhaltern `/*CSS*/`, `/*JS*/` |
 | `stil.css` | Stil nach Rex-Styleguide (nur Farb-Variablen) |
+| `js/00-datenquelle.js` | Rex-Anbindung: `KONFIG` (`API_BASIS_URL`, per `window.REX_KONFIG` beim Einbetten setzbar) und `Datenquelle` – einzige Stelle für den Datenbank-Agent (Library, Freischaltung, Projekte, Material-Rückgabe) |
 | `js/01-grund.js` | DOM-Helfer, deutsche Zahlen (`fmt`, `leseZahl`), Toast, Dialoge, Dateien, Farben |
 | `js/02-library.js` | Library-Schema je Typ (`SCHEMA`), Vollständigkeit/Badge, Beispieleinträge, Library-Speicher |
 | `js/03-projekt.js` | Projekt-Datenmodell (Kommentar oben!), Laden/Speichern/Migration, Rückgängig, Autosave |
@@ -41,6 +42,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/50-kabel.js` | Reiter Kabel: automatische + manuelle Kabel, Bearbeiten, Packliste, CSV |
 | `js/60-library-ui.js` | Hauptreiter Library (Manager-Ansicht, Formular aus `SCHEMA`) |
 | `js/70-einstellungen.js` | Hauptreiter Einstellungen, Hausregeln, Beispielprojekt |
+| `js/75-material.js` | Materialliste (Module, Rigging, Geräte, Kabel), CSV, Datei `rex-materialliste`, Rückgabe an Rex |
 | `js/80-druck.js` | Bericht A4 hoch, Großformat A3/A4 quer, Kundenansicht |
 | `js/90-start.js` | Start und Verdrahtung |
 
@@ -75,9 +77,13 @@ Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht)
 Kabeln), Ausgabe (Testbild + Live je Screen; Outputs → Eingänge, Pixelraum, Layer-Vorschlag,
 Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Output), Kabel
 (automatisch inkl. Video + von Hand, Packliste, CSV), Druck (Bericht A4 inkl. Ausgabe-Blatt,
-Großformat A3/A4 quer, Kundenansicht), Hausregeln, Beispielprojekt. 51 Ende-zu-Ende-Tests.
+Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
+Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
+speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
+63 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
-- Rex-Datenbank (Library + Projekte), Freischaltung, Verknüpfung Signalfluss-Planer.
+- Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).
+- Verknüpfung Signalfluss-Planer (wird neu gebaut; der LED-Planer funktioniert ohne ihn).
 - Kurven/Winkel, Hersteller-Dateien (NovaLCT/Colorlight), 3D, Tablet-Bedienung.
 - Rex-Logo-Dateien einbinden (derzeit Platzhalter in der Kopfleiste).

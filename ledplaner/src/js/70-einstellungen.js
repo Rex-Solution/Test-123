@@ -23,8 +23,11 @@ function renderEinstellungen() {
   const el = $("#einst-inhalt");
   if (ui.einst === "datei") {
     el.innerHTML = `<div class="karte"><h2>Speichern / Laden</h2>
-      <p class="klein leise">Projekte werden als Datei <code>.ledplaner.json</code> gespeichert (ohne Datenbank). Zusätzlich sichert der Browser automatisch den letzten Stand.</p>
-      <div class="knopfreihe"><button data-e="neu">Neu</button><button data-e="oeffnen">Öffnen …</button><button data-e="speichern" class="primaer">Speichern</button></div>
+      <p class="klein leise">${Datenquelle.verbunden()
+        ? `Projekte liegen im Rex-System${P.rexId ? ` (dieses Projekt: Nr. ${esc(P.rexId)})` : " (dieses Projekt noch nicht)"}. Als Datei <code>.ledplaner.json</code> geht es zusätzlich.`
+        : "Projekte werden als Datei <code>.ledplaner.json</code> gespeichert (ohne Datenbank)."} Zusätzlich sichert der Browser automatisch den letzten Stand.</p>
+      <div class="knopfreihe"><button data-e="neu">Neu</button><button data-e="oeffnen">Datei öffnen …</button>${Datenquelle.verbunden() ? `<button data-e="rex-oeffnen">Aus Rex öffnen …</button><button data-e="datei-speichern" ${nurLesen() ? "disabled" : ""}>Als Datei speichern</button>` : ""}
+        <button data-e="speichern" class="primaer" ${nurLesen() ? "disabled" : ""}>${Datenquelle.verbunden() ? "Im Rex-System speichern" : "Speichern"}</button></div>
       <div class="abschnitt">Beispiel</div>
       <p class="klein leise">Lädt den Beispiel-Screen „Bühne Mitte“ (12 × 3 LEDTEK P4+WH + 1 Reihe P4+sWH) mit StageSmarts C24, NovaStar MX30 und CVT10.</p>
       <button data-e="beispiel">Beispielprojekt laden</button>
@@ -43,11 +46,17 @@ function renderEinstellungen() {
         if (f.art === "auswahl") return `<label class="feld"><span>${f.label}</span><select data-regel="${f.k}">${f.optionen.map(([o, t]) => `<option value="${o}"${w === o ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
         return `<label class="feld"><span>${f.label}</span><input data-regel="${f.k}" data-art="zahl" data-min="${f.min}" data-max="${f.max}" value="${fmtFlex(w)}" inputmode="decimal"></label>`;
       }).join("")}</div></div>`;
+  } else if (ui.einst === "material") {
+    el.innerHTML = materialHtml();
   } else {
-    el.innerHTML = `<div class="karte"><h2>Verknüpfte Programme</h2>
-      <p class="klein">Signalfluss-Planer: Verknüpfung ist vorgesehen, sobald beide Module über die Rex-Benutzerverwaltung freigeschaltet sind (Phase 3).</p>
-      <p class="klein leise">Dann kommen Zuspieler und Outputs aus dem Signalfluss-Plan; Prozessoren, Stageboxen und Ports bleiben im LED-Planer führend. Die Oberfläche des Signalfluss-Planers wird eingebettet („In neuem Fenster öffnen ↗“).</p>
-      <label class="feld check"><input type="checkbox" disabled><span>Signalfluss-Planer verknüpfen (nicht freigeschaltet)</span></label></div>`;
+    const f = REX.freischaltung;
+    el.innerHTML = `<div class="karte"><h2>Rex-System</h2>
+      <table class="werte"><tr><td>Datenquelle</td><td>${Datenquelle.verbunden() ? `Datenbank-Agent · ${esc(KONFIG.API_BASIS_URL)}${REX.fehler ? ` <span style="color:var(--fehler)">– nicht erreichbar</span>` : ""}` : "eigenständig (eingebaute Library, Browser, Dateien)"}</td></tr>
+      <tr><td>Library</td><td>${["rex", "beispiel", "lokal"].map(h => { const n = [...LIB.herkunft.values()].filter(x => x === h).length; return n ? `${n} ${{ rex: "aus Rex", beispiel: "Beispiele", lokal: "lokal bearbeitet" }[h]}` : ""; }).filter(Boolean).join(" · ")}</td></tr>
+      <tr><td>Freischaltung LED-Planer</td><td>${f.ledplaner ? `<span class="badge voll">freigeschaltet</span>` : `<span class="badge teil">nur ansehen</span>`} <span class="leise klein">(${esc(f.quelle)})</span></td></tr></table>
+      <p class="klein leise">Die Anbindung an den Datenbank-Agent ist vorbereitet: Library, Freischaltung, Projekte und Material-Rückgabe laufen über eine Stelle im Code (<code>00-datenquelle.js</code>). Ohne Adresse arbeitet der LED-Planer vollständig eigenständig.</p>
+      <div class="abschnitt">Signalfluss-Planer</div>
+      <p class="klein leise">Der Signalfluss-Planer wird neu gebaut. Der LED-Planer braucht ihn nicht: Zuspieler-Outputs werden im Reiter Ausgabe von Hand angelegt. Eine Verknüpfung kommt später.</p></div>`;
   }
 }
 
@@ -58,6 +67,9 @@ function einstellungenEreignisse() {
     if (a === "neu") projektNeu();
     if (a === "oeffnen") projektOeffnen();
     if (a === "speichern") projektSpeichern();
+    if (a === "datei-speichern") projektSpeichern(true);
+    if (a === "rex-oeffnen") projektAusRexOeffnen();
+    if (a?.startsWith("material-")) materialAktion(a);
     if (a === "beispiel") beispielProjektLaden();
     if (a === "regeln-standard") { P.regeln = standardRegeln(); aenderung(); }
   });

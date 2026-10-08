@@ -253,7 +253,8 @@ dialog h2 { margin-bottom:12px; }
       <li data-einst="datei">Speichern / Laden</li>
       <li data-einst="projekt">Projektdaten</li>
       <li data-einst="regeln">Hausregeln</li>
-      <li data-einst="verknuepfung">Verknüpfte Programme</li>
+      <li data-einst="material">Materialliste</li>
+      <li data-einst="verknuepfung">Rex-System</li>
     </ul>
   </aside>
   <section class="formular" id="einst-inhalt"></section>
@@ -266,6 +267,61 @@ dialog h2 { margin-bottom:12px; }
 
 <script>
 "use strict";
+/* ===== 00-datenquelle.js ===== */
+/* Rex-Anbindung: einzige Stelle, die später auf den Datenbank-Agent umgestellt wird.
+   Ohne API_BASIS_URL läuft der LED-Planer eigenständig: eingebaute Library + Browser-Speicher + Dateien.
+   Das Rex-System kann beim Einbetten vor dem Laden `window.REX_KONFIG = { API_BASIS_URL, ... }` setzen.
+
+   Erwartete Routen (TODO: Route/Antwortformat mit dem Datenbank-Agent abstimmen):
+     GET  {API}/material                      → [Rex-Materialeintrag]   (nur Einträge mit attribute.led.typ werden genutzt)
+     GET  {API}/freischaltung                 → { module: ["ledplaner", ...] }
+     GET  {API}/projekte?modul=ledplaner      → [{ id, titel, geaendert }]
+     GET  {API}/projekte/{id}                 → Projektdatei (format "rex-ledplaner")
+     PUT  {API}/projekte/{id}                 → { id }   (ohne id: POST {API}/projekte)
+     POST {API}/material-rueckgabe            → { ok }   (Materialliste, format "rex-materialliste") */
+
+const KONFIG = {
+  API_BASIS_URL: null,        // z.B. "http://rex-server/api" – null = eigenständig
+  NAS_BASIS_URL: "",          // Präfix für relative Grafikpfade aus der Datenbank
+  MODUL: "ledplaner",
+  ...(typeof window !== "undefined" && window.REX_KONFIG && typeof window.REX_KONFIG === "object" ? window.REX_KONFIG : {}),
+};
+
+const Datenquelle = {
+  verbunden() { return !!KONFIG.API_BASIS_URL; },
+  async anfrage(pfad, opt = {}) {
+    const antwort = await fetch(`${KONFIG.API_BASIS_URL}${pfad}`, {
+      ...opt, headers: { "Content-Type": "application/json", ...(opt.headers || {}) },
+    });
+    if (!antwort.ok) throw new Error(`Datenbank-Agent: HTTP ${antwort.status}`);
+    return antwort.status === 204 ? null : antwort.json();
+  },
+  /* null = keine Rex-Library (eigenständig) */
+  async ladeLibrary() {
+    if (!this.verbunden()) return null;
+    const liste = await this.anfrage("/material");
+    return (Array.isArray(liste) ? liste : []).filter(e => e && e.id && e.attribute?.led?.typ);
+  },
+  /* Eigenständig ist der LED-Planer freigeschaltet; die Verknüpfung mit dem Signalfluss-Planer folgt später */
+  async ladeFreischaltung() {
+    if (!this.verbunden()) return { ledplaner: true, signalplaner: false, quelle: "eigenständig" };
+    const d = await this.anfrage("/freischaltung");
+    const module = Array.isArray(d?.module) ? d.module : [];
+    return { ledplaner: module.includes("ledplaner"), signalplaner: module.includes("signalplaner"), quelle: "Rex" };
+  },
+  async ladeProjektListe() { return this.anfrage(`/projekte?modul=${encodeURIComponent(KONFIG.MODUL)}`); },
+  async ladeProjekt(id) { return this.anfrage(`/projekte/${encodeURIComponent(id)}`); },
+  async speichereProjekt(text, id) {
+    const erg = await this.anfrage(id ? `/projekte/${encodeURIComponent(id)}` : "/projekte", { method: id ? "PUT" : "POST", body: text });
+    return erg?.id || id;
+  },
+  async materialZurueckgeben(liste) { return this.anfrage("/material-rueckgabe", { method: "POST", body: JSON.stringify(liste) }); },
+};
+
+/* Zustand der Anbindung (wird beim Start gefüllt) */
+const REX = { freischaltung: { ledplaner: true, signalplaner: false, quelle: "eigenständig" }, fehler: null };
+const nurLesen = () => !REX.freischaltung.ledplaner;
+
 /* ===== 01-grund.js ===== */
 /* Grundfunktionen: DOM, Formatierung, Meldungen, Dialoge, Dateien. */
 
@@ -645,9 +701,11 @@ const BEISPIEL_LIBRARY = [
 const SPEICHER_LIBRARY = "rex-ledplaner-library";
 const LIB = { eintraege: new Map(), herkunft: new Map() };
 
-function libLaden() {
+/* Reihenfolge: eingebaute Beispiele < Rex-Library (Datenbank-Agent) < lokal bearbeitete Einträge */
+function libLaden(rexListe = null) {
   LIB.eintraege.clear(); LIB.herkunft.clear();
   for (const e of BEISPIEL_LIBRARY) { LIB.eintraege.set(e.id, klon(e)); LIB.herkunft.set(e.id, "beispiel"); }
+  for (const e of rexListe || []) { LIB.eintraege.set(e.id, e); LIB.herkunft.set(e.id, "rex"); }
   const lokal = speicher.lesen(SPEICHER_LIBRARY);
   if (lokal && Array.isArray(lokal.eintraege)) {
     for (const e of lokal.eintraege) if (e && e.id) { LIB.eintraege.set(e.id, e); LIB.herkunft.set(e.id, "lokal"); }
@@ -694,7 +752,7 @@ function anschluesseAusklappen(liste) {
 /* Projekt: Datenmodell, Neu/Laden/Speichern, Migration, Rückgängig, Autosave.
 
    projekt = {
-     format: "rex-ledplaner", formatVersion: 1, gespeichert,
+     format: "rex-ledplaner", formatVersion: 1, gespeichert, rexId (Projekt im Rex-System, sonst null),
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
@@ -752,6 +810,7 @@ function normalisiereProjekt(roh) {
   p.kabelAnpassung = d.kabelAnpassung && typeof d.kabelAnpassung === "object" ? d.kabelAnpassung : {};
   p.ausgabe = { ...p.ausgabe, ...(d.ausgabe || {}) };
   p.gespeichert = d.gespeichert || null;
+  p.rexId = typeof d.rexId === "string" || typeof d.rexId === "number" ? d.rexId : null;
   // bis 10/2026: Weg zur Wand als Feld am Prozessor → eigenes Gerät ohne Library-Eintrag
   for (const g of p.geraete.filter(g => g.art === "prozessor" && "weg" in g)) {
     if (g.weg === "stagebox" || g.weg === "multicore") {
@@ -838,24 +897,43 @@ function projektJson() {
   P.gespeichert = new Date().toISOString();
   return JSON.stringify(P, null, 2);
 }
-function projektSpeichern() {
-  const text = projektJson();
-  herunterladen(text, dateiname(P.daten.titel, ".ledplaner.json"));
+/* Speichern: mit Rex-Anbindung in die Datenbank, sonst (oder mit alsDatei) als Datei */
+async function projektSpeichern(alsDatei = false) {
+  if (nurLesen()) return toast("Nur ansehen – der LED-Planer ist für diesen Benutzer nicht freigeschaltet.", "fehler");
+  if (Datenquelle.verbunden() && !alsDatei) {
+    try { P.rexId = await Datenquelle.speichereProjekt(projektJson(), P.rexId); }
+    catch (e) { return toast("Speichern im Rex-System fehlgeschlagen: " + e.message + " – „Als Datei speichern“ nutzen.", "fehler"); }
+  } else herunterladen(projektJson(), dateiname(P.daten.titel, ".ledplaner.json"));
   gespeicherterStand = JSON.stringify(P);
   autosave();
   aktualisiereKopf();
-  toast("Projekt gespeichert.", "ok");
+  toast(Datenquelle.verbunden() && !alsDatei ? "Projekt im Rex-System gespeichert." : "Projekt gespeichert.", "ok");
+}
+function projektUebernehmen(d, quelle) {
+  P = normalisiereProjekt(d);
+  gespeicherterStand = JSON.stringify(P);
+  historieStart();
+  ui.screen = P.screens[0]?.id || null; ui.auswahl.clear();
+  aenderung({ merken: false });
+  toast(`„${quelle}“ geöffnet.`, "ok");
+}
+async function projektAusRexOeffnen() {
+  if (istUngespeichert() && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
+  let liste;
+  try { liste = await Datenquelle.ladeProjektListe(); } catch (e) { return toast("Projektliste nicht erreichbar: " + e.message, "fehler"); }
+  if (!Array.isArray(liste) || !liste.length) return toast("Im Rex-System gibt es noch keine LED-Planer-Projekte.", "info");
+  const erg = await formularDialog("Projekt aus Rex öffnen", [
+    { name: "id", label: "Projekt", art: "auswahl", wert: liste[0].id, optionen: liste.map(p => [p.id, `${p.titel || p.id}${p.geaendert ? " · " + String(p.geaendert).slice(0, 10) : ""}`]) },
+  ], "Öffnen");
+  if (!erg) return;
+  try { const d = await Datenquelle.ladeProjekt(erg.id); d.rexId = d.rexId ?? erg.id; projektUebernehmen(d, liste.find(p => String(p.id) === erg.id)?.titel || erg.id); }
+  catch (e) { toast("Projekt konnte nicht geladen werden: " + e.message, "fehler"); }
 }
 async function projektOeffnen() {
   const f = await waehleDatei($("#datei-projekt"));
   if (!f) return;
   try {
-    P = normalisiereProjekt(JSON.parse(f.text));
-    gespeicherterStand = JSON.stringify(P);
-    historieStart();
-    ui.screen = P.screens[0]?.id || null; ui.auswahl.clear();
-    aenderung({ merken: false });
-    toast(`„${f.name}“ geöffnet.`, "ok");
+    projektUebernehmen(JSON.parse(f.text), f.name);
   } catch (e) {
     toast("Datei konnte nicht geöffnet werden: " + e.message, "fehler");
   }
@@ -1079,6 +1157,9 @@ function aktualisiereKopf() {
   const offen = istUngespeichert() || gespeicherterStand === null;
   $("#status-gespeichert").textContent = offen ? "· ungespeichert" : "· gespeichert";
   $("#status-gespeichert").className = offen ? "ungespeichert" : "leise";
+  if (nurLesen()) { $("#status-gespeichert").textContent = "· nur ansehen"; $("#status-gespeichert").className = "ungespeichert"; }
+  $("#btn-speichern").disabled = nurLesen();
+  $("#btn-speichern").title = Datenquelle.verbunden() ? "Im Rex-System speichern (Strg+S)" : "Projekt als Datei speichern (Strg+S)";
   $("#btn-undo").disabled = !historie.zurueck.length && JSON.stringify(P) === historie.stand;
   $("#btn-redo").disabled = !historie.vor.length;
 }
@@ -1157,7 +1238,7 @@ function gerustEreignisse() {
   $$("[data-reiter]").forEach(b => b.onclick = () => { ui.reiter = b.dataset.reiter; ui.werkzeug = "auswahl"; render(); });
   $("#btn-undo").onclick = rueckgaengig;
   $("#btn-redo").onclick = wiederholen;
-  $("#btn-speichern").onclick = projektSpeichern;
+  $("#btn-speichern").onclick = () => projektSpeichern();
   $("#btn-drucken").onclick = druckDialog;
   $("#btn-live").onclick = () => liveOeffnen(aktuellerScreen());
 
@@ -3831,7 +3912,7 @@ function renderLibrary() {
     const liste = eintraege.filter(e => libTyp(e) === typ);
     if (!liste.length) return "";
     return `<div class="label">${titel}</div>` + liste.map(e => `<div class="eintrag${ui.libSel === e.id ? " sel" : ""}" data-lib-sel="${e.id}">
-      <span>${esc(e.name)}${LIB.herkunft.get(e.id) === "beispiel" ? ` <span class="leise klein">· Beispiel</span>` : ""}${abw.has(e.id) ? ` <span class="badge teil" title="Projektkopie weicht ab">≠ Projekt</span>` : ""}</span>${badgeHtml(e)}</div>`).join("");
+      <span>${esc(e.name)}${{ beispiel: ` <span class="leise klein">· Beispiel</span>`, rex: ` <span class="leise klein">· Rex</span>` }[LIB.herkunft.get(e.id)] || ""}${abw.has(e.id) ? ` <span class="badge teil" title="Projektkopie weicht ab">≠ Projekt</span>` : ""}</span>${badgeHtml(e)}</div>`).join("");
   }).join("");
   $("#lib-liste").innerHTML = `<div class="knopfreihe" style="justify-content:space-between"><h2 style="margin:0">Library</h2><button data-l="neu" class="primaer">+ Neu</button></div>
     <input type="search" id="lib-suche" placeholder="Suchen …" value="${esc(ui.libFilter)}" style="width:100%;margin:12px 0 8px">
@@ -3875,7 +3956,7 @@ function renderLibraryFormular() {
   el.innerHTML = `<div class="karte">
     <div class="knopfreihe"><h2 style="margin:0">${esc(d.name || "—")}</h2>${badgeHtml(d)}<span class="leise klein">${LIB_TYPEN[typ] || typ} · ${esc(d.id)}</span><span class="fueller"></span>
       <button data-l="verwerfen" ${geaendert ? "" : "disabled"}>Verwerfen</button><button data-l="dup">Duplizieren</button>
-      <button data-l="loeschen" class="gefahr" ${LIB.herkunft.get(e.id) === "beispiel" ? "disabled title='Beispiele sind eingebaut'" : ""}>Löschen</button>
+      <button data-l="loeschen" class="gefahr" ${LIB.herkunft.get(e.id) === "beispiel" ? "disabled title='Beispiele sind eingebaut'" : LIB.herkunft.get(e.id) === "rex" ? "disabled title='Kommt aus dem Rex-System'" : ""}>Löschen</button>
       <button data-l="speichern" class="primaer" ${geaendert && !v.pflichtFehlt.length ? "" : "disabled"} title="${v.pflichtFehlt.length ? "Pflicht fehlt: " + esc(v.pflichtFehlt.join(", ")) : ""}">Speichern</button></div>
     ${v.pflichtFehlt.length ? `<div class="hinweis fehler" style="margin-top:12px">Pflichtangaben fehlen: ${esc(v.pflichtFehlt.join(", "))}. Der Eintrag ist in der Planung nicht wählbar.</div>` : ""}
     ${v.offen.length ? `<div class="hinweis warn" style="margin-top:12px">Datenblatt fehlt: ${esc(v.offen.join(", "))}. Planung möglich, Prüfungen dazu bleiben offen.</div>` : ""}
@@ -4017,8 +4098,11 @@ function renderEinstellungen() {
   const el = $("#einst-inhalt");
   if (ui.einst === "datei") {
     el.innerHTML = `<div class="karte"><h2>Speichern / Laden</h2>
-      <p class="klein leise">Projekte werden als Datei <code>.ledplaner.json</code> gespeichert (ohne Datenbank). Zusätzlich sichert der Browser automatisch den letzten Stand.</p>
-      <div class="knopfreihe"><button data-e="neu">Neu</button><button data-e="oeffnen">Öffnen …</button><button data-e="speichern" class="primaer">Speichern</button></div>
+      <p class="klein leise">${Datenquelle.verbunden()
+        ? `Projekte liegen im Rex-System${P.rexId ? ` (dieses Projekt: Nr. ${esc(P.rexId)})` : " (dieses Projekt noch nicht)"}. Als Datei <code>.ledplaner.json</code> geht es zusätzlich.`
+        : "Projekte werden als Datei <code>.ledplaner.json</code> gespeichert (ohne Datenbank)."} Zusätzlich sichert der Browser automatisch den letzten Stand.</p>
+      <div class="knopfreihe"><button data-e="neu">Neu</button><button data-e="oeffnen">Datei öffnen …</button>${Datenquelle.verbunden() ? `<button data-e="rex-oeffnen">Aus Rex öffnen …</button><button data-e="datei-speichern" ${nurLesen() ? "disabled" : ""}>Als Datei speichern</button>` : ""}
+        <button data-e="speichern" class="primaer" ${nurLesen() ? "disabled" : ""}>${Datenquelle.verbunden() ? "Im Rex-System speichern" : "Speichern"}</button></div>
       <div class="abschnitt">Beispiel</div>
       <p class="klein leise">Lädt den Beispiel-Screen „Bühne Mitte“ (12 × 3 LEDTEK P4+WH + 1 Reihe P4+sWH) mit StageSmarts C24, NovaStar MX30 und CVT10.</p>
       <button data-e="beispiel">Beispielprojekt laden</button>
@@ -4037,11 +4121,17 @@ function renderEinstellungen() {
         if (f.art === "auswahl") return `<label class="feld"><span>${f.label}</span><select data-regel="${f.k}">${f.optionen.map(([o, t]) => `<option value="${o}"${w === o ? " selected" : ""}>${t}</option>`).join("")}</select></label>`;
         return `<label class="feld"><span>${f.label}</span><input data-regel="${f.k}" data-art="zahl" data-min="${f.min}" data-max="${f.max}" value="${fmtFlex(w)}" inputmode="decimal"></label>`;
       }).join("")}</div></div>`;
+  } else if (ui.einst === "material") {
+    el.innerHTML = materialHtml();
   } else {
-    el.innerHTML = `<div class="karte"><h2>Verknüpfte Programme</h2>
-      <p class="klein">Signalfluss-Planer: Verknüpfung ist vorgesehen, sobald beide Module über die Rex-Benutzerverwaltung freigeschaltet sind (Phase 3).</p>
-      <p class="klein leise">Dann kommen Zuspieler und Outputs aus dem Signalfluss-Plan; Prozessoren, Stageboxen und Ports bleiben im LED-Planer führend. Die Oberfläche des Signalfluss-Planers wird eingebettet („In neuem Fenster öffnen ↗“).</p>
-      <label class="feld check"><input type="checkbox" disabled><span>Signalfluss-Planer verknüpfen (nicht freigeschaltet)</span></label></div>`;
+    const f = REX.freischaltung;
+    el.innerHTML = `<div class="karte"><h2>Rex-System</h2>
+      <table class="werte"><tr><td>Datenquelle</td><td>${Datenquelle.verbunden() ? `Datenbank-Agent · ${esc(KONFIG.API_BASIS_URL)}${REX.fehler ? ` <span style="color:var(--fehler)">– nicht erreichbar</span>` : ""}` : "eigenständig (eingebaute Library, Browser, Dateien)"}</td></tr>
+      <tr><td>Library</td><td>${["rex", "beispiel", "lokal"].map(h => { const n = [...LIB.herkunft.values()].filter(x => x === h).length; return n ? `${n} ${{ rex: "aus Rex", beispiel: "Beispiele", lokal: "lokal bearbeitet" }[h]}` : ""; }).filter(Boolean).join(" · ")}</td></tr>
+      <tr><td>Freischaltung LED-Planer</td><td>${f.ledplaner ? `<span class="badge voll">freigeschaltet</span>` : `<span class="badge teil">nur ansehen</span>`} <span class="leise klein">(${esc(f.quelle)})</span></td></tr></table>
+      <p class="klein leise">Die Anbindung an den Datenbank-Agent ist vorbereitet: Library, Freischaltung, Projekte und Material-Rückgabe laufen über eine Stelle im Code (<code>00-datenquelle.js</code>). Ohne Adresse arbeitet der LED-Planer vollständig eigenständig.</p>
+      <div class="abschnitt">Signalfluss-Planer</div>
+      <p class="klein leise">Der Signalfluss-Planer wird neu gebaut. Der LED-Planer braucht ihn nicht: Zuspieler-Outputs werden im Reiter Ausgabe von Hand angelegt. Eine Verknüpfung kommt später.</p></div>`;
   }
 }
 
@@ -4052,6 +4142,9 @@ function einstellungenEreignisse() {
     if (a === "neu") projektNeu();
     if (a === "oeffnen") projektOeffnen();
     if (a === "speichern") projektSpeichern();
+    if (a === "datei-speichern") projektSpeichern(true);
+    if (a === "rex-oeffnen") projektAusRexOeffnen();
+    if (a?.startsWith("material-")) materialAktion(a);
     if (a === "beispiel") beispielProjektLaden();
     if (a === "regeln-standard") { P.regeln = standardRegeln(); aenderung(); }
   });
@@ -4115,6 +4208,87 @@ function beispielProjektLaden() {
   ui.reiter = "aufbau";
   aenderung();
   toast("Beispielprojekt geladen.", "ok");
+}
+
+/* ===== 75-material.js ===== */
+/* Materialliste des Projekts: LED-Module, Rigging, Geräte und Kabel (aus der Packliste) je Library-Eintrag.
+   Rückgabe ans Rex-System (Datenbank-Agent) oder als Datei. */
+
+const MATERIAL_GRUPPEN = ["LED-Module", "Rigging", "Geräte", "Kabel"];
+
+function materialListe() {
+  const pos = new Map();
+  const add = (gruppe, lib, anzahl, laengeM = null, bemerkung = "") => {
+    if (!anzahl) return;
+    const k = `${gruppe}|${lib || "?"}|${laengeM ?? ""}|${lib ? "" : bemerkung}`;
+    const e = eintrag(lib);
+    const p = pos.get(k) || { gruppe, materialId: lib || null, name: e?.name || bemerkung || "ohne Library-Eintrag", kategorie: e?.kategorie || "",
+      anzahl: 0, laengeM, gewichtKg: null, herkunft: lib ? LIB.herkunft.get(lib) || "projekt" : null };
+    p.anzahl += anzahl;
+    const kg = e?.attribute?.gewicht;
+    p.gewichtKg = Number.isFinite(kg) ? kg * p.anzahl : null;
+    pos.set(k, p);
+  };
+  for (const s of P.screens) {
+    const n = new Map();
+    for (const m of s.module) n.set(m.lib, (n.get(m.lib) || 0) + 1);
+    for (const [lib, a] of n) add("LED-Module", lib, a);
+    const r = riggingDaten(s);
+    if (r.lib && r.rahmen.length) add("Rigging", r.lib.id, r.rahmen.length);
+  }
+  for (const g of P.geraete) {
+    if (g.art === "einspeisung" || g.art === "multicore") continue; // Multicore steht als Kabel in der Packliste
+    add("Geräte", g.lib, 1, null, `${g.name} (${g.art})`);
+  }
+  for (const z of packliste(kabelListe())) add("Kabel", z.lib, z.anzahl, z.laengeM, "Kabeltyp fehlt");
+  const ordnung = g => MATERIAL_GRUPPEN.indexOf(g);
+  return [...pos.values()].sort((a, b) => ordnung(a.gruppe) - ordnung(b.gruppe) || a.name.localeCompare(b.name, "de") || (a.laengeM ?? 0) - (b.laengeM ?? 0));
+}
+
+function materialDokument() {
+  return { format: "rex-materialliste", formatVersion: 1, modul: KONFIG.MODUL, erstellt: new Date().toISOString(),
+    projekt: { rexId: P.rexId || null, ...P.daten }, positionen: materialListe() };
+}
+
+function materialHinweise(liste) {
+  const h = [];
+  const ohne = liste.filter(p => !p.materialId);
+  if (ohne.length) h.push({ art: "warn", text: `${ohne.length} Positionen ohne Library-Eintrag (z.B. Kabeltyp fehlt) – im Reiter Kabel ergänzen.` });
+  if (liste.some(p => p.gruppe === "Kabel" && p.laengeM == null)) h.push({ art: "warn", text: "Kabel ohne Länge – im Reiter Kabel ergänzen." });
+  if (Datenquelle.verbunden()) {
+    const fremd = liste.filter(p => p.materialId && p.herkunft !== "rex");
+    if (fremd.length) h.push({ art: "warn", text: `${fremd.length} Positionen nicht aus der Rex-Library (Beispiel oder lokal) – Rex kennt sie nicht.` });
+  }
+  return h;
+}
+
+function materialHtml() {
+  const liste = materialListe();
+  const kg = liste.reduce((a, p) => a + (p.gewichtKg || 0), 0);
+  const kgOffen = liste.some(p => p.gruppe !== "Kabel" && p.gewichtKg == null);
+  const hinweise = materialHinweise(liste);
+  return `<div class="karte"><div class="knopfreihe"><h2 style="margin:0">Materialliste</h2><span class="fueller"></span>
+      <button data-e="material-csv">CSV</button><button data-e="material-datei">Datei für Rex</button>
+      <button data-e="material-rex" class="primaer" ${Datenquelle.verbunden() && !nurLesen() ? "" : "disabled"} title="${Datenquelle.verbunden() ? "An den Datenbank-Agent senden" : "Erst mit Rex-Anbindung möglich"}">An Rex übergeben</button></div>
+    <p class="klein leise">Alles, was das Projekt braucht: Module, Rigging, Geräte und Kabel (wie Packliste). Gewicht ${fmt(kg, 1)} kg${kgOffen ? " + unbekannte Gewichte" : ""}.</p>
+    ${hinweise.map(x => `<div class="hinweis ${x.art}">${esc(x.text)}</div>`).join("")}
+    <table><tr><th>Gruppe</th><th>Material</th><th>Nr.</th><th class="zahl">Länge</th><th class="zahl">Anzahl</th><th class="zahl">Gewicht</th></tr>
+    ${liste.map(p => `<tr><td>${esc(p.gruppe)}</td><td>${esc(p.name)}${p.herkunft === "beispiel" ? ' <span class="leise klein">· Beispiel</span>' : ""}</td><td class="klein leise">${esc(p.materialId || "—")}</td>
+      <td class="zahl">${p.laengeM != null ? fmtFlex(p.laengeM) + " m" : "—"}</td><td class="zahl">${fmt(p.anzahl)}</td><td class="zahl">${p.gewichtKg != null ? fmt(p.gewichtKg, 1) + " kg" : "—"}</td></tr>`).join("")
+      || `<tr><td colspan="6" class="leise">Noch kein Material im Projekt.</td></tr>`}</table></div>`;
+}
+
+async function materialAktion(a) {
+  if (a === "material-csv") {
+    const zeilen = materialListe().map(p => [p.gruppe, p.name, p.materialId || "", p.laengeM ?? "", p.anzahl, p.gewichtKg != null ? +p.gewichtKg.toFixed(2) : ""]);
+    herunterladen(csvText(["Gruppe", "Material", "Materialnummer", "Länge (m)", "Anzahl", "Gewicht (kg)"], zeilen), dateiname(`${P.daten.titel}_material`, ".csv"), "text/csv");
+  }
+  if (a === "material-datei") herunterladen(JSON.stringify(materialDokument(), null, 2), dateiname(`${P.daten.titel}_material`, ".rexmaterial.json"));
+  if (a === "material-rex") {
+    if (nurLesen()) return toast("Nur ansehen – der LED-Planer ist für diesen Benutzer nicht freigeschaltet.", "fehler");
+    try { await Datenquelle.materialZurueckgeben(materialDokument()); toast("Materialliste an Rex übergeben.", "ok"); }
+    catch (e) { toast("Übergabe fehlgeschlagen: " + e.message, "fehler"); }
+  }
 }
 
 /* ===== 80-druck.js ===== */
@@ -4254,6 +4428,12 @@ function berichtHtml() {
     ${kabel.map(z => `<tr><td>${z.nr}</td><td>${esc(libName(z.lib))}</td><td class="z">${z.laengeM == null ? "—" : fmtFlex(z.laengeM) + " m"}</td><td class="z">${z.anzahl}</td><td>${esc(z.von)}</td><td>${esc(z.nach)}</td></tr>`).join("")}</table>
     <h2>Packliste Kabel</h2><table><tr><th>Kabeltyp</th><th class="z">Länge</th><th class="z">Anzahl</th></tr>
     ${packliste(kabel).map(g => `<tr><td>${esc(libName(g.lib))}${g.bruecke ? " (Brücke)" : ""}</td><td class="z">${g.laengeM == null ? "—" : fmtFlex(g.laengeM) + " m"}</td><td class="z">${g.anzahl}</td></tr>`).join("")}</table></div>`);
+  // Materialliste
+  const mat = materialListe();
+  if (mat.length) blaetter.push(`<div class="blatt">${kopfzeile("Material", "Blatt " + (++nr))}<h2>Materialliste</h2>
+    <table><tr><th>Gruppe</th><th>Material</th><th>Nr.</th><th class="z">Länge</th><th class="z">Anzahl</th><th class="z">Gewicht</th></tr>
+    ${mat.map(p => `<tr><td>${esc(p.gruppe)}</td><td>${esc(p.name)}</td><td>${esc(p.materialId || "—")}</td><td class="z">${p.laengeM != null ? fmtFlex(p.laengeM) + " m" : "—"}</td><td class="z">${fmt(p.anzahl)}</td><td class="z">${p.gewichtKg != null ? fmt(p.gewichtKg, 1) + " kg" : "—"}</td></tr>`).join("")}
+    <tr><td colspan="5"><b>Summe bekannter Gewichte</b></td><td class="z"><b>${fmt(mat.reduce((a, p) => a + (p.gewichtKg || 0), 0), 1)} kg</b></td></tr></table></div>`);
   // Offene Punkte
   const h = alleHinweise();
   blaetter.push(`<div class="blatt">${kopfzeile("Offene Punkte", "Blatt " + (++nr))}<h2>Offene Punkte und Hinweise</h2>
@@ -4303,7 +4483,8 @@ function kundenHtml() {
 }
 
 /* ===== 90-start.js ===== */
-/* Start: Library laden, letztes Projekt aus dem Autosave holen, Oberfläche verdrahten. */
+/* Start: Library laden, letztes Projekt aus dem Autosave holen, Oberfläche verdrahten.
+   Mit Rex-Anbindung danach Library und Freischaltung aus dem Datenbank-Agent nachladen. */
 function start() {
   libLaden();
   if (!autosaveLaden()) { P = neuesProjekt(); gespeicherterStand = null; }
@@ -4314,6 +4495,19 @@ function start() {
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse, mappingEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,
     typeof einstellungenEreignisse === "function" && einstellungenEreignisse]) if (f) f();
+  render();
+  if (Datenquelle.verbunden()) rexVerbinden();
+}
+
+async function rexVerbinden() {
+  try {
+    const [liste, frei] = await Promise.all([Datenquelle.ladeLibrary(), Datenquelle.ladeFreischaltung()]);
+    libLaden(liste); REX.freischaltung = frei; REX.fehler = null;
+    if (!frei.ledplaner) toast("Nur ansehen – der LED-Planer ist für diesen Benutzer nicht freigeschaltet.", "fehler");
+  } catch (e) {
+    REX.fehler = e.message;
+    toast("Rex-System nicht erreichbar – eingebaute Library wird genutzt. (" + e.message + ")", "fehler");
+  }
   render();
 }
 start();

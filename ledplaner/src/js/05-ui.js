@@ -46,6 +46,9 @@ function aktualisiereKopf() {
   const offen = istUngespeichert() || gespeicherterStand === null;
   $("#status-gespeichert").textContent = offen ? "· ungespeichert" : "· gespeichert";
   $("#status-gespeichert").className = offen ? "ungespeichert" : "leise";
+  if (nurLesen()) { $("#status-gespeichert").textContent = "· nur ansehen"; $("#status-gespeichert").className = "ungespeichert"; }
+  $("#btn-speichern").disabled = nurLesen();
+  $("#btn-speichern").title = Datenquelle.verbunden() ? "Im Rex-System speichern (Strg+S)" : "Projekt als Datei speichern (Strg+S)";
   $("#btn-undo").disabled = !historie.zurueck.length && JSON.stringify(P) === historie.stand;
   $("#btn-redo").disabled = !historie.vor.length;
 }
@@ -124,7 +127,7 @@ function gerustEreignisse() {
   $$("[data-reiter]").forEach(b => b.onclick = () => { ui.reiter = b.dataset.reiter; ui.werkzeug = "auswahl"; render(); });
   $("#btn-undo").onclick = rueckgaengig;
   $("#btn-redo").onclick = wiederholen;
-  $("#btn-speichern").onclick = projektSpeichern;
+  $("#btn-speichern").onclick = () => projektSpeichern();
   $("#btn-drucken").onclick = druckDialog;
   $("#btn-live").onclick = () => liveOeffnen(aktuellerScreen());
 

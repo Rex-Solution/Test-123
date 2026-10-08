@@ -134,6 +134,12 @@ function berichtHtml() {
     ${kabel.map(z => `<tr><td>${z.nr}</td><td>${esc(libName(z.lib))}</td><td class="z">${z.laengeM == null ? "—" : fmtFlex(z.laengeM) + " m"}</td><td class="z">${z.anzahl}</td><td>${esc(z.von)}</td><td>${esc(z.nach)}</td></tr>`).join("")}</table>
     <h2>Packliste Kabel</h2><table><tr><th>Kabeltyp</th><th class="z">Länge</th><th class="z">Anzahl</th></tr>
     ${packliste(kabel).map(g => `<tr><td>${esc(libName(g.lib))}${g.bruecke ? " (Brücke)" : ""}</td><td class="z">${g.laengeM == null ? "—" : fmtFlex(g.laengeM) + " m"}</td><td class="z">${g.anzahl}</td></tr>`).join("")}</table></div>`);
+  // Materialliste
+  const mat = materialListe();
+  if (mat.length) blaetter.push(`<div class="blatt">${kopfzeile("Material", "Blatt " + (++nr))}<h2>Materialliste</h2>
+    <table><tr><th>Gruppe</th><th>Material</th><th>Nr.</th><th class="z">Länge</th><th class="z">Anzahl</th><th class="z">Gewicht</th></tr>
+    ${mat.map(p => `<tr><td>${esc(p.gruppe)}</td><td>${esc(p.name)}</td><td>${esc(p.materialId || "—")}</td><td class="z">${p.laengeM != null ? fmtFlex(p.laengeM) + " m" : "—"}</td><td class="z">${fmt(p.anzahl)}</td><td class="z">${p.gewichtKg != null ? fmt(p.gewichtKg, 1) + " kg" : "—"}</td></tr>`).join("")}
+    <tr><td colspan="5"><b>Summe bekannter Gewichte</b></td><td class="z"><b>${fmt(mat.reduce((a, p) => a + (p.gewichtKg || 0), 0), 1)} kg</b></td></tr></table></div>`);
   // Offene Punkte
   const h = alleHinweise();
   blaetter.push(`<div class="blatt">${kopfzeile("Offene Punkte", "Blatt " + (++nr))}<h2>Offene Punkte und Hinweise</h2>

@@ -1,7 +1,7 @@
 /* Projekt: Datenmodell, Neu/Laden/Speichern, Migration, Rückgängig, Autosave.
 
    projekt = {
-     format: "rex-ledplaner", formatVersion: 1, gespeichert,
+     format: "rex-ledplaner", formatVersion: 1, gespeichert, rexId (Projekt im Rex-System, sonst null),
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
@@ -59,6 +59,7 @@ function normalisiereProjekt(roh) {
   p.kabelAnpassung = d.kabelAnpassung && typeof d.kabelAnpassung === "object" ? d.kabelAnpassung : {};
   p.ausgabe = { ...p.ausgabe, ...(d.ausgabe || {}) };
   p.gespeichert = d.gespeichert || null;
+  p.rexId = typeof d.rexId === "string" || typeof d.rexId === "number" ? d.rexId : null;
   // bis 10/2026: Weg zur Wand als Feld am Prozessor → eigenes Gerät ohne Library-Eintrag
   for (const g of p.geraete.filter(g => g.art === "prozessor" && "weg" in g)) {
     if (g.weg === "stagebox" || g.weg === "multicore") {
@@ -145,24 +146,43 @@ function projektJson() {
   P.gespeichert = new Date().toISOString();
   return JSON.stringify(P, null, 2);
 }
-function projektSpeichern() {
-  const text = projektJson();
-  herunterladen(text, dateiname(P.daten.titel, ".ledplaner.json"));
+/* Speichern: mit Rex-Anbindung in die Datenbank, sonst (oder mit alsDatei) als Datei */
+async function projektSpeichern(alsDatei = false) {
+  if (nurLesen()) return toast("Nur ansehen – der LED-Planer ist für diesen Benutzer nicht freigeschaltet.", "fehler");
+  if (Datenquelle.verbunden() && !alsDatei) {
+    try { P.rexId = await Datenquelle.speichereProjekt(projektJson(), P.rexId); }
+    catch (e) { return toast("Speichern im Rex-System fehlgeschlagen: " + e.message + " – „Als Datei speichern“ nutzen.", "fehler"); }
+  } else herunterladen(projektJson(), dateiname(P.daten.titel, ".ledplaner.json"));
   gespeicherterStand = JSON.stringify(P);
   autosave();
   aktualisiereKopf();
-  toast("Projekt gespeichert.", "ok");
+  toast(Datenquelle.verbunden() && !alsDatei ? "Projekt im Rex-System gespeichert." : "Projekt gespeichert.", "ok");
+}
+function projektUebernehmen(d, quelle) {
+  P = normalisiereProjekt(d);
+  gespeicherterStand = JSON.stringify(P);
+  historieStart();
+  ui.screen = P.screens[0]?.id || null; ui.auswahl.clear();
+  aenderung({ merken: false });
+  toast(`„${quelle}“ geöffnet.`, "ok");
+}
+async function projektAusRexOeffnen() {
+  if (istUngespeichert() && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
+  let liste;
+  try { liste = await Datenquelle.ladeProjektListe(); } catch (e) { return toast("Projektliste nicht erreichbar: " + e.message, "fehler"); }
+  if (!Array.isArray(liste) || !liste.length) return toast("Im Rex-System gibt es noch keine LED-Planer-Projekte.", "info");
+  const erg = await formularDialog("Projekt aus Rex öffnen", [
+    { name: "id", label: "Projekt", art: "auswahl", wert: liste[0].id, optionen: liste.map(p => [p.id, `${p.titel || p.id}${p.geaendert ? " · " + String(p.geaendert).slice(0, 10) : ""}`]) },
+  ], "Öffnen");
+  if (!erg) return;
+  try { const d = await Datenquelle.ladeProjekt(erg.id); d.rexId = d.rexId ?? erg.id; projektUebernehmen(d, liste.find(p => String(p.id) === erg.id)?.titel || erg.id); }
+  catch (e) { toast("Projekt konnte nicht geladen werden: " + e.message, "fehler"); }
 }
 async function projektOeffnen() {
   const f = await waehleDatei($("#datei-projekt"));
   if (!f) return;
   try {
-    P = normalisiereProjekt(JSON.parse(f.text));
-    gespeicherterStand = JSON.stringify(P);
-    historieStart();
-    ui.screen = P.screens[0]?.id || null; ui.auswahl.clear();
-    aenderung({ merken: false });
-    toast(`„${f.name}“ geöffnet.`, "ok");
+    projektUebernehmen(JSON.parse(f.text), f.name);
   } catch (e) {
     toast("Datei konnte nicht geöffnet werden: " + e.message, "fehler");
   }

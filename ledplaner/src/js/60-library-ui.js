@@ -11,7 +11,7 @@ function renderLibrary() {
     const liste = eintraege.filter(e => libTyp(e) === typ);
     if (!liste.length) return "";
     return `<div class="label">${titel}</div>` + liste.map(e => `<div class="eintrag${ui.libSel === e.id ? " sel" : ""}" data-lib-sel="${e.id}">
-      <span>${esc(e.name)}${LIB.herkunft.get(e.id) === "beispiel" ? ` <span class="leise klein">· Beispiel</span>` : ""}${abw.has(e.id) ? ` <span class="badge teil" title="Projektkopie weicht ab">≠ Projekt</span>` : ""}</span>${badgeHtml(e)}</div>`).join("");
+      <span>${esc(e.name)}${{ beispiel: ` <span class="leise klein">· Beispiel</span>`, rex: ` <span class="leise klein">· Rex</span>` }[LIB.herkunft.get(e.id)] || ""}${abw.has(e.id) ? ` <span class="badge teil" title="Projektkopie weicht ab">≠ Projekt</span>` : ""}</span>${badgeHtml(e)}</div>`).join("");
   }).join("");
   $("#lib-liste").innerHTML = `<div class="knopfreihe" style="justify-content:space-between"><h2 style="margin:0">Library</h2><button data-l="neu" class="primaer">+ Neu</button></div>
     <input type="search" id="lib-suche" placeholder="Suchen …" value="${esc(ui.libFilter)}" style="width:100%;margin:12px 0 8px">
@@ -55,7 +55,7 @@ function renderLibraryFormular() {
   el.innerHTML = `<div class="karte">
     <div class="knopfreihe"><h2 style="margin:0">${esc(d.name || "—")}</h2>${badgeHtml(d)}<span class="leise klein">${LIB_TYPEN[typ] || typ} · ${esc(d.id)}</span><span class="fueller"></span>
       <button data-l="verwerfen" ${geaendert ? "" : "disabled"}>Verwerfen</button><button data-l="dup">Duplizieren</button>
-      <button data-l="loeschen" class="gefahr" ${LIB.herkunft.get(e.id) === "beispiel" ? "disabled title='Beispiele sind eingebaut'" : ""}>Löschen</button>
+      <button data-l="loeschen" class="gefahr" ${LIB.herkunft.get(e.id) === "beispiel" ? "disabled title='Beispiele sind eingebaut'" : LIB.herkunft.get(e.id) === "rex" ? "disabled title='Kommt aus dem Rex-System'" : ""}>Löschen</button>
       <button data-l="speichern" class="primaer" ${geaendert && !v.pflichtFehlt.length ? "" : "disabled"} title="${v.pflichtFehlt.length ? "Pflicht fehlt: " + esc(v.pflichtFehlt.join(", ")) : ""}">Speichern</button></div>
     ${v.pflichtFehlt.length ? `<div class="hinweis fehler" style="margin-top:12px">Pflichtangaben fehlen: ${esc(v.pflichtFehlt.join(", "))}. Der Eintrag ist in der Planung nicht wählbar.</div>` : ""}
     ${v.offen.length ? `<div class="hinweis warn" style="margin-top:12px">Datenblatt fehlt: ${esc(v.offen.join(", "))}. Planung möglich, Prüfungen dazu bleiben offen.</div>` : ""}
