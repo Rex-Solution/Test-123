@@ -39,11 +39,11 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Strom | **Mehrere Ebenen** (Einspeisung → Haupt-/Unterverteiler → Laka mit Spinne oder CEE-Kabel → Wand); Phasen L1/L2/L3; Reserve; **Einschaltstrom**-Prüfung |
 | Stromwege | **Vorschlag** des Programms oder **Pinsel**: Reihenfolge wird gemalt |
 | Verteiler-Übersicht | Last je Phase, Last je Abgang, **Max. und Durchschnitt**; kein automatischer Ausgleich |
-| Signal | Prozessor → **Stagebox (aktiv)** oder **Multicore (passiv)** → Wand; Prozessoren nur, wenn **Receiving Card** passt; Standort je Prozessor frei |
+| Signal | Prozessor → **Stagebox (aktiv)** oder **Multicore (passiv)** → Wand, beide als **eigene Geräte** aus der Library mit Port-Zuordnung (übrige Ports direkt per Cat); Prozessoren nur, wenn **Receiving Card** passt; Standort je Prozessor frei |
 | Datenwege | Vorschlag oder Pinsel; **Backup** automatisch auf eigenem Port, **gleicher Weg** wie der Hauptweg, eingespeist am Strangende; in der Zeichnung nur Marke „B1“ am Endpunkt |
 | Ausgabe | Zuspieler-Outputs mit **Format + Quelle**; Outputs ↔ Prozessor-Eingänge; **Ausschnitt → Fläche**, Standard 1:1, Skalierung möglich; **Layer gezählt** mit Grenze je Prozessor |
 | Signal-Mapping | Pixelraum je Prozessor: **Vorschlag nach physischer Lage, frei verschiebbar**; mehrere Prozessoren je Screen möglich |
-| Gemischter Pitch | **Je Screen wählbar**: eigener Ausschnitt je Bereich (1:1) oder gemeinsamer Ausschnitt mit Skalierung |
+| Gemischter Pitch | **Immer 1:1**: eigener Ausschnitt je Pitch-Bereich, keine gemeinsame Skalierung (Entscheidung 10/2026) |
 | Sonderfälle Ausgabe | Ein Output → mehrere Screens · mehrere Outputs → ein Screen · mehrere Prozessoren je Screen · gleiches Bild doppelt |
 | Testbild | **Teil der Ausgabe**: Testbild je Output + Live-Ausgabe |
 | Prüfungen Ausgabe | Eingangsauflösung, Gesamtkapazität, Anschlussart, Bildrate |
@@ -210,7 +210,7 @@ Projekt
  │   ├─ Aufbau:       Bumper/Stützen[], Aufhängepunkte[] mit Last
  │   ├─ Strom:        Kreise[] { Abgang, Laka/Kabel, Module in gemalter Reihenfolge }
  │   ├─ Signal:       Stränge[] { Port (Prozessor/Stagebox), Module in Reihenfolge, Backup-Port }
- │   └─ Ausgabe:      Mischpitch-Modus (eigene Ausschnitte | gemeinsam + Skalierung)
+ │   └─ Ausgabe:      gemischter Pitch immer 1:1 (eigene Ausschnitte je Bereich)
  ├─ Outputs[]         { Name, Auflösung, Bildrate, Anschluss, Zuspieler }
  ├─ Kabel[]          { Nr, Gewerk, Kabeltyp (Library), Länge, Anzahl, Von {Gerät, Anschluss},
  │                      Nach {Gerät, Anschluss}, Herkunft (automatisch | von Hand), Bemerkung }
@@ -275,11 +275,9 @@ Speicherformat als JSON wie die übrigen Module (`format`, `version`,
 - **Outputs anlegen**: Name, Auflösung, Bildrate, Anschluss, Zuspieler (z.B. „Medienserver 1 · Out 2 · 3840×2160 · 50p · HDMI 2.0“). Mit verknüpftem Signalfluss-Planer kommen die Zuspieler von dort.
 - Outputs mit **Prozessor-Eingängen** verbinden.
 - Am Prozessor festlegen, **welcher Ausschnitt eines Outputs auf welcher Fläche des Pixelraums** erscheint: Rechteck im Output ziehen → auf den Pixelraum legen. Jede solche Zuordnung belegt einen **Layer** des Prozessors.
-- **Standard 1:1** ohne Skalierung, Warnung bei Größenabweichung. **Skalierung** ist möglich, wo sie gewollt ist (siehe gemischter Pitch).
+- **Standard 1:1** ohne Skalierung, Warnung bei Größenabweichung. Layer dürfen skalieren (Ausschnitt ≠ Fläche), der Planer warnt dann.
 - **Layer mit Grenze**: Das Programm zählt die Layer je Prozessor und warnt bei Überschreitung (NovaStar MX30: 3 Layer). Tipp im Programm: Screens im Pixelraum so anordnen wie im Output, dann reicht **ein Layer für mehrere Screens**.
-- **Gemischter Pitch in einem Screen – je Screen wählbar**:
-  1. *Eigener Ausschnitt je Bereich*: jeder Pitch-Bereich eigener Block, eigener Ausschnitt, 1:1 (Content muss dafür vorbereitet sein).
-  2. *Gemeinsamer Ausschnitt + Skalierung*: ein Ausschnitt nach physischer Größe des ganzen Screens; der Prozessor skaliert je Bereich, damit das Bild physisch durchläuft (nicht 1:1, braucht ggf. zusätzliche Layer).
+- **Gemischter Pitch in einem Screen – immer 1:1**: jeder Pitch-Bereich wird mit seinen echten Pixeln abgebildet, eigener Ausschnitt je Bereich (Content muss dafür vorbereitet sein). Eine gemeinsame Skalierung über den ganzen Screen gibt es nicht.
 - **Sonderfälle**, die abgedeckt werden:
   - *Ein Output → mehrere Screens* (z.B. Mitte + zwei Seiten aus einem 4K-Signal).
   - *Mehrere Outputs → ein Screen* (z.B. 2 × 4K nebeneinander auf einem breiten Screen).
@@ -372,9 +370,10 @@ Verteiler-Übersicht, Kabel-Reiter, Testbild + Live je Screen, Bericht/Großform
 Phase 2: Signal (Prozessoren, Port-Regel, Vorschlag + Pinsel, Backup am Strangende, Prozessor-Übersicht, Signalkabel),
 Rigging (Flugrahmen/Stacking, Last je Punkt, Riggingplan, Freigabefeld) und Ausgabe-Mapping (Outputs → Eingänge,
 Pixelraum je Prozessor mit frei verschiebbaren Screens, Layer-Vorschlag mit Grenze je Prozessor, Testbild/Live je
-Output, Videokabel, Ausgabe-Blatt im Bericht).
+Output, Videokabel, Ausgabe-Blatt im Bericht) sowie Stagebox und Multicore als eigene Geräte (je Prozessor, Ports frei
+zuordenbar, Rest direkt per Cat; Stagebox mit Zuleitung und Strom). Gemischte Pitches bleiben 1:1 je Modultyp.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.
-2. Phase 2 abrunden: Stagebox/Multicore als Geräte, gemischte Pitches „gemeinsam + Skalierung“.
+2. Echte Stagebox-/Multicore-Einträge aus dem Bestand in der Library anlegen (Beispiel-Stagebox hat noch keine Leistung).
 3. Bestandsliste und Datenblätter nachreichen (Lakas, Stageboxen, Multicores, Flugrahmen; LEDTEK-Grenzwerte, C24-Phasen).

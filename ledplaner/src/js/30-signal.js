@@ -36,8 +36,8 @@ function prozessorAnlegen(libId) {
   const n = P.geraete.filter(g => g.art === "prozessor").length + 1;
   const cat = libListe("kabel").find(e => e.attribute.led.farbsystem === "LAN")?.id || null;
   if (cat) nutzeEintrag(cat);
-  const g = { id: neueId("p"), art: "prozessor", lib: libId, name: "Prozessor " + n, standort: "FOH / Regie", weg: "direkt",
-    portKabel: cat, portLaengeM: null, wegLib: null, strom: null };
+  const g = { id: neueId("p"), art: "prozessor", lib: libId, name: "Prozessor " + n, standort: "FOH / Regie",
+    portKabel: cat, portLaengeM: null, strom: null };
   P.geraete.push(g);
   ui.sel.prozessor = g.id;
   aenderung();
@@ -80,6 +80,7 @@ function signalVorschlag() {
   segmente.forEach((seg, i) => {
     P.straenge.push({ id: neueId("d"), screen: s.id, prozessor: g.id, port: frei[i], backupPort: backup ? frei[segmente.length + i] : null, module: seg.map(m => m.id) });
   });
+  wegeAbgleichen(g.id);
   ui.sel.prozessor = g.id;
   aenderung();
   toast(`${segmente.length} Datenstränge an ${g.name}${backup ? " + Backup" : ""} vorgeschlagen${ueberlast ? " – Achtung: einzelne Module über der Portgrenze" : ""}.`, ueberlast ? "fehler" : "ok");
@@ -139,7 +140,7 @@ function signalSvgInhalt(s) {
 }
 
 REITER.signal = {
-  titelPalette: "Library – Prozessoren",
+  titelPalette: "Library – Signalgeräte",
   werkzeuge() {
     const s = aktuellerScreen();
     const ziele = signalZiele();
@@ -162,7 +163,9 @@ REITER.signal = {
       const ok = passt && eintragNutzbar(e);
       return `<button class="palette-item" data-d="prozessor-neu" data-lib="${e.id}" ${ok ? "" : "disabled"} title="${passt ? "" : "passt nicht zur Receiving Card der Module"}"><span class="name">${esc(e.name)}</span>${passt ? badgeHtml(e) : `<span class="badge fehler">RC</span>`}</button>`;
     }).join("") || `<p class="klein leise">Keine Prozessoren in der Library.</p>`) +
-      `<p class="klein leise">Nur Prozessoren, deren Receiving Cards zu den Modulen passen, sind wählbar. Ein Port nimmt nur Module derselben Serie mit derselben Receiving Card.</p>`;
+      `<p class="klein leise">Nur Prozessoren, deren Receiving Cards zu den Modulen passen, sind wählbar. Ein Port nimmt nur Module derselben Serie mit derselben Receiving Card.</p>` +
+      Object.keys(WEG_ARTEN).map(art => `<div class="label">${WEG_MEHRZAHL[art]} – Klick: an ${esc(geraetById(ui.sel.prozessor)?.name || "gewählten Prozessor")}</div>` + (libListe(art).map(e =>
+        `<button class="palette-item" data-d="weg-neu" data-art="${art}" data-lib="${e.id}" ${eintragNutzbar(e) && geraetById(ui.sel.prozessor) ? "" : "disabled"}><span class="name">${esc(e.name)}</span>${badgeHtml(e)}</button>`).join("") || `<p class="klein leise">Keine Einträge in der Library.</p>`)).join("");
   },
   zeichnung(el) {
     if (ui.modus.signal === "prozessoren") return signalUebersicht(el);
@@ -192,7 +195,7 @@ REITER.signal = {
       ${st.map((k, i) => { const g = geraetById(k.prozessor); const ms = strangModule(k); const px = strangPixel(k);
         return `<tr class="klickbar${ui.sel.strang === k.id ? " sel" : ""}" data-strang="${k.id}"><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${strangName(k)}</td><td>${esc(g?.name || "—")}</td><td>${k.port}</td>
           <td>${Number.isFinite(k.backupPort) ? "Port " + k.backupPort : "—"}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
-          <td>${balken(px / (portKapazitaet(g) || 1))}</td><td>${esc({ direkt: "direkt (Cat)", stagebox: "Stagebox", multicore: "Multicore" }[g?.weg] || "—")}</td></tr>`; }).join("")
+          <td>${balken(px / (portKapazitaet(g) || 1))}</td><td>${esc(wegText(k))}</td></tr>`; }).join("")
         || `<tr><td colspan="8" class="leise">Noch keine Datenstränge – „Vorschlag erzeugen“ oder mit dem Pinsel malen.</td></tr>`}</table>`;
   },
   rechts() { return signalRechts(); },
@@ -203,6 +206,12 @@ REITER.signal = {
     return false;
   },
 };
+
+function wegText(k) {
+  const d = portWeg(k.prozessor, k.port);
+  const b = Number.isFinite(k.backupPort) ? portWeg(k.prozessor, k.backupPort) : d;
+  return d === b ? (d ? d.name : "direkt (Cat)") : `${d?.name || "direkt"} / Backup ${b?.name || "direkt"}`;
+}
 
 function strangLoeschen(id) { P.straenge = P.straenge.filter(k => k.id !== id); ui.sel.strang = null; aenderung(); }
 
@@ -222,21 +231,18 @@ function signalRechts() {
     const ports = prozessorPorts(g); const belegt = belegtePorts(g.id);
     const px = P.straenge.filter(x => x.prozessor === g.id).reduce((a, x) => a + strangPixel(x), 0);
     const kabel = libListe("kabel").filter(e => e.attribute.led.gewerk === "signal");
-    const kanaele = [];
-    for (const v of P.geraete.filter(x => x.art === "verteiler")) {
-      const frei = belegteKanaele(v.id);
-      for (const ka of verteilerLed(v).kanaele || []) if (!frei.has(ka.nr) || (g.strom?.verteiler === v.id && g.strom.kanal === ka.nr)) kanaele.push([`${v.id}|${ka.nr}`, `${v.name} · Kanal ${ka.nr}`]);
-    }
     html += `<div class="karte"><div class="label">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</div>
       <label class="feld"><span>Name *</span><input data-p-feld="name" value="${esc(g.name)}"></label>
       <label class="feld"><span>Standort</span><input data-p-feld="standort" value="${esc(g.standort || "")}"></label>
-      <label class="feld"><span>Weg zur Wand</span><select data-p-feld="weg">${[["direkt", "direkt (Cat je Port)"], ["stagebox", "über Stagebox (Glasfaser)"], ["multicore", "über Multicore"]].map(([w, t]) => `<option value="${w}"${g.weg === w ? " selected" : ""}>${t}</option>`).join("")}</select></label>
-      <div class="zwei"><label class="feld"><span>${g.weg === "direkt" ? "Port-Kabel" : "Kabel zur Wand"}</span><select data-p-feld="portKabel"><option value="">—</option>${kabel.map(e => `<option value="${e.id}"${g.portKabel === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select></label>
+      <div class="zwei"><label class="feld"><span>Port-Kabel (direkt)</span><select data-p-feld="portKabel"><option value="">—</option>${kabel.map(e => `<option value="${e.id}"${g.portKabel === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select></label>
       <label class="feld"><span>Länge (m)</span><input data-p-feld="portLaengeM" value="${g.portLaengeM ?? ""}" inputmode="decimal"></label></div>
-      <label class="feld"><span>Strom für den Prozessor</span><select data-p-feld="strom"><option value="">— nicht zugeordnet —</option>${kanaele.map(([w, t]) => `<option value="${w}"${g.strom && `${g.strom.verteiler}|${g.strom.kanal}` === w ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label>
+      <label class="feld"><span>Strom für den Prozessor</span>${kanalSelect(g, 'data-p-feld="strom"')}</label>
       <table class="werte"><tr><td>Receiving Cards</td><td>${esc((led.receivingCards || []).join(", "))}</td></tr><tr><td>Belegte Ports</td><td>${belegt.size} / ${ports.length}</td></tr>
       <tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)}</td></tr><tr><td>Layer</td><td>${fmt(led.layer)}</td></tr></table>
       <div class="knopfreihe" style="margin-top:8px"><button data-d="geraet-loeschen" class="gefahr">Prozessor löschen</button></div></div>`;
+    html += wegeKarte(g);
+    const d = geraetById(ui.sel.weg);
+    if (istWeg(d) && d.prozessor === g.id) html += wegKarte(d);
   } else if (!k) html += `<div class="karte"><p class="klein leise">Prozessor links anlegen oder im Projektbaum anklicken. Stränge per „Vorschlag erzeugen“ oder mit dem Pinsel anlegen.</p></div>`;
   return html;
 }
@@ -252,13 +258,15 @@ function signalUebersicht(el) {
     const eingaenge = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "video");
     const portHtml = ports.map(p => {
       const haupt = st.find(k => k.port === p.nr), bk = st.find(k => k.backupPort === p.nr);
-      if (haupt) return `<div class="port" style="border-color:${strangFarbe(haupt)}"><b>Port ${p.nr}</b><br>Haupt · ${esc(screenById(haupt.screen)?.name || "")}<br>${fmt(strangPixel(haupt) / portKapazitaet(g) * 100)} %</div>`;
-      if (bk) return `<div class="port" style="border-color:${strangFarbe(bk)};border-style:dashed"><b>Port ${p.nr}</b><br>Backup zu ${p.nr === bk.backupPort ? bk.port : ""}<br>${esc(screenById(bk.screen)?.name || "")}</div>`;
+      const via = portWeg(g.id, p.nr); const viaText = via ? `<br><span class="leise">über ${esc(wegKurz(via))}</span>` : "";
+      if (haupt) return `<div class="port" style="border-color:${strangFarbe(haupt)}"><b>Port ${p.nr}</b><br>Haupt · ${esc(screenById(haupt.screen)?.name || "")}<br>${fmt(strangPixel(haupt) / portKapazitaet(g) * 100)} %${viaText}</div>`;
+      if (bk) return `<div class="port" style="border-color:${strangFarbe(bk)};border-style:dashed"><b>Port ${p.nr}</b><br>Backup zu ${p.nr === bk.backupPort ? bk.port : ""}<br>${esc(screenById(bk.screen)?.name || "")}${viaText}</div>`;
       return `<div class="port frei"><b>Port ${p.nr}</b><br>frei</div>`;
     }).join("");
     return `<div class="karte"><div class="knopfreihe"><h2 style="margin:0">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</h2><span class="fueller"></span>${st.length ? `<span class="badge voll">ok</span>` : `<span class="badge teil">leer</span>`}</div>
       <p class="klein leise">Standort: ${esc(g.standort || "—")} · Receiving Cards: ${esc((led.receivingCards || []).join(", "))}</p>
       <div class="label">Ausgänge (${ports.length} × ${fmt(led.pxJePort)} px)</div><div class="portgitter">${portHtml}</div>
+      ${wegGeraete(g.id).length ? `<div class="label">Wege zur Wand</div><table class="werte">${wegGeraete(g.id).map(d => `<tr><td>${esc(wegKurz(d))} · ${esc(d.name)}</td><td>${esc(eintrag(d.lib)?.name || "—")} · Ports ${d.ports.join(", ") || "—"} · ${esc(d.standort || "")}</td></tr>`).join("")}</table>` : ""}
       <div class="label">Eingänge</div><table class="werte">${eingaenge.map(a => { const o = (P.outputs || []).filter(x => x.prozessor === g.id && x.eingang === a.name); return `<tr><td>${esc(a.name)}</td><td>${o.length ? o.map(x => esc(`${x.name} · ${x.b} × ${x.h} @ ${fmtFlex(x.hz)} Hz`)).join(", ") : '<span class="leise">frei</span>'}</td></tr>`; }).join("")}</table>
       <div class="label">Auslastung</div><table class="werte"><tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)} (${fmt(led.pxGesamt ? px / led.pxGesamt * 100 : 0)} %)</td></tr>
       <tr><td>Ports</td><td>${belegtePorts(g.id).size} / ${ports.length}</td></tr><tr><td>Layer</td><td>${(P.layer || []).filter(l => l.prozessor === g.id).length} / ${fmt(led.layer)}</td></tr></table></div>`;
@@ -305,9 +313,11 @@ function signalPruefungen() {
     if (led.pxGesamt && px > led.pxGesamt) liste.push({ art: "warn", text: `${g.name}: ${fmt(px)} px über der Gesamtkapazität ${fmt(led.pxGesamt)} px.`, ziel: "prozessor:" + g.id });
     if (!P.straenge.some(k => k.prozessor === g.id)) liste.push({ art: "info", text: `${g.name}: keine Ports belegt – wird er gebraucht?`, ziel: "prozessor:" + g.id });
     if (!g.strom) liste.push({ art: "info", text: `${g.name}: Stromversorgung nicht zugeordnet.`, ziel: "prozessor:" + g.id });
-    if (!Number.isFinite(g.portLaengeM) && P.straenge.some(k => k.prozessor === g.id)) liste.push({ art: "warn", text: `${g.name}: Länge der Port-Kabel fehlt.`, ziel: "prozessor:" + g.id });
-    if (g.weg === "direkt" && g.portLaengeM > P.regeln.catMax) liste.push({ art: "warn", text: `${g.name}: Cat-Strecke ${fmtFlex(g.portLaengeM)} m über ${fmt(P.regeln.catMax)} m – Glasfaser/Stagebox nutzen.`, ziel: "prozessor:" + g.id });
+    const direkt = genutztePorts(g.id).some(nr => !portWeg(g.id, nr));
+    if (direkt && !Number.isFinite(g.portLaengeM)) liste.push({ art: "warn", text: `${g.name}: Länge der Port-Kabel fehlt.`, ziel: "prozessor:" + g.id });
+    if (direkt && g.portLaengeM > P.regeln.catMax) liste.push({ art: "warn", text: `${g.name}: Cat-Strecke ${fmtFlex(g.portLaengeM)} m über ${fmt(P.regeln.catMax)} m – Glasfaser/Stagebox nutzen.`, ziel: "prozessor:" + g.id });
   }
+  liste.push(...wegePruefungen());
   return liste;
 }
 
@@ -335,6 +345,7 @@ function signalEreignisse() {
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
     const b = e.target.closest("[data-d='prozessor-neu']"); if (b && !b.disabled) prozessorAnlegen(b.dataset.lib);
+    const w = e.target.closest("[data-d='weg-neu']"); if (w && !w.disabled) wegAnlegen(w.dataset.art, w.dataset.lib, ui.sel.prozessor);
   });
   $("#liste").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
@@ -345,6 +356,14 @@ function signalEreignisse() {
   });
   $("#rechts").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
+    const ws = e.target.closest("[data-weg-sel]");
+    if (ws) { ui.sel.weg = ui.sel.weg === ws.dataset.wegSel ? null : ws.dataset.wegSel; return render(); }
+    const wa = e.target.closest("[data-w]")?.dataset.w; const d = geraetById(ui.sel.weg);
+    if (wa && istWeg(d)) {
+      if (wa === "loeschen") wegLoeschen(d);
+      if (wa === "auffuellen") { wegPortsAuffuellen(d); aenderung(); }
+      return;
+    }
     const a = e.target.closest("[data-d]")?.dataset.d; if (!a) return;
     const k = P.straenge.find(x => x.id === ui.sel.strang);
     if (a === "strang-loeschen" && k) strangLoeschen(k.id);
@@ -358,6 +377,10 @@ function signalEreignisse() {
   });
   $("#rechts").addEventListener("change", e => {
     if (ui.reiter !== "signal") return;
+    const neu = e.target.dataset.wNeu;
+    if (neu) { if (e.target.value) wegAnlegen(neu, e.target.value, ui.sel.prozessor); return; }
+    const wf = e.target.dataset.wFeld;
+    if (wf) { const d = geraetById(ui.sel.weg); if (istWeg(d)) wegAendern(d, wf, e.target.value); return; }
     const g = geraetById(ui.sel.prozessor); const f = e.target.dataset.pFeld;
     if (!g || !f) return;
     let w = e.target.value;

@@ -10,7 +10,7 @@ const ui = {
   werkzeug: "auswahl",        // auswahl | pinsel
   ansicht: new Map(),         // je Screen: viewBox { x, y, b, h }
   hinten: false,              // Rückansicht im Aufbau
-  sel: { verteiler: null, kreis: null, prozessor: null, strang: null, kabel: null, laka: null, output: null },
+  sel: { verteiler: null, kreis: null, prozessor: null, strang: null, kabel: null, laka: null, output: null, weg: null },
   pinsel: { strom: null, signal: null },  // Ziel des Pinsels: { verteiler, kanal } bzw. { prozessor, port }
   libSel: null, libFilter: "", libNurOffen: false,
   einst: "datei",
@@ -91,7 +91,8 @@ function springeZu(ziel) {
   if (art === "modul") { const s = P.screens.find(s => s.module.some(m => m.id === id)); if (s) { ui.screen = s.id; ui.auswahl = new Set([id]); } }
   if (art === "kabel") { ui.reiter = "kabel"; ui.sel.kabel = ziel.slice(6); }
   if (art === "verteiler") { ui.reiter = "strom"; ui.sel.verteiler = id; }
-  if (art === "prozessor") { ui.reiter = "signal"; ui.sel.prozessor = id; }
+  if (art === "prozessor") { ui.reiter = "signal"; ui.sel.prozessor = id; ui.sel.weg = null; }
+  if (art === "weg") { const d = geraetById(id); if (d) { ui.reiter = "signal"; ui.sel.prozessor = d.prozessor; ui.sel.weg = id; } }
   if (art === "library") { ui.haupt = "library"; ui.libSel = id; }
   render();
 }
@@ -111,7 +112,8 @@ function renderBaum() {
     ...einspeisungen.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, "⏚ " + g.name)),
     verteiler.length || einspeisungen.length ? "" : `<li class="leise">—</li>`,
     `<li class="gruppe">Prozessoren</li>`,
-    ...prozessoren.map(g => li(ui.sel.prozessor === g.id ? "sel" : "", `data-geraet="${g.id}"`, g.name)),
+    ...prozessoren.flatMap(g => [li(ui.sel.prozessor === g.id && !ui.sel.weg ? "sel" : "", `data-geraet="${g.id}"`, g.name),
+      ...wegGeraete(g.id).map(d => li(ui.sel.weg === d.id ? "sel" : "", `data-geraet="${d.id}"`, "↳ " + d.name))]),
     prozessoren.length ? "" : `<li class="leise">—</li>`,
   ].join("");
 }
@@ -134,7 +136,8 @@ function gerustEreignisse() {
     const g = e.target.closest("[data-geraet]");
     if (g) {
       const ger = geraetById(g.dataset.geraet);
-      if (ger.art === "prozessor") { ui.reiter = "signal"; ui.sel.prozessor = ger.id; }
+      if (ger.art === "prozessor") { ui.reiter = "signal"; ui.sel.prozessor = ger.id; ui.sel.weg = null; }
+      else if (istWeg(ger)) { ui.reiter = "signal"; ui.sel.prozessor = ger.prozessor; ui.sel.weg = ger.id; }
       else { ui.reiter = "strom"; ui.sel.verteiler = ger.id; }
       render();
     }

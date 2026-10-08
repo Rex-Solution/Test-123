@@ -61,11 +61,14 @@ function kabelListe() {
     for (const k of st) {
       const g = geraetById(k.prozessor); if (!g) continue;
       const ms = strangModule(k);
-      const ueber = g.weg === "stagebox" ? "Stagebox" : g.weg === "multicore" ? "Multicore-Auflösung" : null;
-      const lib = ueber ? kabelLibPassend("signal", "etherCON")?.id || null : g.portKabel;
-      const laenge = ueber ? 5 : g.portLaengeM ?? null;
-      add({ key: "port:" + k.id, gewerk: "signal", lib, laengeM: laenge, von: `${ueber || g.name} · Port ${k.port}`, nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
-      if (Number.isFinite(k.backupPort)) add({ key: "backup:" + k.id, gewerk: "signal", lib, laengeM: laenge, von: `${ueber || g.name} · Port ${k.backupPort} (Backup)`, nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id });
+      // je Port: direkt vom Prozessor oder vom Ausgang der Stagebox / Auflösung des Multicores
+      const quelle = nr => {
+        const d = portWeg(g.id, nr);
+        if (!d) return { lib: g.portKabel, laengeM: g.portLaengeM ?? null, von: `${g.name} · Port ${nr}` };
+        return { lib: d.ausgangKabel, laengeM: d.ausgangLaengeM ?? null, von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
+      };
+      add({ key: "port:" + k.id, gewerk: "signal", ...quelle(k.port), nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
+      if (Number.isFinite(k.backupPort)) { const q = quelle(k.backupPort); add({ key: "backup:" + k.id, gewerk: "signal", ...q, von: q.von + " Backup", nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id }); }
     }
     const brDaten = st.reduce((a, k) => a + Math.max(0, k.module.length - 1), 0);
     if (brDaten) {
@@ -74,12 +77,13 @@ function kabelListe() {
         von: "Modul", nach: `Modul · ${s.name} (Brücken ${st.map(strangName).join(", ")})`, screen: s.id });
     }
   }
-  // Signal: Weg Prozessor → Stagebox/Multicore
-  for (const g of P.geraete.filter(x => x.art === "prozessor" && x.weg !== "direkt")) {
-    const ports = P.straenge.filter(k => k.prozessor === g.id).reduce((a, k) => a + 1 + (Number.isFinite(k.backupPort) ? 1 : 0), 0);
-    if (!ports) continue;
-    add({ key: "weg:" + g.id, gewerk: "signal", lib: g.portKabel, laengeM: g.portLaengeM ?? null, anzahl: g.weg === "multicore" ? Math.ceil(ports / 4) : 1,
-      von: `${g.name} · ${g.weg === "stagebox" ? "Glasfaser" : "Ports"}`, nach: g.weg === "stagebox" ? "Stagebox an der Wand" : "Multicore-Auflösung an der Wand", screen: null });
+  // Signal: Prozessor → Stagebox (Zuleitung) bzw. Multicore
+  for (const d of P.geraete.filter(istWeg)) {
+    const g = geraetById(d.prozessor); if (!g || !d.ports.length) continue;
+    if (d.art === "stagebox") add({ key: "weg:" + d.id, gewerk: "signal", lib: d.zuleitung?.kabel || null, laengeM: d.zuleitung?.laengeM ?? null, anzahl: d.zuleitung?.anzahl || 1,
+      von: `${g.name} · Glasfaser`, nach: `${d.name} (${d.standort || "—"})`, screen: null });
+    else add({ key: "weg:" + d.id, gewerk: "signal", lib: d.lib, laengeM: wegLed(d).laengeM ?? null,
+      von: `${g.name} · Port ${d.ports.join(", ")}`, nach: `${d.name} · Auflösung (${d.standort || "—"})`, screen: null });
   }
   // Video: Outputs → Prozessor-Eingänge
   for (const o of P.outputs || []) {

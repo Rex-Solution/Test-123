@@ -169,6 +169,38 @@ pruefe("Mapping: Teilabdeckung wird gemeldet", await ev(() => mappingPruefungen(
 await ev(() => { P.layer[0].zb = 1248; });
 await ev(() => { ui.modus.ausgabe = "screen"; render(); });
 
+/* ---------- Stagebox und Multicore ---------- */
+await p.click('[data-reiter="signal"]');
+await ev(() => { ui.sel.prozessor = P.geraete.find(g => g.art === "prozessor").id; render(); });
+await p.click('[data-d="weg-neu"][data-lib="beispiel-multicore-cat4-25"]');
+const mc = await ev(() => { const d = P.geraete.find(g => g.art === "multicore"); return { ports: d.ports, zeilen: kabelListe().filter(z => /Multicore 1/.test(z.von + z.nach)).map(z => z.von) }; });
+pruefe("Multicore: übernimmt die 4 belegten Ports", JSON.stringify(mc.ports) === "[1,2,3,4]", JSON.stringify(mc));
+pruefe("Multicore: Kabel ab Auflösung + Multicore selbst", mc.zeilen.filter(v => v.includes("Ader")).length === 4 && mc.zeilen.some(v => v.includes("Port 1, 2, 3, 4")), JSON.stringify(mc.zeilen));
+pruefe("Multicore: Prüfung Länge zur Wand", await ev(() => signalPruefungen().some(x => x.text.includes("Multicore 1: Kabellänge zur Wand fehlt"))));
+await p.fill('[data-w-feld="ausgangLaengeM"]', "90"); await p.press('[data-w-feld="ausgangLaengeM"]', "Tab"); await p.waitForTimeout(100);
+pruefe("Multicore: Cat-Strecke über 100 m gemeldet", await ev(() => signalPruefungen().some(x => x.text.includes("Cat-Strecke 115 m"))));
+pruefe("Stagebox ohne Leistung nicht wählbar", await p.locator('[data-d="weg-neu"][data-lib="beispiel-stagebox-fiber-10"]').isDisabled());
+await ev(() => { P.geraete = P.geraete.filter(g => g.art !== "multicore"); LIB.eintraege.get("beispiel-stagebox-fiber-10").attribute.stromverbrauch = 30; aenderung(); });
+await p.selectOption('[data-w-neu="stagebox"]', "beispiel-stagebox-fiber-10"); await p.waitForTimeout(100);
+await p.fill('[data-w-feld="ports"]', "1-2, 11"); await p.press('[data-w-feld="ports"]', "Tab"); await p.waitForTimeout(100);
+pruefe("Stagebox: unbekannter Port abgelehnt", await ev(() => P.geraete.find(g => g.art === "stagebox").ports.length === 4));
+await p.fill('[data-w-feld="ports"]', "1-2"); await p.press('[data-w-feld="ports"]', "Tab"); await p.waitForTimeout(100);
+const wVorher = await ev(() => stromBilanz().get(P.geraete.find(g => g.art === "verteiler").id).w);
+await p.selectOption('[data-w-feld="strom"]', await ev(() => `${P.geraete.find(g => g.art === "verteiler").id}|8`)); await p.waitForTimeout(100);
+const sb = await ev(() => { const d = P.geraete.find(g => g.art === "stagebox"); const v = P.geraete.find(g => g.art === "verteiler"); return { ports: d.ports, w: stromBilanz().get(v.id).w, kabel: kabelListe().filter(z => z.key.startsWith("port:") || z.key.startsWith("backup:")).map(z => z.von) }; });
+pruefe("Stagebox: Ports 1-2, Rest direkt", JSON.stringify(sb.ports) === "[1,2]" && sb.kabel.filter(v => v.startsWith("Stagebox 1")).length === 2 && sb.kabel.filter(v => v.startsWith("Prozessor 1")).length === 2, JSON.stringify(sb));
+pruefe("Stagebox: Leistung im Strom (+30 W)", Math.round(sb.w - wVorher) === 30, String(sb.w - wVorher));
+pruefe("Projektbaum zeigt Stagebox", (await p.locator('#baum [data-geraet]', { hasText: "Stagebox 1" }).count()) === 1);
+await ev(() => { $("#toasts").innerHTML = ""; });
+await p.screenshot({ path: path.join(AUSGABE, "stagebox.png") });
+await p.locator("#rechts").screenshot({ path: path.join(AUSGABE, "stagebox-rechts.png") });
+pruefe("Migration: alter Weg am Prozessor → Gerät", await ev(() => {
+  const alt = klon(P); const g = alt.geraete.find(x => x.art === "prozessor");
+  alt.geraete = alt.geraete.filter(x => x.art !== "stagebox"); g.weg = "multicore"; g.wegLib = null;
+  const n = normalisiereProjekt(alt); const d = n.geraete.find(x => x.art === "multicore");
+  return d && d.prozessor === g.id && d.ports.length === 4 && !("weg" in n.geraete.find(x => x.art === "prozessor"));
+}));
+
 /* ---------- Kabel ---------- */
 await p.click('[data-reiter="kabel"]');
 const zeilen = await ev(() => kabelListe().map(z => [z.nr, z.gewerk, z.anzahl, z.bruecke || false]));

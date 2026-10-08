@@ -35,6 +35,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/15-rigging.js` | Rigging: Flugrahmen/Stacking aus der Library, Last je Rahmen und Punkt, Riggingplan, Prüfungen |
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
+| `js/35-wege.js` | Stagebox/Multicore als eigene Geräte am Prozessor: Port-Zuordnung, Zuleitung, Strom, Kabel zur Wand, Prüfungen |
 | `js/40-ausgabe.js` | Reiter Ausgabe: Umschalter Testbild Screen / Outputs & Layer, Testbild, PNG, Live-Ausgabe 1:1 |
 | `js/45-mapping.js` | Ausgabe „Outputs & Layer“: Zuspieler-Outputs → Prozessor-Eingänge, Pixelraum je Prozessor (Screens ziehen), Layer (Ausschnitt → Fläche), Output-Testbild, Prüfungen |
 | `js/50-kabel.js` | Reiter Kabel: automatische + manuelle Kabel, Bearbeiten, Packliste, CSV |
@@ -70,14 +71,13 @@ Raster, Erweitern/Kürzen, Spiegeln, Duplizieren, Rückansicht), Rigging (Flugra
 Last je Punkt, Riggingplan, Freigabefeld), Strom komplett (Verteiler-Ebenen, Einspeisungen,
 Laka/Spinne, Vorschlag + Pinsel, Phasen, Schieflast, Einschaltstrom, Übersicht), Signal
 (Prozessor-Kompatibilität, Port-Regel Serie + RC, Vorschlag + Pinsel, Backup am Strangende,
-Übersicht), Ausgabe (Testbild + Live je Screen; Outputs → Eingänge, Pixelraum, Layer-Vorschlag,
+Übersicht; Stagebox und Multicore als eigene Geräte mit Port-Zuordnung, Zuleitung, Strom und
+Kabeln), Ausgabe (Testbild + Live je Screen; Outputs → Eingänge, Pixelraum, Layer-Vorschlag,
 Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Output), Kabel
 (automatisch inkl. Video + von Hand, Packliste, CSV), Druck (Bericht A4 inkl. Ausgabe-Blatt,
-Großformat A3/A4 quer, Kundenansicht), Hausregeln, Beispielprojekt. 41 Ende-zu-Ende-Tests.
+Großformat A3/A4 quer, Kundenansicht), Hausregeln, Beispielprojekt. 51 Ende-zu-Ende-Tests.
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
-- Gemischte Pitches: Option „gemeinsam + Skalierung“ je Screen (derzeit 1:1 je Modultyp).
-- Stagebox/Multicore als Library-Geräte (derzeit nur als Weg-Art beim Prozessor).
 - Rex-Datenbank (Library + Projekte), Freischaltung, Verknüpfung Signalfluss-Planer.
 - Kurven/Winkel, Hersteller-Dateien (NovaLCT/Colorlight), 3D, Tablet-Bedienung.
 - Rex-Logo-Dateien einbinden (derzeit Platzhalter in der Kopfleiste).

@@ -106,6 +106,8 @@ Anschlüsse: Eingänge (mit `maxB`, `maxH`, `maxHz`, `loop`) und Ausgangs-Ports 
 
 | Feld | Typ | Pflicht | Bemerkung |
 | --- | --- | --- | --- |
+| `eingang` | Text | – | z.B. `"Glasfaser 10G"` |
+| `ports` | Zahl | ✔ | Anzahl Ausgangs-Ports (Daten) zur Wand |
 | `pxJePort` | Zahl px | Prüf | falls die Box selbst begrenzt |
 | `he` | Zahl | – | |
 

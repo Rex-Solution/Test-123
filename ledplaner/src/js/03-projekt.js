@@ -8,7 +8,10 @@
      screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
-              | prozessor { id, art:"prozessor", lib, name, standort, weg } ],
+              | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
+              | stagebox  { id, art:"stagebox", lib, name, standort, prozessor, ports: [Prozessor-Ports], zuleitung: { kabel, laengeM, anzahl }, ausgangKabel, ausgangLaengeM, strom }
+              | multicore { id, art:"multicore", lib, name, standort, prozessor, ports: [...], ausgangKabel, ausgangLaengeM } ],
+              Ports ohne Stagebox/Multicore gehen direkt (portKabel, portLaengeM) vom Prozessor zur Wand.
      kreise:   [{ id, screen, verteiler, kanal, module: [modulIds in Reihenfolge] }],
      straenge: [{ id, screen, prozessor, port, backupPort, module: [...] }],
      lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM }],
@@ -56,6 +59,18 @@ function normalisiereProjekt(roh) {
   p.kabelAnpassung = d.kabelAnpassung && typeof d.kabelAnpassung === "object" ? d.kabelAnpassung : {};
   p.ausgabe = { ...p.ausgabe, ...(d.ausgabe || {}) };
   p.gespeichert = d.gespeichert || null;
+  // bis 10/2026: Weg zur Wand als Feld am Prozessor → eigenes Gerät ohne Library-Eintrag
+  for (const g of p.geraete.filter(g => g.art === "prozessor" && "weg" in g)) {
+    if (g.weg === "stagebox" || g.weg === "multicore") {
+      const ports = [...new Set(p.straenge.filter(k => k.prozessor === g.id).flatMap(k => [k.port, k.backupPort]).filter(Number.isFinite))].sort((a, b) => a - b);
+      const d = { id: neueId(g.weg === "stagebox" ? "sb" : "mc"), art: g.weg, lib: null, name: (g.weg === "stagebox" ? "Stagebox " : "Multicore ") + g.name, standort: "an der Wand",
+        prozessor: g.id, ports, ausgangKabel: null, ausgangLaengeM: null };
+      if (g.weg === "stagebox") { d.zuleitung = { kabel: g.portKabel, laengeM: g.portLaengeM ?? null, anzahl: 1 }; d.strom = null; g.portLaengeM = null; }
+      p.geraete.push(d);
+    }
+    delete g.weg; delete g.wegLib;
+  }
+  for (const d of p.geraete.filter(d => d.art === "stagebox" || d.art === "multicore")) d.ports = Array.isArray(d.ports) ? d.ports.filter(Number.isFinite) : [];
   for (const s of p.screens) {
     s.module = Array.isArray(s.module) ? s.module.filter(m => m && m.lib && Number.isFinite(m.x) && Number.isFinite(m.y)) : [];
     s.strom = { richtung: "spalten", start: "ol", verteilung: "minimal", ...(s.strom || {}) };

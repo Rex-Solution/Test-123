@@ -56,6 +56,8 @@ const SCHEMA = {
   ],
   stagebox: [
     { abschnitt: "Allgemein" }, GEMEINSAM.hersteller,
+    { p: "led.eingang", label: "Eingang (z.B. Glasfaser 10G)", art: "text", pf: "" },
+    { p: "led.ports", label: "Ausgangs-Ports", art: "zahl", pf: "pflicht" },
     { p: "led.pxJePort", label: "Pixel je Port", einheit: "px", art: "zahl", pf: "pruef" },
     { p: "led.he", label: "Höheneinheiten", art: "zahl", pf: "" },
     GEMEINSAM.strom("pflicht"), GEMEINSAM.gewicht("pruef"), GEMEINSAM.quelle, GEMEINSAM.anschluesse,
@@ -206,6 +208,12 @@ const BEISPIEL_LIBRARY = [
     attribute: { hersteller: "", gewicht: null, led: { typ: "laka", stecker: "Harting 16-pol", kreise: 6, ampereJeKreis: 16, laengeM: m } } })),
   { id: "beispiel-spinne-h16-true1", name: "Spinne Harting → 6 × TRUE1", kategorie: "Strom · Spinne",
     attribute: { hersteller: "", led: { typ: "spinne", steckerEin: "Harting 16-pol", abgaenge: 6, steckerAus: "PowerCON TRUE1", laengeM: 1.5 } } },
+  { id: "beispiel-stagebox-fiber-10", name: "Glasfaser-Stagebox 10 × etherCON", kategorie: "Video · Stagebox",
+    attribute: { hersteller: "", gewicht: null, stromverbrauch: null, quelle: "Platzhalter (z.B. NovaStar CVT10-Klasse) – Werte aus dem Bestand eintragen",
+      led: { typ: "stagebox", eingang: "Glasfaser 10G", ports: 10, pxJePort: null, he: 1 } } },
+  ...[25, 50].map(m => ({ id: "beispiel-multicore-cat4-" + m, name: `Cat-Multicore 4-fach · ${m} m`, kategorie: "Video · Multicore",
+    attribute: { hersteller: "", gewicht: null, quelle: "Platzhalter – Bestand",
+      led: { typ: "multicore", adern: 4, laengeM: m, aufloesung: "4 × etherCON" } } })),
   { id: "beispiel-flugrahmen-1m", name: "Flugrahmen 1 m (P4+ PRO)", kategorie: "Rigging",
     attribute: { hersteller: "LEDTEK", gewicht: null, led: { typ: "rigging", art: "flugrahmen", serien: ["P4+ PRO V3"], breiteModule: 2, lastMaxKg: null, punkte: null } } },
   ...[
