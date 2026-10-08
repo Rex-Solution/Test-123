@@ -385,6 +385,9 @@ Einrasten als Schalter (statt Shift/Alt), Pinsel mit dem Finger, größere Bedie
 drehen und zoomen mit Maus oder Fingern; 3D-Bild auch in der Kundenansicht.
 Brackets: Module fest an Bracket-Plätzen (Raster), Brackets automatisch inkl. Rest-Regel (ergänzen/halb, Seite),
 Lücken-Prüfung, „Ins Bracket-Raster setzen“, gestellt mit Stacking-Brackets von unten.
+Bedienung überarbeitet: Projektbaum mit Übersicht je Überschrift und Kontextmenü; Kanäle und Ports werden der Wand
+zugewiesen, die Liste unten zeigt alle zugewiesenen (auch leere) und wählt per Klick den Pinsel (Auswahlfeld oben entfällt);
+Spinne, Stagebox und Multicore-Auflösung als Symbol in der Wand, Kabellängen aus der Position (Hausregel „Reserve je Kabel“).
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

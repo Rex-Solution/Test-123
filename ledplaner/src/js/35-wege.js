@@ -117,7 +117,7 @@ function wegKarte(d) {
   }
   html += `<div class="abschnitt">${d.art === "stagebox" ? "Ausgänge" : "Auflösung"} → Wand</div>
     <label class="feld"><span>Kabel</span>${kabelSel("ausgangKabel", d.ausgangKabel, kabel("LAN"))}</label>
-    <label class="feld"><span>Länge (m)</span><input data-w-feld="ausgangLaengeM" value="${d.ausgangLaengeM ?? ""}" inputmode="decimal"></label>
+    <label class="feld"><span>Länge (m) – leer: aus Position in der Wand</span><input data-w-feld="ausgangLaengeM" value="${d.ausgangLaengeM ?? ""}" inputmode="decimal"></label>
     <div class="knopfreihe" style="margin-top:8px"><button data-w="loeschen" class="gefahr">${WEG_ARTEN[d.art]} löschen</button></div></div>`;
   return html;
 }
@@ -161,7 +161,6 @@ function wegePruefungen() {
     if (leer.length) liste.push({ art: "info", text: `${d.name}: Port ${leer.join(", ")} ohne Strang.`, ziel: z });
     if (!d.ports.length) liste.push({ art: "info", text: `${d.name}: keine Ports zugeordnet – wird es gebraucht?`, ziel: z });
     for (const nr of d.ports) for (const x of wegGeraete(g.id)) if (x !== d && x.ports.includes(nr) && P.geraete.indexOf(x) > P.geraete.indexOf(d)) liste.push({ art: "fehler", text: `${g.name} · Port ${nr}: in ${d.name} und ${x.name} zugeordnet.`, ziel: z });
-    if (d.ports.length && !Number.isFinite(d.ausgangLaengeM)) liste.push({ art: "warn", text: `${d.name}: Kabellänge zur Wand fehlt.`, ziel: z });
     if (d.art === "stagebox") {
       if (!d.strom) liste.push({ art: "warn", text: `${d.name}: Stromversorgung nicht zugeordnet (aktives Gerät).`, ziel: z });
       if (!Number.isFinite(d.zuleitung?.laengeM)) liste.push({ art: "warn", text: `${d.name}: Länge der Zuleitung vom Prozessor fehlt.`, ziel: z });

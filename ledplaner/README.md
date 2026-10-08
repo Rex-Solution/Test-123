@@ -33,6 +33,7 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/05-ui.js` | Oberflächen-Zustand `ui`, Reiter-Gerüst `REITER`, Projektbaum, Prüfhinweise, Tastenkürzel |
 | `js/06-zeichnen.js` | Screen als SVG (1 Einheit = 1 mm), Wege/Pfeile, Zoom/Verschieben |
 | `js/07-touch.js` | Tablet: Zwei-Finger-Zoom/-Verschieben (bricht laufende Aktionen ab), Zoom-Knöpfe, Module mit dem Finger aus der Palette ziehen, ausklappbare Seitenspalten (≤ 900 px) |
+| `js/09-baum.js` | Projektbaum: Überschrift = Übersicht (Screens/Verteiler/Prozessoren), Kontextmenü (Rechtsklick, Tablet lange drücken): hinzufügen, duplizieren, löschen; Übersicht aller Screens |
 | `js/10-aufbau.js` | Reiter Aufbau: Drag & Drop, Auswahl, Raster, Erweitern/Kürzen, Spiegeln, Duplizieren |
 | `js/12-kurve.js` | Kurven/Winkel: Knick an senkrechten Fugen (`s.winkel`), Winkel oder Radius, Draufsicht mit Sehne/Stich/Radius, Prüfungen (Library-Winkel, Flugrahmen über Knick) |
 | `js/13-dreid.js` | 3D-Ansicht ohne Bibliotheken (SVG, Maler-Verfahren): Module, Kurve, Unterkante, Flugrahmen, Boden-Raster, Person 1,80 m; drehen/zoomen mit Maus und Fingern |
@@ -40,6 +41,8 @@ Alle JS-Teile werden in Dateinamen-Reihenfolge zu **einem** Skript zusammengefü
 | `js/20-strom.js` | Reiter Strom: Verteiler, Einspeisungen, Lakas, Kreise (Vorschlag + Pinsel), Phasen, Übersicht |
 | `js/30-signal.js` | Reiter Signal: Prozessoren, Stränge (Vorschlag + Pinsel), Backup, Port-Regel, Übersicht |
 | `js/35-wege.js` | Stagebox/Multicore als eigene Geräte am Prozessor: Port-Zuordnung, Zuleitung, Strom, Kabel zur Wand, Prüfungen |
+| `js/36-zuweisung.js` | Zuweisung von Verteiler-Kanälen und Prozessor-Ports zur Wand (`screen.zuweisung`), Raster in den Karten, Liste unten = Pinsel-Auswahl |
+| `js/38-symbole.js` | Spinne, Stagebox und Multicore-Auflösung als verschiebbares Symbol in der Wand, Linien zu Kreis-/Stranganfängen, Kabellängen aus Position + Reserve, Prüfung Spinnenbein |
 | `js/40-ausgabe.js` | Reiter Ausgabe: Umschalter Testbild Screen / Outputs & Layer, Testbild, PNG, Live-Ausgabe 1:1 |
 | `js/45-mapping.js` | Ausgabe „Outputs & Layer“: Zuspieler-Outputs → Prozessor-Eingänge, Pixelraum je Prozessor (Screens ziehen), Layer (Ausschnitt → Fläche), Output-Testbild, Prüfungen |
 | `js/50-kabel.js` | Reiter Kabel: automatische + manuelle Kabel, Bearbeiten, Packliste, CSV |
@@ -83,7 +86,7 @@ Layer wandern beim Verschieben mit, Abdeckungs-Prüfung, Testbild + Live je Outp
 Großformat A3/A4 quer, Kundenansicht, Materialliste), Hausregeln, Beispielprojekt.
 Rex-Anbindung vorbereitet (Phase 3 ohne Signalfluss-Planer): Library, Freischaltung („nur ansehen“), Projekte
 speichern/öffnen und Material-Rückgabe über `Datenquelle`; ohne `API_BASIS_URL` vollständig eigenständig.
-100 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
+122 Ende-zu-Ende-Tests (Rex-Teil gegen einen simulierten Datenbank-Agent).
 
 Offen (siehe Konzept, Abschnitt Fahrplan):
 - Routen und Antwortformate mit dem Datenbank-Agent abstimmen (Annahmen oben in `00-datenquelle.js`).

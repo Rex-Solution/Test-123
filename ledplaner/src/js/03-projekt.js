@@ -5,7 +5,7 @@
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
-     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
+     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], zuweisung: { strom: ["vId|kanal"], signal: ["pId|port"] }, winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
               | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
@@ -14,7 +14,7 @@
               Ports ohne Stagebox/Multicore gehen direkt (portKabel, portLaengeM) vom Prozessor zur Wand.
      kreise:   [{ id, screen, verteiler, kanal, module: [modulIds in Reihenfolge] }],
      straenge: [{ id, screen, prozessor, port, backupPort, module: [...] }],
-     lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM }],
+     lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM, pos: { x, y } (Spinne in der Wand) }],
      kabel:    [{ id, lib, laengeM, anzahl, von, nach, bemerkung }]          // von Hand
      kabelAnpassung: { [schluessel automatisches Kabel]: { lib, laengeM, bemerkung } }
    }
@@ -26,7 +26,7 @@ const SPEICHER_AKTUELL = "rex-ledplaner-aktuell";
 
 function standardRegeln() {
   return { reserve: 20, schieflast: 20, planung: "max", spannung: 230, absicherung: 16, einschaltPruefen: true,
-    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern" };
+    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern", kabelReserveM: 1 };
 }
 
 function neuesProjekt() {

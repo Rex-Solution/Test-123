@@ -21,6 +21,7 @@ REITER.aufbau = {
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten && !ui.ansicht3d}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten && !ui.ansicht3d}">Rückansicht</button><button data-a="3d" aria-selected="${!!ui.ansicht3d}" title="Räumliche Ansicht mit Kurve, Unterkante und Person als Maßstab">3D</button></div>
       <button data-a="einpassen" ${dis}>Einpassen</button>
+      <span class="trenner"></span><div class="umschalter"><button data-a="modus" data-wert="wand" aria-selected="${ui.modus.aufbau !== "alle"}">Wand</button><button data-a="modus" data-wert="alle" aria-selected="${ui.modus.aufbau === "alle"}">Alle Screens</button></div>
       ${s ? `<span class="trenner"></span><div class="umschalter"><button data-a="bauart" data-wert="geflogen" aria-selected="${s.bauart === "geflogen"}">Geflogen</button><button data-a="bauart" data-wert="gestellt" aria-selected="${s.bauart === "gestellt"}">Gestellt</button></div>` : ""}`;
   },
 
@@ -42,6 +43,7 @@ REITER.aufbau = {
   zeichnung(el) {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
+    if (ui.modus.aufbau === "alle") return screenUebersicht(el);
     if (ui.ansicht3d) return dreidZeichnung(el, s);
     const v = ansicht(s);
     el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s) + kurveMarkenSvg(s), masseTiefer: !ui.hinten,
@@ -266,7 +268,7 @@ function aufbauDuplizieren(s) {
 
 function screenDuplizieren(s) {
   const n = klon(s);
-  n.id = neueId("s"); n.name = s.name + " (Kopie)";
+  n.id = neueId("s"); n.name = s.name + " (Kopie)"; n.zuweisung = { strom: [], signal: [] };
   n.module.forEach(m => { m.id = neueId("m"); });
   P.screens.push(n);
   ui.screen = n.id; ui.auswahl.clear();
@@ -402,6 +404,7 @@ function aufbauEreignisse() {
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
     else if (a === "winkel") winkelDialog(s);
+    else if (a === "modus") { ui.modus.aufbau = b.dataset.wert; render(); }
     else if (a === "alle") { ui.auswahl = new Set(s.module.map(m => m.id)); render(); }
     else if (a === "mehrfach") { ui.mehrfach = !ui.mehrfach; render(); }
     else if (a === "einrasten") { ui.einrasten = !ui.einrasten; render(); }

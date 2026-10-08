@@ -73,7 +73,10 @@ function signalVorschlag() {
     for (let i = 0; i + 1 < erg.grenzen.length; i++) segmente.push(reihe.slice(erg.grenzen[i], erg.grenzen[i + 1]));
   }
   const belegt = belegtePorts(g.id);
-  const frei = prozessorPorts(g).map(p => p.nr).filter(n => !belegt.has(n));
+  // freie Ports: der Wand zugewiesene zuerst, anderen Wänden zugewiesene nie
+  const eigen = new Set(zuweisung(s).signal.filter(t => t.startsWith(g.id + "|")).map(t => Number(t.split("|")[1])));
+  const offen = prozessorPorts(g).map(p => p.nr).filter(n => !belegt.has(n) && (portScreen(g.id, n) || s.id) === s.id);
+  const frei = [...offen.filter(n => eigen.has(n)), ...offen.filter(n => !eigen.has(n))];
   const backup = P.regeln.backup && prozessorLed(g).backup !== false;
   const noetig = segmente.length * (backup ? 2 : 1);
   if (noetig > frei.length) return toast(`${g.name}: ${noetig} Ports nötig${backup ? " (mit Backup)" : ""}, aber nur ${frei.length} frei.`, "fehler");
@@ -87,27 +90,21 @@ function signalVorschlag() {
 }
 
 /* ---------- Pinsel ---------- */
-function signalZiele() {
-  const ziele = [];
-  for (const g of P.geraete.filter(x => x.art === "prozessor")) {
-    const backups = new Set(P.straenge.filter(k => k.prozessor === g.id).map(k => k.backupPort));
-    for (const p of prozessorPorts(g)) {
-      if (backups.has(p.nr)) continue;
-      const k = P.straenge.find(x => x.prozessor === g.id && x.port === p.nr);
-      ziele.push({ wert: `${g.id}|${p.nr}`, text: `${g.name} · Port ${p.nr}${k ? " · " + (screenById(k.screen)?.name || "") + " " + k.module.length + " Mod." : " · frei"}` });
-    }
-  }
-  return ziele;
-}
+function pinselSignalText() { const [gId, nr] = (ui.pinsel.signal || "").split("|"); const g = geraetById(gId); return g ? `${g.name} · P${nr}` : ""; }
 function signalPinselMalen(svg, s) {
-  if (!ui.pinsel.signal) { toast("Zuerst oben einen Port für den Pinsel wählen.", "fehler"); return null; }
+  if (!ui.pinsel.signal) { toast("Zuerst unten einen Port wählen (vorher rechts beim Prozessor der Wand zuweisen).", "fehler"); return null; }
   const [gId, portText] = ui.pinsel.signal.split("|"); const port = Number(portText);
   const g = geraetById(gId); if (!g) return null;
   let k = P.straenge.find(x => x.prozessor === gId && x.port === port);
   if (k && k.screen !== s.id) { toast(`Port ${port} versorgt schon „${screenById(k.screen)?.name}“.`, "fehler"); return null; }
   if (!k) {
     let backupPort = null;
-    if (P.regeln.backup) { const belegt = belegtePorts(gId); belegt.add(port); backupPort = prozessorPorts(g).map(p => p.nr).reverse().find(n => !belegt.has(n)) ?? null; }
+    if (P.regeln.backup) {
+      // Backup: zuerst ein freier, der Wand zugewiesener Port, sonst der letzte freie des Prozessors
+      const belegt = belegtePorts(gId); belegt.add(port);
+      const eigen = freieZugewiesenePorts(s).filter(x => x.g.id === gId && x.nr !== port).map(x => x.nr);
+      backupPort = eigen.reverse()[0] ?? prozessorPorts(g).map(p => p.nr).reverse().find(n => !belegt.has(n) && !portScreen(gId, n)) ?? null;
+    }
     k = { id: neueId("d"), screen: s.id, prozessor: gId, port, backupPort, module: [] };
     P.straenge.push(k);
   }
@@ -136,6 +133,7 @@ function signalSvgInhalt(s) {
     fehlerIds: new Set(s.module.filter(m => !farbe.has(m.id)).map(m => m.id)),
     wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: Number.isFinite(k.backupPort) ? "B" + k.backupPort : null })),
     oben: `${s.name} · Signal · ● Start Hauptweg · ▢ Einspeisung Backup (gleicher Weg)`,
+    zusatz: symbolSvg(s, "signal"),
   });
 }
 
@@ -143,14 +141,12 @@ REITER.signal = {
   titelPalette: "Library – Signalgeräte",
   werkzeuge() {
     const s = aktuellerScreen();
-    const ziele = signalZiele();
     const uebersicht = ui.modus.signal === "prozessoren";
     return `<button data-d="vorschlag" ${s?.module.length ? "" : "disabled"} title="Datenstränge automatisch bilden (je Serie/Receiving Card, ausgewogen)">Vorschlag erzeugen</button>
       ${s ? `<select data-d-feld="richtung"><option value="spalten"${s.signal.richtung === "spalten" ? " selected" : ""}>spaltenweise ↕</option><option value="zeilen"${s.signal.richtung === "zeilen" ? " selected" : ""}>zeilenweise ↔</option></select>
       <select data-d-feld="start">${[["ol", "oben links"], ["or", "oben rechts"], ["ul", "unten links"], ["ur", "unten rechts"]].map(([k, t]) => `<option value="${k}"${s.signal.start === k ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
       <span class="trenner"></span>
-      <button data-d="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${ziele.length && s ? "" : "disabled"}>🖌 Pinsel</button>
-      <select data-d-feld="pinselziel" ${ziele.length ? "" : "disabled"}><option value="">Port wählen …</option>${ziele.map(z => `<option value="${z.wert}"${ui.pinsel.signal === z.wert ? " selected" : ""}>${esc(z.text)}</option>`).join("")}</select>
+      <button data-d="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${s ? "" : "disabled"} title="Port unten in der Liste wählen, dann über die Module malen">🖌 Pinsel${ui.werkzeug === "pinsel" && ui.pinsel.signal ? " · " + esc(pinselSignalText()) : ""}</button>
       <button data-d="strang-loeschen" ${ui.sel.strang ? "" : "disabled"}>Strang löschen</button>
       <button data-d="backup" class="${P.regeln.backup ? "aktiv" : ""}" title="Backup-Ports für neue Stränge">Backup: ${P.regeln.backup ? "an" : "aus"}</button>
       <span class="trenner"></span>
@@ -176,6 +172,7 @@ REITER.signal = {
     if (ui.werkzeug === "pinsel") el.classList.add("pinsel");
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
+    symbolZiehen(svg, s);
     pinselInteraktion(svg, s, signalPinselMalen);
     svg.addEventListener("click", e => {
       if (ui.werkzeug === "pinsel") return;
@@ -190,13 +187,17 @@ REITER.signal = {
     const s = aktuellerScreen(); if (!s) return "";
     const st = straengeVon(s.id);
     const ohne = s.module.length - st.reduce((a, k) => a + k.module.length, 0);
-    return `<div class="kopf"><b>Ports „${esc(s.name)}“</b><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
-      <table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Backup</th><th>Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Weg</th></tr>
-      ${st.map((k, i) => { const g = geraetById(k.prozessor); const ms = strangModule(k); const px = strangPixel(k);
-        return `<tr class="klickbar${ui.sel.strang === k.id ? " sel" : ""}" data-strang="${k.id}"><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${strangName(k)}</td><td>${esc(g?.name || "—")}</td><td>${k.port}</td>
-          <td>${Number.isFinite(k.backupPort) ? "Port " + k.backupPort : "—"}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
+    const zeilen = zugewiesenePorts(s);
+    return `<div class="kopf"><b>Ports „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
+      <table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Rolle</th><th>Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Weg</th></tr>
+      ${zeilen.map(({ g, nr, ziel, strang: k, rolle }) => {
+        const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.signal === (k ? zielText(g.id, k.port) : ziel);
+        if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(g.name)}</td><td>${nr}</td><td>—</td><td>0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
+        const ms = strangModule(k); const px = strangPixel(k);
+        return `<tr class="klickbar${gewaehlt || ui.sel.strang === k.id ? " sel" : ""}" data-ziel="${zielText(g.id, k.port)}" data-strang="${k.id}"><td><span class="punkt" style="background:${strangFarbe(k)}${rolle === "backup" ? ";opacity:.5" : ""}"></span>${strangName(k)}</td><td>${esc(g.name)}</td><td>${nr}</td>
+          <td>${rolle === "haupt" ? `Haupt${Number.isFinite(k.backupPort) ? " (Backup " + k.backupPort + ")" : ""}` : "Backup zu " + k.port}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
           <td>${balken(px / (portKapazitaet(g) || 1))}</td><td>${esc(wegText(k))}</td></tr>`; }).join("")
-        || `<tr><td colspan="8" class="leise">Noch keine Datenstränge – „Vorschlag erzeugen“ oder mit dem Pinsel malen.</td></tr>`}</table>`;
+        || `<tr><td colspan="8" class="leise">Noch keine Ports zugewiesen – rechts beim Prozessor Ports anklicken oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
   },
   rechts() { return signalRechts(); },
   pruefungen() { return signalPruefungen(); },
@@ -239,6 +240,7 @@ function signalRechts() {
       <label class="feld"><span>Strom für den Prozessor</span>${kanalSelect(g, 'data-p-feld="strom"')}</label>
       <table class="werte"><tr><td>Receiving Cards</td><td>${esc((led.receivingCards || []).join(", "))}</td></tr><tr><td>Belegte Ports</td><td>${belegt.size} / ${ports.length}</td></tr>
       <tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)}</td></tr><tr><td>Layer</td><td>${fmt(led.layer)}</td></tr></table>
+      ${portRasterHtml(g, aktuellerScreen())}
       <div class="knopfreihe" style="margin-top:8px"><button data-d="geraet-loeschen" class="gefahr">Prozessor löschen</button></div></div>`;
     html += wegeKarte(g);
     const d = geraetById(ui.sel.weg);
@@ -329,7 +331,11 @@ function signalEreignisse() {
     if (a === "vorschlag") signalVorschlag();
     else if (a === "pinsel") {
       ui.werkzeug = ui.werkzeug === "pinsel" ? "auswahl" : "pinsel";
-      if (ui.werkzeug === "pinsel" && !ui.pinsel.signal) { const z = signalZiele().find(z => z.text.endsWith("frei")) || signalZiele()[0]; ui.pinsel.signal = z?.wert || null; }
+      if (ui.werkzeug === "pinsel" && !ui.pinsel.signal) {
+        const s = aktuellerScreen(); const z = s && (freieZugewiesenePorts(s)[0] || zugewiesenePorts(s).find(x => x.rolle === "haupt"));
+        if (!z) { ui.werkzeug = "auswahl"; return toast("Zuerst rechts beim Prozessor Ports dieser Wand zuweisen.", "fehler"); }
+        ui.pinsel.signal = z.ziel;
+      }
       render();
     }
     else if (a === "strang-loeschen" && ui.sel.strang) strangLoeschen(ui.sel.strang);
@@ -340,7 +346,6 @@ function signalEreignisse() {
     if (ui.reiter !== "signal") return;
     const f = e.target.dataset.dFeld; const s = aktuellerScreen();
     if (f === "richtung" || f === "start") { s.signal[f] = e.target.value; aenderung(); }
-    if (f === "pinselziel") { ui.pinsel.signal = e.target.value || null; if (ui.pinsel.signal) ui.werkzeug = "pinsel"; render(); }
   });
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
@@ -349,13 +354,17 @@ function signalEreignisse() {
   });
   $("#liste").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
-    const tr = e.target.closest("[data-strang]"); if (!tr) return;
+    const tr = e.target.closest("[data-ziel]"); if (!tr) return;
+    // Zeile wählen = Port als Pinsel-Ziel (Backup-Zeile wählt den Hauptport ihres Strangs)
     const k = P.straenge.find(x => x.id === tr.dataset.strang);
-    ui.sel.strang = k?.id || null; if (k) ui.sel.prozessor = k.prozessor;
+    ui.sel.strang = k?.id || null; ui.sel.prozessor = tr.dataset.ziel.split("|")[0];
+    ui.pinsel.signal = tr.dataset.ziel; ui.werkzeug = "pinsel";
     render();
   });
   $("#rechts").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
+    const zw = e.target.closest("[data-zuweisen]");
+    if (zw) { const [gId, nr] = zw.dataset.zuweisen.split("|"); return portZuweisen(aktuellerScreen(), gId, Number(nr)); }
     const ws = e.target.closest("[data-weg-sel]");
     if (ws) { ui.sel.weg = ui.sel.weg === ws.dataset.wegSel ? null : ws.dataset.wegSel; return render(); }
     const wa = e.target.closest("[data-w]")?.dataset.w; const d = geraetById(ui.sel.weg);

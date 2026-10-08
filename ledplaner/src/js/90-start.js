@@ -7,6 +7,7 @@ function start() {
   ui.screen = P.screens[0]?.id || null;
   gerustEreignisse();
   touchEreignisse();
+  baumEreignisse();
   for (const f of [aufbauEreignisse, riggingEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse, mappingEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,

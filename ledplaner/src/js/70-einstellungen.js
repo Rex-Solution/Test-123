@@ -12,6 +12,8 @@ const REGEL_FELDER = [
   { k: "backup", label: "Backup standardmäßig (ab Strangende)", art: "ja" },
   { k: "portMax", label: "Max. Port-Auslastung (%)", art: "zahl", min: 10, max: 100 },
   { k: "catMax", label: "Max. Cat-Länge (m)", art: "zahl", min: 1, max: 500 },
+  { abschnitt: "Kabel" },
+  { k: "kabelReserveM", label: "Reserve je Kabel (m)", art: "zahl", min: 0, max: 20 },
   { abschnitt: "Druck" },
   { k: "druckZusatz", label: "Zusatz Großformat", art: "auswahl", optionen: [["A3", "A3 quer"], ["A4", "A4 quer"], ["keins", "keins"]] },
   { k: "riggingFreigabe", label: "Freigabefeld Rigging", art: "auswahl", optionen: [["intern", "intern"], ["extern", "extern (Location/Statiker)"]] },

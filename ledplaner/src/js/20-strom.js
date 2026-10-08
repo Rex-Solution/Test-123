@@ -131,8 +131,11 @@ async function stromVorschlag() {
     fremd: P.lakas.some(l => l.verteiler === v.id && l.ausgang === a.name && l.screen && l.screen !== s.id) }))
     .filter(x => !x.fremd)
     .sort((x, y) => (y.eigen - x.eigen) || (y.frei.length - x.frei.length));
-  const freieKanaele = ausgaenge.flatMap(x => x.frei);
+  let freieKanaele = ausgaenge.flatMap(x => x.frei);
   if (!led.ausgaenge?.length) freieKanaele.push(...(led.kanaele || []).map(k => k.nr).filter(n => !belegt.has(n)));
+  // der Wand von Hand zugewiesene Kanäle zuerst, fremd zugewiesene nie
+  const eigen = new Set(zuweisung(s).strom.filter(t => t.startsWith(v.id + "|")).map(t => Number(t.split("|")[1])));
+  freieKanaele = [...freieKanaele.filter(n => eigen.has(n)), ...freieKanaele.filter(n => !eigen.has(n) && (kanalScreen(v.id, n) || s.id) === s.id)];
   if (!freieKanaele.length) return toast(`${v.name}: keine freien Kanäle.`, "fehler");
   const kap = Math.min(...freieKanaele.map(n => (kanalVon(v, n)?.ampere || P.regeln.absicherung) * P.regeln.spannung * (1 - P.regeln.reserve / 100)));
   // „ausgang“: so viele Kreise, wie der erste Ausgang freie Kanäle hat (mehr Reserve)
@@ -189,20 +192,9 @@ function geraetLoeschen(g) {
 }
 
 /* ---------- Pinsel ---------- */
-function pinselZiele() {
-  const ziele = [];
-  for (const v of P.geraete.filter(g => g.art === "verteiler")) {
-    for (const k of verteilerLed(v).kanaele || []) {
-      const kreis = P.kreise.find(x => x.verteiler === v.id && x.kanal === k.nr);
-      const fremd = P.geraete.some(g => g.strom?.verteiler === v.id && g.strom.kanal === k.nr);
-      if (fremd) continue;
-      ziele.push({ wert: `${v.id}|${k.nr}`, text: `${v.name} · Kanal ${k.nr} (${kanalPhase(v, k.nr).phase})${kreis ? " · " + (screenById(kreis.screen)?.name || "") + " " + kreis.module.length + " Mod." : " · frei"}` });
-    }
-  }
-  return ziele;
-}
+function pinselStromText() { const [vId, nr] = (ui.pinsel.strom || "").split("|"); const v = geraetById(vId); return v ? `${v.name} · K${nr}` : ""; }
 function stromPinselMalen(svg, s, e) {
-  if (!ui.pinsel.strom) { toast("Zuerst oben einen Kanal für den Pinsel wählen.", "fehler"); return null; }
+  if (!ui.pinsel.strom) { toast("Zuerst unten einen Kanal wählen (vorher rechts beim Verteiler der Wand zuweisen).", "fehler"); return null; }
   const [vId, kanalText] = ui.pinsel.strom.split("|");
   const kanal = Number(kanalText);
   const v = geraetById(vId); if (!v) return null;
@@ -255,6 +247,7 @@ function stromSvgInhalt(s) {
     fehlerIds: ohne, auswahl: new Set(),
     wege: kreise.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: kreisName(k) })),
     oben: `${s.name} · Strom · ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"}`,
+    zusatz: symbolSvg(s, "strom"),
   });
 }
 
@@ -263,14 +256,12 @@ REITER.strom = {
   werkzeuge() {
     const s = aktuellerScreen();
     const uebersicht = ui.modus.strom === "verteiler";
-    const ziele = pinselZiele();
     return `<button data-s="vorschlag" ${s?.module.length ? "" : "disabled"} title="Kreise automatisch bilden (Schlangenlinie, ausgewogen)">Vorschlag erzeugen</button>
       ${s ? `<select data-s-feld="richtung" title="Verlauf"><option value="spalten"${s.strom.richtung === "spalten" ? " selected" : ""}>spaltenweise ↕</option><option value="zeilen"${s.strom.richtung === "zeilen" ? " selected" : ""}>zeilenweise ↔</option></select>
       <select data-s-feld="verteilung" title="Anzahl Kreise"><option value="minimal"${s.strom.verteilung !== "ausgang" ? " selected" : ""}>so wenige Kreise wie möglich</option><option value="ausgang"${s.strom.verteilung === "ausgang" ? " selected" : ""}>ganzen Ausgang nutzen (mehr Reserve)</option></select>
       <select data-s-feld="start" title="Startecke">${[["ol", "oben links"], ["or", "oben rechts"], ["ul", "unten links"], ["ur", "unten rechts"]].map(([k, t]) => `<option value="${k}"${s.strom.start === k ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
       <span class="trenner"></span>
-      <button data-s="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${ziele.length && s ? "" : "disabled"} title="Abgang wählen, dann über die Module malen">🖌 Pinsel</button>
-      <select data-s-feld="pinselziel" ${ziele.length ? "" : "disabled"}><option value="">Abgang wählen …</option>${ziele.map(z => `<option value="${z.wert}"${ui.pinsel.strom === z.wert ? " selected" : ""}>${esc(z.text)}</option>`).join("")}</select>
+      <button data-s="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${s ? "" : "disabled"} title="Kanal unten in der Liste wählen, dann über die Module malen">🖌 Pinsel${ui.werkzeug === "pinsel" && ui.pinsel.strom ? " · " + esc(pinselStromText()) : ""}</button>
       <button data-s="kreis-loeschen" ${ui.sel.kreis ? "" : "disabled"}>Kreis löschen</button>
       <span class="trenner"></span>
       <div class="umschalter"><button data-s="planung" data-wert="max" aria-selected="${P.regeln.planung === "max"}">Max.</button><button data-s="planung" data-wert="durchschnitt" aria-selected="${P.regeln.planung === "durchschnitt"}">Ø</button></div>
@@ -293,6 +284,7 @@ REITER.strom = {
     if (ui.werkzeug === "pinsel") el.classList.add("pinsel");
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
+    symbolZiehen(svg, s);
     pinselInteraktion(svg, s, stromPinselMalen);
     svg.addEventListener("click", e => {
       if (ui.werkzeug === "pinsel") return;
@@ -307,15 +299,21 @@ REITER.strom = {
     const s = aktuellerScreen(); if (!s) return "";
     const kreise = kreiseVon(s.id);
     const ohne = s.module.length - kreise.reduce((a, k) => a + k.module.length, 0);
-    return `<div class="kopf"><b>Anschlüsse „${esc(s.name)}“</b><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
+    const zeilen = zugewieseneKanaele(s);
+    return `<div class="kopf"><b>Kanäle „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
       <table><tr><th>Kreis</th><th>Verteiler</th><th>Kanal</th><th>Phase</th><th>Zuleitung</th><th class="zahl">Module</th><th class="zahl">Last max.</th><th class="zahl">Last Ø</th><th>Auslastung</th></tr>
-      ${kreise.map((k, i) => {
-        const v = geraetById(k.verteiler); const ph = kanalPhase(v, k.kanal); const l = lakaFuerKreis(k);
+      ${zeilen.map(({ v, nr, ziel, kreis: k, geraet }) => {
+        const ph = kanalPhase(v, nr); const l = k ? lakaFuerKreis(k) : P.lakas.find(x => x.verteiler === v.id && x.ausgang === kanalVon(v, nr)?.ausgang);
+        const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.strom === ziel;
+        const zuleitung = l ? `${esc(kanalVon(v, nr)?.ausgang || "")} · Laka ${fmtFlex(l.laengeM)} m` : "direkt";
+        if (geraet) return `<tr class="leise"><td>—</td><td>${esc(v.name)}</td><td>${nr}</td><td>${ph.phase}</td><td colspan="5">versorgt ${esc(geraet.name)}</td></tr>`;
+        if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(v.name)}</td><td>${nr}</td>
+          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td><td class="zahl">0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
         const last = kreisLast(k), kap = kreisKapazitaet(k);
-        return `<tr class="klickbar${ui.sel.kreis === k.id ? " sel" : ""}" data-kreis="${k.id}"><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${kreisName(k)}</td><td>${esc(v?.name || "—")}</td><td>${k.kanal}</td>
-          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${l ? `${esc(kanalVon(v, k.kanal)?.ausgang || "")} · Laka ${fmtFlex(l.laengeM)} m` : "direkt"}</td>
+        return `<tr class="klickbar${gewaehlt || ui.sel.kreis === k.id ? " sel" : ""}" data-ziel="${ziel}" data-kreis="${k.id}"><td><span class="punkt" style="background:${kreisFarbe(k)}"></span>${kreisName(k)}</td><td>${esc(v.name)}</td><td>${nr}</td>
+          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td>
           <td class="zahl">${k.module.length}</td><td class="zahl">${fmt(kreisLast(k, "max"))} W</td><td class="zahl">${fmt(kreisLast(k, "durchschnitt"))} W</td><td>${balken(last / kap)}</td></tr>`;
-      }).join("") || `<tr><td colspan="9" class="leise">Noch keine Kreise – „Vorschlag erzeugen“ oder mit dem Pinsel malen.</td></tr>`}</table>`;
+      }).join("") || `<tr><td colspan="9" class="leise">Noch keine Kanäle zugewiesen – rechts beim Verteiler Kanäle anklicken („ganzer Ausgang“) oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
   },
   rechts() { return stromRechts(); },
   pruefungen() { return stromPruefungen(); },
@@ -360,6 +358,7 @@ function stromRechts() {
       <div class="label">Phasen (${P.regeln.planung === "max" ? "max." : "Ø"}) · Anteil an ${fmt(amp)} A</div>
       ${PHASEN.map(p => { const a = (P.regeln.planung === "max" ? b.phasen : b.phasenTyp)[p]; return `<div class="phase"><span style="color:${PHASENFARBE[p]}">${p}</span>${balken(amp ? a / amp : 0, false)}<span>${fmt(a, 1)} / ${fmt(amp)} A</span></div>`; }).join("")}
       <p class="klein leise">Schieflast ${fmt(schieflast(P.regeln.planung === "max" ? b.phasen : b.phasenTyp) * 100)} % · ${fmt(b.w / 1000, 2)} kW max. · ${fmt(b.wTyp / 1000, 2)} kW Ø</p>
+      ${kanalRasterHtml(g, aktuellerScreen())}
       <div class="label">Ausgänge und Lakas</div>
       ${(led.ausgaenge || []).map(a => {
         const l = P.lakas.find(x => x.verteiler === g.id && x.ausgang === a.name);
@@ -478,6 +477,7 @@ function stromPruefungen() {
       if (!P.kreise.some(k => k.verteiler === g.id) && !P.geraete.some(x => x.strom?.verteiler === g.id)) liste.push({ art: "info", text: `${g.name}: keine Kreise – wird er gebraucht?`, ziel: "verteiler:" + g.id });
     }
   }
+  liste.push(...symbolPruefungen());
   for (const l of P.lakas) {
     const anz = P.kreise.filter(k => lakaFuerKreis(k) === l).length;
     const e = eintrag(l.lib);
@@ -496,7 +496,11 @@ function stromEreignisse() {
     if (a === "vorschlag") stromVorschlag();
     else if (a === "pinsel") {
       ui.werkzeug = ui.werkzeug === "pinsel" ? "auswahl" : "pinsel";
-      if (ui.werkzeug === "pinsel" && !ui.pinsel.strom) { const z = pinselZiele().find(z => z.text.endsWith("frei")) || pinselZiele()[0]; ui.pinsel.strom = z?.wert || null; }
+      if (ui.werkzeug === "pinsel" && !ui.pinsel.strom) {
+        const s = aktuellerScreen(); const z = s && (freieZugewieseneKanaele(s)[0] || zugewieseneKanaele(s).find(x => !x.geraet));
+        if (!z) { ui.werkzeug = "auswahl"; return toast("Zuerst rechts beim Verteiler Kanäle dieser Wand zuweisen.", "fehler"); }
+        ui.pinsel.strom = z.ziel;
+      }
       render();
     }
     else if (a === "kreis-loeschen" && ui.sel.kreis) kreisLoeschen(ui.sel.kreis);
@@ -507,7 +511,6 @@ function stromEreignisse() {
     if (ui.reiter !== "strom") return;
     const f = e.target.dataset.sFeld; const s = aktuellerScreen();
     if (f === "richtung" || f === "start" || f === "verteilung") { s.strom[f] = e.target.value; aenderung(); }
-    if (f === "pinselziel") { ui.pinsel.strom = e.target.value || null; if (ui.pinsel.strom) ui.werkzeug = "pinsel"; render(); }
   });
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
@@ -517,13 +520,19 @@ function stromEreignisse() {
   });
   $("#liste").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
-    const tr = e.target.closest("[data-kreis]"); if (!tr) return;
+    const tr = e.target.closest("[data-ziel]"); if (!tr) return;
+    // Zeile wählen = Kanal als Pinsel-Ziel (und Kreis auswählen, falls vorhanden)
     const k = P.kreise.find(x => x.id === tr.dataset.kreis);
-    ui.sel.kreis = k?.id || null; if (k) ui.sel.verteiler = k.verteiler;
+    ui.sel.kreis = k?.id || null; ui.sel.verteiler = tr.dataset.ziel.split("|")[0];
+    ui.pinsel.strom = tr.dataset.ziel; ui.werkzeug = "pinsel";
     render();
   });
   $("#rechts").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
+    const zw = e.target.closest("[data-zuweisen]");
+    if (zw) { const [vId, nr] = zw.dataset.zuweisen.split("|"); return kanalZuweisen(aktuellerScreen(), vId, Number(nr)); }
+    const za = e.target.closest("[data-zuweisen-ausgang]");
+    if (za) return ausgangZuweisen(aktuellerScreen(), geraetById(ui.sel.verteiler), za.dataset.zuweisenAusgang);
     const b = e.target.closest("[data-s]"); if (!b) return;
     const a = b.dataset.s;
     if (a === "kreis-loeschen" && ui.sel.kreis) kreisLoeschen(ui.sel.kreis);

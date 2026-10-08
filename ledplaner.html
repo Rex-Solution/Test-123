@@ -76,7 +76,16 @@ h2 { font-size:16px; margin:0 0 8px; }
 .baum li { padding:4px 8px; border-radius:6px; display:flex; justify-content:space-between; gap:8px; align-items:center; cursor:pointer; }
 .baum li:hover { background:#202020; }
 .baum li.sel { background:var(--akzent-flaeche); }
-.baum li.gruppe { color:var(--text-leise); cursor:default; background:none; }
+.baum li.gruppe { color:var(--text-leise); cursor:pointer; background:none; }
+.baum li.gruppe:hover { color:var(--text); }
+.kontextmenue { position:fixed; z-index:70; min-width:200px; max-height:70vh; overflow:auto; background:var(--flaeche); border:1px solid var(--linie); border-radius:8px; padding:4px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+.kontextmenue button { display:block; width:100%; text-align:left; border:0; background:none; padding:6px 10px; border-radius:6px; }
+.kontextmenue button:hover:not(:disabled) { background:var(--akzent-flaeche); }
+.kontextmenue button.gefahr { color:var(--fehler); }
+.kontextmenue .kopf { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-leise); padding:8px 10px 2px; }
+body.touch .kontextmenue button { padding:10px 12px; }
+.kanal.zugewiesen, .port.zugewiesen { background:var(--akzent-flaeche); }
+button.kanal, button.port { cursor:pointer; color:var(--text); }
 .baum li .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .palette-item { display:flex; gap:8px; align-items:center; padding:6px 8px; margin-bottom:4px; border:1px solid var(--linie);
   border-radius:6px; background:var(--flaeche); font-size:13px; cursor:grab; user-select:none; width:100%; text-align:left; }
@@ -793,7 +802,7 @@ function anschluesseAusklappen(liste) {
      daten:   { titel, kunde, veranstaltung, ort, ersteller, revision, datum },
      regeln:  { reserve, schieflast, planung, spannung, absicherung, einschaltPruefen, backup, portMax, catMax, druckZusatz },
      library: { [id]: Kopie des Library-Eintrags (Stand beim Einfügen) },
-     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
+     screens: [{ id, name, beschreibung, ukM, bauart, module: [{ id, lib, x, y }], zuweisung: { strom: ["vId|kanal"], signal: ["pId|port"] }, winkel: { [x Fuge mm]: Grad, + konkav / − konvex }, strom: { richtung, start }, signal: { richtung, start } }],
      geraete: [ verteiler { id, art:"verteiler", lib, name, standort, speisung: { von, kabel, laengeM } }
               | einspeisung { id, art:"einspeisung", name, stecker, ampere, standort }
               | prozessor { id, art:"prozessor", lib, name, standort, portKabel, portLaengeM, strom }
@@ -802,7 +811,7 @@ function anschluesseAusklappen(liste) {
               Ports ohne Stagebox/Multicore gehen direkt (portKabel, portLaengeM) vom Prozessor zur Wand.
      kreise:   [{ id, screen, verteiler, kanal, module: [modulIds in Reihenfolge] }],
      straenge: [{ id, screen, prozessor, port, backupPort, module: [...] }],
-     lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM }],
+     lakas:    [{ id, lib, verteiler, ausgang, screen, laengeM, pos: { x, y } (Spinne in der Wand) }],
      kabel:    [{ id, lib, laengeM, anzahl, von, nach, bemerkung }]          // von Hand
      kabelAnpassung: { [schluessel automatisches Kabel]: { lib, laengeM, bemerkung } }
    }
@@ -814,7 +823,7 @@ const SPEICHER_AKTUELL = "rex-ledplaner-aktuell";
 
 function standardRegeln() {
   return { reserve: 20, schieflast: 20, planung: "max", spannung: 230, absicherung: 16, einschaltPruefen: true,
-    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern" };
+    backup: true, portMax: 90, catMax: 100, druckZusatz: "A3", riggingFreigabe: "intern", kabelReserveM: 1 };
 }
 
 function neuesProjekt() {
@@ -1153,7 +1162,7 @@ function spiegeln(module, achse) {
 
 const ui = {
   haupt: "planen", reiter: "aufbau",
-  modus: { strom: "wand", signal: "wand", ausgabe: "screen" },
+  modus: { aufbau: "wand", strom: "wand", signal: "wand", ausgabe: "screen" },
   screen: null,               // gewählter Screen (id)
   auswahl: new Set(),         // gewählte Module (ids)
   werkzeug: "auswahl",        // auswahl | pinsel
@@ -1260,14 +1269,14 @@ function renderBaum() {
   const prozessoren = P.geraete.filter(g => g.art === "prozessor");
   const li = (klasse, attr, name, rechts = "") => `<li class="${klasse}" ${attr}><span class="name">${esc(name)}</span>${rechts}</li>`;
   $("#baum").innerHTML = [
-    `<li class="gruppe">Screens <button data-aktion="screen-neu" title="Neuen Screen anlegen" style="padding:0 8px">+</button></li>`,
+    `<li class="gruppe" data-gruppe="screens" title="Klick: alle Screens · Rechtsklick: Menü">Screens <button data-aktion="screen-neu" title="Neuen Screen anlegen" style="padding:0 8px">+</button></li>`,
     ...P.screens.map(x => li(x.id === s?.id ? "sel" : "", `data-screen="${x.id}"`, x.name, `<span class="leise klein">${x.module.length}</span>`)),
     P.screens.length ? "" : `<li class="leise">noch kein Screen</li>`,
-    `<li class="gruppe">Stromverteiler</li>`,
+    `<li class="gruppe" data-gruppe="strom" title="Klick: alle Verteiler und Einspeisungen · Rechtsklick: Menü">Stromverteiler</li>`,
     ...verteiler.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, g.name)),
     ...einspeisungen.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, "⏚ " + g.name)),
     verteiler.length || einspeisungen.length ? "" : `<li class="leise">—</li>`,
-    `<li class="gruppe">Prozessoren</li>`,
+    `<li class="gruppe" data-gruppe="prozessoren" title="Klick: alle Prozessoren · Rechtsklick: Menü">Prozessoren</li>`,
     ...prozessoren.flatMap(g => [li(ui.sel.prozessor === g.id && !ui.sel.weg ? "sel" : "", `data-geraet="${g.id}"`, g.name),
       ...wegGeraete(g.id).map(d => li(ui.sel.weg === d.id ? "sel" : "", `data-geraet="${d.id}"`, "↳ " + d.name))]),
     prozessoren.length ? "" : `<li class="leise">—</li>`,
@@ -1288,7 +1297,11 @@ function gerustEreignisse() {
     const a = e.target.closest("[data-aktion]")?.dataset.aktion;
     if (a === "screen-neu") return screenAnlegen();
     const sc = e.target.closest("[data-screen]");
-    if (sc) { ui.screen = sc.dataset.screen; ui.auswahl.clear(); render(); return; }
+    if (sc) {   // Screen gewählt: im aktuellen Reiter die Wand zeigen
+      ui.screen = sc.dataset.screen; ui.auswahl.clear();
+      if (ui.reiter in ui.modus && ui.reiter !== "ausgabe") ui.modus[ui.reiter] = "wand";
+      render(); return;
+    }
     const g = e.target.closest("[data-geraet]");
     if (g) {
       const ger = geraetById(g.dataset.geraet);
@@ -1625,6 +1638,119 @@ function touchEreignisse() {
   });
 }
 
+/* ===== 09-baum.js ===== */
+/* Projektbaum links: Überschriften öffnen die Übersicht (alle Screens, alle Verteiler/Einspeisungen, alle Prozessoren),
+   Rechtsklick (Tablet: lange drücken) öffnet ein Kontextmenü zum Hinzufügen, Duplizieren und Löschen. */
+
+const BAUM_GRUPPEN = {
+  screens: () => { ui.reiter = "aufbau"; ui.modus.aufbau = "alle"; },
+  strom: () => { ui.reiter = "strom"; ui.modus.strom = "verteiler"; },
+  prozessoren: () => { ui.reiter = "signal"; ui.modus.signal = "prozessoren"; },
+};
+
+/* ---------- Kontextmenü ---------- */
+function kontextMenue(x, y, eintraege) {
+  kontextMenueZu();
+  const m = document.createElement("div");
+  m.className = "kontextmenue"; m.id = "kontextmenue";
+  m.innerHTML = eintraege.map((e, i) => e.kopf ? `<div class="kopf">${esc(e.kopf)}</div>`
+    : `<button data-km="${i}" class="${e.gefahr ? "gefahr" : ""}" ${e.aus ? "disabled" : ""}>${esc(e.t)}</button>`).join("");
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 8) + "px";
+  m.style.top = Math.min(y, innerHeight - r.height - 8) + "px";
+  m.addEventListener("click", e => {
+    const b = e.target.closest("[data-km]"); if (!b) return;
+    kontextMenueZu();
+    eintraege[Number(b.dataset.km)].f();
+  });
+}
+function kontextMenueZu() { $("#kontextmenue")?.remove(); }
+
+function geraetDuplizieren(g) {
+  const n = klon(g);
+  n.id = neueId({ verteiler: "v", einspeisung: "e", prozessor: "p", stagebox: "sb", multicore: "mc" }[g.art] || "g");
+  n.name = g.name + " (Kopie)";
+  if (g.art === "prozessor" || g.art === "stagebox") n.strom = null;   // Kanal ist schon belegt
+  if (istWeg(g)) { n.ports = []; n.pos = null; }
+  P.geraete.splice(P.geraete.indexOf(g) + 1, 0, n);
+  if (istWeg(n)) { ui.sel.prozessor = n.prozessor; ui.sel.weg = n.id; }
+  else if (n.art === "prozessor") ui.sel.prozessor = n.id; else ui.sel.verteiler = n.id;
+  aenderung();
+  toast(`„${n.name}“ angelegt – ohne Kreise, Stränge und Zuweisungen.`, "ok");
+}
+
+function baumEintraege(li) {
+  const libAuswahl = (typ, f) => libListe(typ).map(e => ({ t: e.name, aus: !eintragNutzbar(e), f: () => f(e.id) }));
+  const gruppe = li.dataset.gruppe;
+  if (gruppe === "screens") return [{ t: "Screen hinzufügen …", f: screenAnlegen }, { t: "Alle Screens anzeigen", f: () => { BAUM_GRUPPEN.screens(); render(); } }];
+  if (gruppe === "strom") return [{ t: "Einspeisung hinzufügen …", f: () => { ui.reiter = "strom"; einspeisungAnlegen(); } }, { kopf: "Stromverteiler hinzufügen" },
+    ...libAuswahl("verteiler", id => { ui.reiter = "strom"; ui.modus.strom = "wand"; verteilerAnlegen(id); }), { t: "Alle Verteiler anzeigen", f: () => { BAUM_GRUPPEN.strom(); render(); } }];
+  if (gruppe === "prozessoren") return [{ kopf: "Prozessor hinzufügen" }, ...libAuswahl("prozessor", id => { ui.reiter = "signal"; ui.modus.signal = "wand"; prozessorAnlegen(id); }),
+    { t: "Alle Prozessoren anzeigen", f: () => { BAUM_GRUPPEN.prozessoren(); render(); } }];
+  if (li.dataset.screen) {
+    const s = screenById(li.dataset.screen);
+    return [{ t: "Bearbeiten …", f: () => screenBearbeiten(s) }, { t: "Duplizieren", f: () => screenDuplizieren(s) }, { t: "Löschen", gefahr: true, f: () => screenLoeschen(s) }];
+  }
+  const g = geraetById(li.dataset.geraet); if (!g) return [];
+  const basis = [{ t: "Duplizieren", f: () => geraetDuplizieren(g) }, { t: "Löschen", gefahr: true, f: () => istWeg(g) ? wegLoeschen(g) : geraetLoeschen(g) }];
+  if (g.art === "prozessor") return [...basis,
+    { kopf: "Stagebox hinzufügen" }, ...libAuswahl("stagebox", id => { ui.reiter = "signal"; wegAnlegen("stagebox", id, g.id); }),
+    { kopf: "Multicore hinzufügen" }, ...libAuswahl("multicore", id => { ui.reiter = "signal"; wegAnlegen("multicore", id, g.id); })];
+  return basis;
+}
+
+function baumEreignisse() {
+  const baum = $("#baum");
+  baum.addEventListener("contextmenu", e => {
+    const li = e.target.closest("li[data-gruppe], li[data-screen], li[data-geraet]"); if (!li) return;
+    e.preventDefault();
+    const eintraege = baumEintraege(li);
+    if (eintraege.length) kontextMenue(e.clientX, e.clientY, eintraege);
+  });
+  // Tablet: lange drücken = Kontextmenü
+  let lang = null;
+  baum.addEventListener("pointerdown", e => {
+    if (e.pointerType !== "touch") return;
+    const li = e.target.closest("li[data-gruppe], li[data-screen], li[data-geraet]"); if (!li) return;
+    const start = { x: e.clientX, y: e.clientY };
+    lang = { start, t: setTimeout(() => { lang.offen = true; const ein = baumEintraege(li); if (ein.length) kontextMenue(start.x, start.y, ein); }, 550) };
+  });
+  const abbrechen = e => { if (lang && (e.type !== "pointermove" || Math.hypot(e.clientX - lang.start.x, e.clientY - lang.start.y) > 10)) clearTimeout(lang.t); };
+  baum.addEventListener("pointermove", abbrechen); baum.addEventListener("pointercancel", abbrechen);
+  baum.addEventListener("pointerup", e => { abbrechen(e); if (lang?.offen) { e.preventDefault(); ui.klickSperre = Date.now(); } });
+  // Überschrift anklicken = Übersicht
+  baum.addEventListener("click", e => {
+    if (Date.now() - ui.klickSperre < 500) { e.stopImmediatePropagation(); return; }
+    const gr = e.target.closest("li[data-gruppe]");
+    if (gr && !e.target.closest("[data-aktion]")) { BAUM_GRUPPEN[gr.dataset.gruppe](); ui.werkzeug = "auswahl"; render(); e.stopImmediatePropagation(); }
+  }, true);
+  document.addEventListener("pointerdown", e => { if (!e.target.closest("#kontextmenue")) kontextMenueZu(); }, true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") kontextMenueZu(); });
+  window.addEventListener("blur", kontextMenueZu);
+}
+
+/* ---------- Übersicht aller Screens (Reiter Aufbau) ---------- */
+function screenUebersicht(el) {
+  el.classList.add("liste-modus");
+  if (!P.screens.length) return void (el.innerHTML = `<p class="leise">Noch keine Screens – links bei „Screens“ mit + anlegen.</p>`);
+  el.innerHTML = `<div class="uebersicht">${P.screens.map(s => {
+    const x = screenSummen(s); const pl = pixelLage(s); const g = grenzen(s.module);
+    const rand = Math.max(g.b, g.h, 1000) * 0.06;
+    const svg = s.module.length ? `<svg viewBox="${g.x - rand} ${g.y - rand} ${g.b + 2 * rand} ${g.h + 2 * rand}" style="width:100%;height:140px;background:#141414;border-radius:6px" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { masse: false })}</svg>` : `<p class="leise klein">keine Module</p>`;
+    const kreise = P.kreise.filter(k => k.screen === s.id).length, st = P.straenge.filter(k => k.screen === s.id).length;
+    return `<div class="karte klickbar${s.id === ui.screen ? " sel" : ""}" data-screen-karte="${s.id}" style="cursor:pointer"><div class="knopfreihe"><h2 style="margin:0">${esc(s.name)}</h2><span class="fueller"></span><span class="leise klein">${esc(s.beschreibung || "")}</span></div>
+      ${svg}<table class="werte" style="margin-top:6px"><tr><td>Größe</td><td>${fmtFlex(x.bM, 2)} × ${fmtFlex(x.hM, 2)} m · ${fmt(pl.b)} × ${fmt(pl.h)} px</td></tr>
+      <tr><td>Module · Gewicht</td><td>${x.anzahl} · ${fmt(x.kg, 1)} kg</td></tr><tr><td>Leistung max.</td><td>${fmt(x.wMax)} W</td></tr>
+      <tr><td>Bauart</td><td>${s.bauart}${s.ukM != null ? " · UK " + fmtFlex(s.ukM) + " m" : ""}</td></tr><tr><td>Kreise · Stränge</td><td>${kreise} · ${st}</td></tr></table></div>`;
+  }).join("")}</div>`;
+  el.onclick = e => {
+    if (ui.reiter !== "aufbau" || ui.modus.aufbau !== "alle") return;
+    const k = e.target.closest("[data-screen-karte]"); if (!k) return;
+    ui.screen = k.dataset.screenKarte; ui.modus.aufbau = "wand"; ui.auswahl.clear(); render();
+  };
+}
+
 /* ===== 10-aufbau.js ===== */
 /* Reiter Aufbau: Module per Drag & Drop setzen, auswählen, verschieben, Werkzeuge. */
 
@@ -1649,6 +1775,7 @@ REITER.aufbau = {
       <span class="trenner"></span>
       <div class="umschalter"><button data-a="vorne" aria-selected="${!ui.hinten && !ui.ansicht3d}">Vorderansicht</button><button data-a="hinten" aria-selected="${ui.hinten && !ui.ansicht3d}">Rückansicht</button><button data-a="3d" aria-selected="${!!ui.ansicht3d}" title="Räumliche Ansicht mit Kurve, Unterkante und Person als Maßstab">3D</button></div>
       <button data-a="einpassen" ${dis}>Einpassen</button>
+      <span class="trenner"></span><div class="umschalter"><button data-a="modus" data-wert="wand" aria-selected="${ui.modus.aufbau !== "alle"}">Wand</button><button data-a="modus" data-wert="alle" aria-selected="${ui.modus.aufbau === "alle"}">Alle Screens</button></div>
       ${s ? `<span class="trenner"></span><div class="umschalter"><button data-a="bauart" data-wert="geflogen" aria-selected="${s.bauart === "geflogen"}">Geflogen</button><button data-a="bauart" data-wert="gestellt" aria-selected="${s.bauart === "gestellt"}">Gestellt</button></div>` : ""}`;
   },
 
@@ -1670,6 +1797,7 @@ REITER.aufbau = {
   zeichnung(el) {
     const s = aktuellerScreen();
     if (!s) return leerZeichnung(el, `Noch kein Screen.<br><br><button data-a="screen-neu" class="primaer" style="pointer-events:auto">+ Screen anlegen</button>`);
+    if (ui.modus.aufbau === "alle") return screenUebersicht(el);
     if (ui.ansicht3d) return dreidZeichnung(el, s);
     const v = ansicht(s);
     el.innerHTML = `<svg viewBox="${vbText(v)}" preserveAspectRatio="xMidYMid meet">${screenSvgInhalt(s, { auswahl: ui.auswahl, hinten: ui.hinten, zusatz: ui.hinten ? "" : riggingSvg(s) + kurveMarkenSvg(s), masseTiefer: !ui.hinten,
@@ -1894,7 +2022,7 @@ function aufbauDuplizieren(s) {
 
 function screenDuplizieren(s) {
   const n = klon(s);
-  n.id = neueId("s"); n.name = s.name + " (Kopie)";
+  n.id = neueId("s"); n.name = s.name + " (Kopie)"; n.zuweisung = { strom: [], signal: [] };
   n.module.forEach(m => { m.id = neueId("m"); });
   P.screens.push(n);
   ui.screen = n.id; ui.auswahl.clear();
@@ -2030,6 +2158,7 @@ function aufbauEreignisse() {
     else if (a === "einpassen") einpassen();
     else if (a === "bauart") { s.bauart = b.dataset.wert; aenderung(); }
     else if (a === "winkel") winkelDialog(s);
+    else if (a === "modus") { ui.modus.aufbau = b.dataset.wert; render(); }
     else if (a === "alle") { ui.auswahl = new Set(s.module.map(m => m.id)); render(); }
     else if (a === "mehrfach") { ui.mehrfach = !ui.mehrfach; render(); }
     else if (a === "einrasten") { ui.einrasten = !ui.einrasten; render(); }
@@ -2779,8 +2908,11 @@ async function stromVorschlag() {
     fremd: P.lakas.some(l => l.verteiler === v.id && l.ausgang === a.name && l.screen && l.screen !== s.id) }))
     .filter(x => !x.fremd)
     .sort((x, y) => (y.eigen - x.eigen) || (y.frei.length - x.frei.length));
-  const freieKanaele = ausgaenge.flatMap(x => x.frei);
+  let freieKanaele = ausgaenge.flatMap(x => x.frei);
   if (!led.ausgaenge?.length) freieKanaele.push(...(led.kanaele || []).map(k => k.nr).filter(n => !belegt.has(n)));
+  // der Wand von Hand zugewiesene Kanäle zuerst, fremd zugewiesene nie
+  const eigen = new Set(zuweisung(s).strom.filter(t => t.startsWith(v.id + "|")).map(t => Number(t.split("|")[1])));
+  freieKanaele = [...freieKanaele.filter(n => eigen.has(n)), ...freieKanaele.filter(n => !eigen.has(n) && (kanalScreen(v.id, n) || s.id) === s.id)];
   if (!freieKanaele.length) return toast(`${v.name}: keine freien Kanäle.`, "fehler");
   const kap = Math.min(...freieKanaele.map(n => (kanalVon(v, n)?.ampere || P.regeln.absicherung) * P.regeln.spannung * (1 - P.regeln.reserve / 100)));
   // „ausgang“: so viele Kreise, wie der erste Ausgang freie Kanäle hat (mehr Reserve)
@@ -2837,20 +2969,9 @@ function geraetLoeschen(g) {
 }
 
 /* ---------- Pinsel ---------- */
-function pinselZiele() {
-  const ziele = [];
-  for (const v of P.geraete.filter(g => g.art === "verteiler")) {
-    for (const k of verteilerLed(v).kanaele || []) {
-      const kreis = P.kreise.find(x => x.verteiler === v.id && x.kanal === k.nr);
-      const fremd = P.geraete.some(g => g.strom?.verteiler === v.id && g.strom.kanal === k.nr);
-      if (fremd) continue;
-      ziele.push({ wert: `${v.id}|${k.nr}`, text: `${v.name} · Kanal ${k.nr} (${kanalPhase(v, k.nr).phase})${kreis ? " · " + (screenById(kreis.screen)?.name || "") + " " + kreis.module.length + " Mod." : " · frei"}` });
-    }
-  }
-  return ziele;
-}
+function pinselStromText() { const [vId, nr] = (ui.pinsel.strom || "").split("|"); const v = geraetById(vId); return v ? `${v.name} · K${nr}` : ""; }
 function stromPinselMalen(svg, s, e) {
-  if (!ui.pinsel.strom) { toast("Zuerst oben einen Kanal für den Pinsel wählen.", "fehler"); return null; }
+  if (!ui.pinsel.strom) { toast("Zuerst unten einen Kanal wählen (vorher rechts beim Verteiler der Wand zuweisen).", "fehler"); return null; }
   const [vId, kanalText] = ui.pinsel.strom.split("|");
   const kanal = Number(kanalText);
   const v = geraetById(vId); if (!v) return null;
@@ -2903,6 +3024,7 @@ function stromSvgInhalt(s) {
     fehlerIds: ohne, auswahl: new Set(),
     wege: kreise.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: kreisName(k) })),
     oben: `${s.name} · Strom · ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"}`,
+    zusatz: symbolSvg(s, "strom"),
   });
 }
 
@@ -2911,14 +3033,12 @@ REITER.strom = {
   werkzeuge() {
     const s = aktuellerScreen();
     const uebersicht = ui.modus.strom === "verteiler";
-    const ziele = pinselZiele();
     return `<button data-s="vorschlag" ${s?.module.length ? "" : "disabled"} title="Kreise automatisch bilden (Schlangenlinie, ausgewogen)">Vorschlag erzeugen</button>
       ${s ? `<select data-s-feld="richtung" title="Verlauf"><option value="spalten"${s.strom.richtung === "spalten" ? " selected" : ""}>spaltenweise ↕</option><option value="zeilen"${s.strom.richtung === "zeilen" ? " selected" : ""}>zeilenweise ↔</option></select>
       <select data-s-feld="verteilung" title="Anzahl Kreise"><option value="minimal"${s.strom.verteilung !== "ausgang" ? " selected" : ""}>so wenige Kreise wie möglich</option><option value="ausgang"${s.strom.verteilung === "ausgang" ? " selected" : ""}>ganzen Ausgang nutzen (mehr Reserve)</option></select>
       <select data-s-feld="start" title="Startecke">${[["ol", "oben links"], ["or", "oben rechts"], ["ul", "unten links"], ["ur", "unten rechts"]].map(([k, t]) => `<option value="${k}"${s.strom.start === k ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
       <span class="trenner"></span>
-      <button data-s="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${ziele.length && s ? "" : "disabled"} title="Abgang wählen, dann über die Module malen">🖌 Pinsel</button>
-      <select data-s-feld="pinselziel" ${ziele.length ? "" : "disabled"}><option value="">Abgang wählen …</option>${ziele.map(z => `<option value="${z.wert}"${ui.pinsel.strom === z.wert ? " selected" : ""}>${esc(z.text)}</option>`).join("")}</select>
+      <button data-s="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${s ? "" : "disabled"} title="Kanal unten in der Liste wählen, dann über die Module malen">🖌 Pinsel${ui.werkzeug === "pinsel" && ui.pinsel.strom ? " · " + esc(pinselStromText()) : ""}</button>
       <button data-s="kreis-loeschen" ${ui.sel.kreis ? "" : "disabled"}>Kreis löschen</button>
       <span class="trenner"></span>
       <div class="umschalter"><button data-s="planung" data-wert="max" aria-selected="${P.regeln.planung === "max"}">Max.</button><button data-s="planung" data-wert="durchschnitt" aria-selected="${P.regeln.planung === "durchschnitt"}">Ø</button></div>
@@ -2941,6 +3061,7 @@ REITER.strom = {
     if (ui.werkzeug === "pinsel") el.classList.add("pinsel");
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
+    symbolZiehen(svg, s);
     pinselInteraktion(svg, s, stromPinselMalen);
     svg.addEventListener("click", e => {
       if (ui.werkzeug === "pinsel") return;
@@ -2955,15 +3076,21 @@ REITER.strom = {
     const s = aktuellerScreen(); if (!s) return "";
     const kreise = kreiseVon(s.id);
     const ohne = s.module.length - kreise.reduce((a, k) => a + k.module.length, 0);
-    return `<div class="kopf"><b>Anschlüsse „${esc(s.name)}“</b><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
+    const zeilen = zugewieseneKanaele(s);
+    return `<div class="kopf"><b>Kanäle „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">Planung mit ${P.regeln.planung === "max" ? "Max.-Last" : "Durchschnitt"} · ${fmt(P.regeln.absicherung)} A · ${fmt(P.regeln.spannung)} V · ${fmt(P.regeln.reserve)} % Reserve${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Kreis</span>` : ""}</span></div>
       <table><tr><th>Kreis</th><th>Verteiler</th><th>Kanal</th><th>Phase</th><th>Zuleitung</th><th class="zahl">Module</th><th class="zahl">Last max.</th><th class="zahl">Last Ø</th><th>Auslastung</th></tr>
-      ${kreise.map((k, i) => {
-        const v = geraetById(k.verteiler); const ph = kanalPhase(v, k.kanal); const l = lakaFuerKreis(k);
+      ${zeilen.map(({ v, nr, ziel, kreis: k, geraet }) => {
+        const ph = kanalPhase(v, nr); const l = k ? lakaFuerKreis(k) : P.lakas.find(x => x.verteiler === v.id && x.ausgang === kanalVon(v, nr)?.ausgang);
+        const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.strom === ziel;
+        const zuleitung = l ? `${esc(kanalVon(v, nr)?.ausgang || "")} · Laka ${fmtFlex(l.laengeM)} m` : "direkt";
+        if (geraet) return `<tr class="leise"><td>—</td><td>${esc(v.name)}</td><td>${nr}</td><td>${ph.phase}</td><td colspan="5">versorgt ${esc(geraet.name)}</td></tr>`;
+        if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(v.name)}</td><td>${nr}</td>
+          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td><td class="zahl">0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
         const last = kreisLast(k), kap = kreisKapazitaet(k);
-        return `<tr class="klickbar${ui.sel.kreis === k.id ? " sel" : ""}" data-kreis="${k.id}"><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${kreisName(k)}</td><td>${esc(v?.name || "—")}</td><td>${k.kanal}</td>
-          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${l ? `${esc(kanalVon(v, k.kanal)?.ausgang || "")} · Laka ${fmtFlex(l.laengeM)} m` : "direkt"}</td>
+        return `<tr class="klickbar${gewaehlt || ui.sel.kreis === k.id ? " sel" : ""}" data-ziel="${ziel}" data-kreis="${k.id}"><td><span class="punkt" style="background:${kreisFarbe(k)}"></span>${kreisName(k)}</td><td>${esc(v.name)}</td><td>${nr}</td>
+          <td>${ph.phase}${ph.angenommen ? " ?" : ""}</td><td>${zuleitung}</td>
           <td class="zahl">${k.module.length}</td><td class="zahl">${fmt(kreisLast(k, "max"))} W</td><td class="zahl">${fmt(kreisLast(k, "durchschnitt"))} W</td><td>${balken(last / kap)}</td></tr>`;
-      }).join("") || `<tr><td colspan="9" class="leise">Noch keine Kreise – „Vorschlag erzeugen“ oder mit dem Pinsel malen.</td></tr>`}</table>`;
+      }).join("") || `<tr><td colspan="9" class="leise">Noch keine Kanäle zugewiesen – rechts beim Verteiler Kanäle anklicken („ganzer Ausgang“) oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
   },
   rechts() { return stromRechts(); },
   pruefungen() { return stromPruefungen(); },
@@ -3008,6 +3135,7 @@ function stromRechts() {
       <div class="label">Phasen (${P.regeln.planung === "max" ? "max." : "Ø"}) · Anteil an ${fmt(amp)} A</div>
       ${PHASEN.map(p => { const a = (P.regeln.planung === "max" ? b.phasen : b.phasenTyp)[p]; return `<div class="phase"><span style="color:${PHASENFARBE[p]}">${p}</span>${balken(amp ? a / amp : 0, false)}<span>${fmt(a, 1)} / ${fmt(amp)} A</span></div>`; }).join("")}
       <p class="klein leise">Schieflast ${fmt(schieflast(P.regeln.planung === "max" ? b.phasen : b.phasenTyp) * 100)} % · ${fmt(b.w / 1000, 2)} kW max. · ${fmt(b.wTyp / 1000, 2)} kW Ø</p>
+      ${kanalRasterHtml(g, aktuellerScreen())}
       <div class="label">Ausgänge und Lakas</div>
       ${(led.ausgaenge || []).map(a => {
         const l = P.lakas.find(x => x.verteiler === g.id && x.ausgang === a.name);
@@ -3126,6 +3254,7 @@ function stromPruefungen() {
       if (!P.kreise.some(k => k.verteiler === g.id) && !P.geraete.some(x => x.strom?.verteiler === g.id)) liste.push({ art: "info", text: `${g.name}: keine Kreise – wird er gebraucht?`, ziel: "verteiler:" + g.id });
     }
   }
+  liste.push(...symbolPruefungen());
   for (const l of P.lakas) {
     const anz = P.kreise.filter(k => lakaFuerKreis(k) === l).length;
     const e = eintrag(l.lib);
@@ -3144,7 +3273,11 @@ function stromEreignisse() {
     if (a === "vorschlag") stromVorschlag();
     else if (a === "pinsel") {
       ui.werkzeug = ui.werkzeug === "pinsel" ? "auswahl" : "pinsel";
-      if (ui.werkzeug === "pinsel" && !ui.pinsel.strom) { const z = pinselZiele().find(z => z.text.endsWith("frei")) || pinselZiele()[0]; ui.pinsel.strom = z?.wert || null; }
+      if (ui.werkzeug === "pinsel" && !ui.pinsel.strom) {
+        const s = aktuellerScreen(); const z = s && (freieZugewieseneKanaele(s)[0] || zugewieseneKanaele(s).find(x => !x.geraet));
+        if (!z) { ui.werkzeug = "auswahl"; return toast("Zuerst rechts beim Verteiler Kanäle dieser Wand zuweisen.", "fehler"); }
+        ui.pinsel.strom = z.ziel;
+      }
       render();
     }
     else if (a === "kreis-loeschen" && ui.sel.kreis) kreisLoeschen(ui.sel.kreis);
@@ -3155,7 +3288,6 @@ function stromEreignisse() {
     if (ui.reiter !== "strom") return;
     const f = e.target.dataset.sFeld; const s = aktuellerScreen();
     if (f === "richtung" || f === "start" || f === "verteilung") { s.strom[f] = e.target.value; aenderung(); }
-    if (f === "pinselziel") { ui.pinsel.strom = e.target.value || null; if (ui.pinsel.strom) ui.werkzeug = "pinsel"; render(); }
   });
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
@@ -3165,13 +3297,19 @@ function stromEreignisse() {
   });
   $("#liste").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
-    const tr = e.target.closest("[data-kreis]"); if (!tr) return;
+    const tr = e.target.closest("[data-ziel]"); if (!tr) return;
+    // Zeile wählen = Kanal als Pinsel-Ziel (und Kreis auswählen, falls vorhanden)
     const k = P.kreise.find(x => x.id === tr.dataset.kreis);
-    ui.sel.kreis = k?.id || null; if (k) ui.sel.verteiler = k.verteiler;
+    ui.sel.kreis = k?.id || null; ui.sel.verteiler = tr.dataset.ziel.split("|")[0];
+    ui.pinsel.strom = tr.dataset.ziel; ui.werkzeug = "pinsel";
     render();
   });
   $("#rechts").addEventListener("click", e => {
     if (ui.reiter !== "strom") return;
+    const zw = e.target.closest("[data-zuweisen]");
+    if (zw) { const [vId, nr] = zw.dataset.zuweisen.split("|"); return kanalZuweisen(aktuellerScreen(), vId, Number(nr)); }
+    const za = e.target.closest("[data-zuweisen-ausgang]");
+    if (za) return ausgangZuweisen(aktuellerScreen(), geraetById(ui.sel.verteiler), za.dataset.zuweisenAusgang);
     const b = e.target.closest("[data-s]"); if (!b) return;
     const a = b.dataset.s;
     if (a === "kreis-loeschen" && ui.sel.kreis) kreisLoeschen(ui.sel.kreis);
@@ -3277,7 +3415,10 @@ function signalVorschlag() {
     for (let i = 0; i + 1 < erg.grenzen.length; i++) segmente.push(reihe.slice(erg.grenzen[i], erg.grenzen[i + 1]));
   }
   const belegt = belegtePorts(g.id);
-  const frei = prozessorPorts(g).map(p => p.nr).filter(n => !belegt.has(n));
+  // freie Ports: der Wand zugewiesene zuerst, anderen Wänden zugewiesene nie
+  const eigen = new Set(zuweisung(s).signal.filter(t => t.startsWith(g.id + "|")).map(t => Number(t.split("|")[1])));
+  const offen = prozessorPorts(g).map(p => p.nr).filter(n => !belegt.has(n) && (portScreen(g.id, n) || s.id) === s.id);
+  const frei = [...offen.filter(n => eigen.has(n)), ...offen.filter(n => !eigen.has(n))];
   const backup = P.regeln.backup && prozessorLed(g).backup !== false;
   const noetig = segmente.length * (backup ? 2 : 1);
   if (noetig > frei.length) return toast(`${g.name}: ${noetig} Ports nötig${backup ? " (mit Backup)" : ""}, aber nur ${frei.length} frei.`, "fehler");
@@ -3291,27 +3432,21 @@ function signalVorschlag() {
 }
 
 /* ---------- Pinsel ---------- */
-function signalZiele() {
-  const ziele = [];
-  for (const g of P.geraete.filter(x => x.art === "prozessor")) {
-    const backups = new Set(P.straenge.filter(k => k.prozessor === g.id).map(k => k.backupPort));
-    for (const p of prozessorPorts(g)) {
-      if (backups.has(p.nr)) continue;
-      const k = P.straenge.find(x => x.prozessor === g.id && x.port === p.nr);
-      ziele.push({ wert: `${g.id}|${p.nr}`, text: `${g.name} · Port ${p.nr}${k ? " · " + (screenById(k.screen)?.name || "") + " " + k.module.length + " Mod." : " · frei"}` });
-    }
-  }
-  return ziele;
-}
+function pinselSignalText() { const [gId, nr] = (ui.pinsel.signal || "").split("|"); const g = geraetById(gId); return g ? `${g.name} · P${nr}` : ""; }
 function signalPinselMalen(svg, s) {
-  if (!ui.pinsel.signal) { toast("Zuerst oben einen Port für den Pinsel wählen.", "fehler"); return null; }
+  if (!ui.pinsel.signal) { toast("Zuerst unten einen Port wählen (vorher rechts beim Prozessor der Wand zuweisen).", "fehler"); return null; }
   const [gId, portText] = ui.pinsel.signal.split("|"); const port = Number(portText);
   const g = geraetById(gId); if (!g) return null;
   let k = P.straenge.find(x => x.prozessor === gId && x.port === port);
   if (k && k.screen !== s.id) { toast(`Port ${port} versorgt schon „${screenById(k.screen)?.name}“.`, "fehler"); return null; }
   if (!k) {
     let backupPort = null;
-    if (P.regeln.backup) { const belegt = belegtePorts(gId); belegt.add(port); backupPort = prozessorPorts(g).map(p => p.nr).reverse().find(n => !belegt.has(n)) ?? null; }
+    if (P.regeln.backup) {
+      // Backup: zuerst ein freier, der Wand zugewiesener Port, sonst der letzte freie des Prozessors
+      const belegt = belegtePorts(gId); belegt.add(port);
+      const eigen = freieZugewiesenePorts(s).filter(x => x.g.id === gId && x.nr !== port).map(x => x.nr);
+      backupPort = eigen.reverse()[0] ?? prozessorPorts(g).map(p => p.nr).reverse().find(n => !belegt.has(n) && !portScreen(gId, n)) ?? null;
+    }
     k = { id: neueId("d"), screen: s.id, prozessor: gId, port, backupPort, module: [] };
     P.straenge.push(k);
   }
@@ -3340,6 +3475,7 @@ function signalSvgInhalt(s) {
     fehlerIds: new Set(s.module.filter(m => !farbe.has(m.id)).map(m => m.id)),
     wege: st.map((k, i) => ({ farbe: wegFarbe(i), module: k.module, start: strangName(k), ende: Number.isFinite(k.backupPort) ? "B" + k.backupPort : null })),
     oben: `${s.name} · Signal · ● Start Hauptweg · ▢ Einspeisung Backup (gleicher Weg)`,
+    zusatz: symbolSvg(s, "signal"),
   });
 }
 
@@ -3347,14 +3483,12 @@ REITER.signal = {
   titelPalette: "Library – Signalgeräte",
   werkzeuge() {
     const s = aktuellerScreen();
-    const ziele = signalZiele();
     const uebersicht = ui.modus.signal === "prozessoren";
     return `<button data-d="vorschlag" ${s?.module.length ? "" : "disabled"} title="Datenstränge automatisch bilden (je Serie/Receiving Card, ausgewogen)">Vorschlag erzeugen</button>
       ${s ? `<select data-d-feld="richtung"><option value="spalten"${s.signal.richtung === "spalten" ? " selected" : ""}>spaltenweise ↕</option><option value="zeilen"${s.signal.richtung === "zeilen" ? " selected" : ""}>zeilenweise ↔</option></select>
       <select data-d-feld="start">${[["ol", "oben links"], ["or", "oben rechts"], ["ul", "unten links"], ["ur", "unten rechts"]].map(([k, t]) => `<option value="${k}"${s.signal.start === k ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
       <span class="trenner"></span>
-      <button data-d="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${ziele.length && s ? "" : "disabled"}>🖌 Pinsel</button>
-      <select data-d-feld="pinselziel" ${ziele.length ? "" : "disabled"}><option value="">Port wählen …</option>${ziele.map(z => `<option value="${z.wert}"${ui.pinsel.signal === z.wert ? " selected" : ""}>${esc(z.text)}</option>`).join("")}</select>
+      <button data-d="pinsel" class="${ui.werkzeug === "pinsel" ? "aktiv" : ""}" ${s ? "" : "disabled"} title="Port unten in der Liste wählen, dann über die Module malen">🖌 Pinsel${ui.werkzeug === "pinsel" && ui.pinsel.signal ? " · " + esc(pinselSignalText()) : ""}</button>
       <button data-d="strang-loeschen" ${ui.sel.strang ? "" : "disabled"}>Strang löschen</button>
       <button data-d="backup" class="${P.regeln.backup ? "aktiv" : ""}" title="Backup-Ports für neue Stränge">Backup: ${P.regeln.backup ? "an" : "aus"}</button>
       <span class="trenner"></span>
@@ -3380,6 +3514,7 @@ REITER.signal = {
     if (ui.werkzeug === "pinsel") el.classList.add("pinsel");
     const svg = el.querySelector("svg");
     ansichtSteuerung(el, svg, s);
+    symbolZiehen(svg, s);
     pinselInteraktion(svg, s, signalPinselMalen);
     svg.addEventListener("click", e => {
       if (ui.werkzeug === "pinsel") return;
@@ -3394,13 +3529,17 @@ REITER.signal = {
     const s = aktuellerScreen(); if (!s) return "";
     const st = straengeVon(s.id);
     const ohne = s.module.length - st.reduce((a, k) => a + k.module.length, 0);
-    return `<div class="kopf"><b>Ports „${esc(s.name)}“</b><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
-      <table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Backup</th><th>Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Weg</th></tr>
-      ${st.map((k, i) => { const g = geraetById(k.prozessor); const ms = strangModule(k); const px = strangPixel(k);
-        return `<tr class="klickbar${ui.sel.strang === k.id ? " sel" : ""}" data-strang="${k.id}"><td><span class="punkt" style="background:${wegFarbe(i)}"></span>${strangName(k)}</td><td>${esc(g?.name || "—")}</td><td>${k.port}</td>
-          <td>${Number.isFinite(k.backupPort) ? "Port " + k.backupPort : "—"}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
+    const zeilen = zugewiesenePorts(s);
+    return `<div class="kopf"><b>Ports „${esc(s.name)}“ · Klick: mit dem Pinsel belegen</b><span class="leise klein">max. Port-Auslastung ${fmt(P.regeln.portMax)} %${ohne ? ` · <span style="color:var(--warnung)">${ohne} Module ohne Port</span>` : ""}</span></div>
+      <table><tr><th>Strang</th><th>Prozessor</th><th>Port</th><th>Rolle</th><th>Module</th><th class="zahl">Pixel</th><th>Auslastung</th><th>Weg</th></tr>
+      ${zeilen.map(({ g, nr, ziel, strang: k, rolle }) => {
+        const gewaehlt = ui.werkzeug === "pinsel" && ui.pinsel.signal === (k ? zielText(g.id, k.port) : ziel);
+        if (!k) return `<tr class="klickbar${gewaehlt ? " sel" : ""}" data-ziel="${ziel}"><td><span class="punkt" style="background:transparent;border:1px dashed var(--text-leise)"></span>frei</td><td>${esc(g.name)}</td><td>${nr}</td><td>—</td><td>0</td><td colspan="3" class="leise">anklicken und Module übermalen</td></tr>`;
+        const ms = strangModule(k); const px = strangPixel(k);
+        return `<tr class="klickbar${gewaehlt || ui.sel.strang === k.id ? " sel" : ""}" data-ziel="${zielText(g.id, k.port)}" data-strang="${k.id}"><td><span class="punkt" style="background:${strangFarbe(k)}${rolle === "backup" ? ";opacity:.5" : ""}"></span>${strangName(k)}</td><td>${esc(g.name)}</td><td>${nr}</td>
+          <td>${rolle === "haupt" ? `Haupt${Number.isFinite(k.backupPort) ? " (Backup " + k.backupPort + ")" : ""}` : "Backup zu " + k.port}</td><td>${ms.length} · ${esc(eintrag(ms[0]?.lib)?.attribute?.led?.serie || "")}</td><td class="zahl">${fmt(px)}</td>
           <td>${balken(px / (portKapazitaet(g) || 1))}</td><td>${esc(wegText(k))}</td></tr>`; }).join("")
-        || `<tr><td colspan="8" class="leise">Noch keine Datenstränge – „Vorschlag erzeugen“ oder mit dem Pinsel malen.</td></tr>`}</table>`;
+        || `<tr><td colspan="8" class="leise">Noch keine Ports zugewiesen – rechts beim Prozessor Ports anklicken oder „Vorschlag erzeugen“.</td></tr>`}</table>`;
   },
   rechts() { return signalRechts(); },
   pruefungen() { return signalPruefungen(); },
@@ -3443,6 +3582,7 @@ function signalRechts() {
       <label class="feld"><span>Strom für den Prozessor</span>${kanalSelect(g, 'data-p-feld="strom"')}</label>
       <table class="werte"><tr><td>Receiving Cards</td><td>${esc((led.receivingCards || []).join(", "))}</td></tr><tr><td>Belegte Ports</td><td>${belegt.size} / ${ports.length}</td></tr>
       <tr><td>Pixel</td><td>${fmt(px)} / ${fmt(led.pxGesamt)}</td></tr><tr><td>Layer</td><td>${fmt(led.layer)}</td></tr></table>
+      ${portRasterHtml(g, aktuellerScreen())}
       <div class="knopfreihe" style="margin-top:8px"><button data-d="geraet-loeschen" class="gefahr">Prozessor löschen</button></div></div>`;
     html += wegeKarte(g);
     const d = geraetById(ui.sel.weg);
@@ -3533,7 +3673,11 @@ function signalEreignisse() {
     if (a === "vorschlag") signalVorschlag();
     else if (a === "pinsel") {
       ui.werkzeug = ui.werkzeug === "pinsel" ? "auswahl" : "pinsel";
-      if (ui.werkzeug === "pinsel" && !ui.pinsel.signal) { const z = signalZiele().find(z => z.text.endsWith("frei")) || signalZiele()[0]; ui.pinsel.signal = z?.wert || null; }
+      if (ui.werkzeug === "pinsel" && !ui.pinsel.signal) {
+        const s = aktuellerScreen(); const z = s && (freieZugewiesenePorts(s)[0] || zugewiesenePorts(s).find(x => x.rolle === "haupt"));
+        if (!z) { ui.werkzeug = "auswahl"; return toast("Zuerst rechts beim Prozessor Ports dieser Wand zuweisen.", "fehler"); }
+        ui.pinsel.signal = z.ziel;
+      }
       render();
     }
     else if (a === "strang-loeschen" && ui.sel.strang) strangLoeschen(ui.sel.strang);
@@ -3544,7 +3688,6 @@ function signalEreignisse() {
     if (ui.reiter !== "signal") return;
     const f = e.target.dataset.dFeld; const s = aktuellerScreen();
     if (f === "richtung" || f === "start") { s.signal[f] = e.target.value; aenderung(); }
-    if (f === "pinselziel") { ui.pinsel.signal = e.target.value || null; if (ui.pinsel.signal) ui.werkzeug = "pinsel"; render(); }
   });
   $("#palette").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
@@ -3553,13 +3696,17 @@ function signalEreignisse() {
   });
   $("#liste").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
-    const tr = e.target.closest("[data-strang]"); if (!tr) return;
+    const tr = e.target.closest("[data-ziel]"); if (!tr) return;
+    // Zeile wählen = Port als Pinsel-Ziel (Backup-Zeile wählt den Hauptport ihres Strangs)
     const k = P.straenge.find(x => x.id === tr.dataset.strang);
-    ui.sel.strang = k?.id || null; if (k) ui.sel.prozessor = k.prozessor;
+    ui.sel.strang = k?.id || null; ui.sel.prozessor = tr.dataset.ziel.split("|")[0];
+    ui.pinsel.signal = tr.dataset.ziel; ui.werkzeug = "pinsel";
     render();
   });
   $("#rechts").addEventListener("click", e => {
     if (ui.reiter !== "signal") return;
+    const zw = e.target.closest("[data-zuweisen]");
+    if (zw) { const [gId, nr] = zw.dataset.zuweisen.split("|"); return portZuweisen(aktuellerScreen(), gId, Number(nr)); }
     const ws = e.target.closest("[data-weg-sel]");
     if (ws) { ui.sel.weg = ui.sel.weg === ws.dataset.wegSel ? null : ws.dataset.wegSel; return render(); }
     const wa = e.target.closest("[data-w]")?.dataset.w; const d = geraetById(ui.sel.weg);
@@ -3717,7 +3864,7 @@ function wegKarte(d) {
   }
   html += `<div class="abschnitt">${d.art === "stagebox" ? "Ausgänge" : "Auflösung"} → Wand</div>
     <label class="feld"><span>Kabel</span>${kabelSel("ausgangKabel", d.ausgangKabel, kabel("LAN"))}</label>
-    <label class="feld"><span>Länge (m)</span><input data-w-feld="ausgangLaengeM" value="${d.ausgangLaengeM ?? ""}" inputmode="decimal"></label>
+    <label class="feld"><span>Länge (m) – leer: aus Position in der Wand</span><input data-w-feld="ausgangLaengeM" value="${d.ausgangLaengeM ?? ""}" inputmode="decimal"></label>
     <div class="knopfreihe" style="margin-top:8px"><button data-w="loeschen" class="gefahr">${WEG_ARTEN[d.art]} löschen</button></div></div>`;
   return html;
 }
@@ -3761,7 +3908,6 @@ function wegePruefungen() {
     if (leer.length) liste.push({ art: "info", text: `${d.name}: Port ${leer.join(", ")} ohne Strang.`, ziel: z });
     if (!d.ports.length) liste.push({ art: "info", text: `${d.name}: keine Ports zugeordnet – wird es gebraucht?`, ziel: z });
     for (const nr of d.ports) for (const x of wegGeraete(g.id)) if (x !== d && x.ports.includes(nr) && P.geraete.indexOf(x) > P.geraete.indexOf(d)) liste.push({ art: "fehler", text: `${g.name} · Port ${nr}: in ${d.name} und ${x.name} zugeordnet.`, ziel: z });
-    if (d.ports.length && !Number.isFinite(d.ausgangLaengeM)) liste.push({ art: "warn", text: `${d.name}: Kabellänge zur Wand fehlt.`, ziel: z });
     if (d.art === "stagebox") {
       if (!d.strom) liste.push({ art: "warn", text: `${d.name}: Stromversorgung nicht zugeordnet (aktives Gerät).`, ziel: z });
       if (!Number.isFinite(d.zuleitung?.laengeM)) liste.push({ art: "warn", text: `${d.name}: Länge der Zuleitung vom Prozessor fehlt.`, ziel: z });
@@ -3778,6 +3924,230 @@ function wegePruefungen() {
     if (!wegGeraete(g.id).length) continue;
     const direkt = genutztePorts(g.id).filter(nr => !portWeg(g.id, nr));
     if (direkt.length) liste.push({ art: "info", text: `${g.name}: Port ${direkt.join(", ")} direkt per Cat (nicht über Stagebox/Multicore).`, ziel: "prozessor:" + g.id });
+  }
+  return liste;
+}
+
+/* ===== 36-zuweisung.js ===== */
+/* Zuweisung zur Wand: Verteiler-Kanäle und Prozessor-Ports werden einem Screen zugewiesen.
+   Die Liste unten im Reiter zeigt alle zugewiesenen (auch leere); ein Klick wählt sie als Pinsel-Ziel.
+   screen.zuweisung = { strom: ["<verteilerId>|<kanal>", …], signal: ["<prozessorId>|<port>", …] }  (von Hand)
+   Zusätzlich gelten als zugewiesen: Kanäle mit Kreisen des Screens, Kanäle eines Ausgangs, dessen Laka zum
+   Screen geht, und Ports mit Strängen (Haupt und Backup) des Screens. */
+
+function zuweisung(s) { s.zuweisung = { strom: [], signal: [], ...(s.zuweisung || {}) }; return s.zuweisung; }
+const zielText = (id, nr) => `${id}|${nr}`;
+
+/* ---------- Strom ---------- */
+function kanalGeraet(vId, nr) { return P.geraete.find(g => g.strom?.verteiler === vId && g.strom.kanal === nr) || null; }
+function kanalScreen(vId, nr) {
+  const k = P.kreise.find(x => x.verteiler === vId && x.kanal === nr);
+  if (k) return k.screen;
+  const v = geraetById(vId); const ausgang = v && kanalVon(v, nr)?.ausgang;
+  const l = ausgang && P.lakas.find(x => x.verteiler === vId && x.ausgang === ausgang && x.screen);
+  if (l) return l.screen;
+  return P.screens.find(s => zuweisung(s).strom.includes(zielText(vId, nr)))?.id || null;
+}
+function zugewieseneKanaele(s) {
+  const z = new Set(zuweisung(s).strom);
+  for (const k of P.kreise.filter(k => k.screen === s.id)) z.add(zielText(k.verteiler, k.kanal));
+  for (const l of P.lakas.filter(l => l.screen === s.id)) {
+    const v = geraetById(l.verteiler);
+    for (const a of (v ? verteilerLed(v).ausgaenge || [] : []).filter(a => a.name === l.ausgang)) for (const nr of a.kanaele) z.add(zielText(v.id, nr));
+  }
+  const vIdx = id => P.geraete.findIndex(g => g.id === id);
+  return [...z].map(t => { const [vId, n] = t.split("|"); return { v: geraetById(vId), nr: Number(n), ziel: t }; })
+    .filter(x => x.v && kanalVon(x.v, x.nr))
+    .map(x => ({ ...x, kreis: P.kreise.find(k => k.verteiler === x.v.id && k.kanal === x.nr) || null, geraet: kanalGeraet(x.v.id, x.nr) }))
+    .sort((a, b) => vIdx(a.v.id) - vIdx(b.v.id) || a.nr - b.nr);
+}
+function kanalZuweisen(s, vId, nr) {
+  const z = zuweisung(s); const t = zielText(vId, nr);
+  const hier = z.strom.includes(t);
+  if (hier) { z.strom = z.strom.filter(x => x !== t); return aenderung(); }
+  const anderer = kanalScreen(vId, nr);
+  if (anderer === s.id) return toast(`Kanal ${nr} gehört schon zu „${s.name}“ (über Kreis oder Laka).`, "info");
+  if (anderer) return toast(`Kanal ${nr} ist „${screenById(anderer)?.name}“ zugewiesen.`, "fehler");
+  if (kanalGeraet(vId, nr)) return toast(`Kanal ${nr} versorgt schon ${kanalGeraet(vId, nr).name}.`, "fehler");
+  z.strom.push(t);
+  aenderung();
+}
+function ausgangZuweisen(s, v, ausgangName) {
+  const a = (verteilerLed(v).ausgaenge || []).find(x => x.name === ausgangName); if (!a) return;
+  const fremd = a.kanaele.map(nr => kanalScreen(v.id, nr)).find(id => id && id !== s.id);
+  if (fremd) return toast(`${ausgangName} versorgt schon „${screenById(fremd)?.name}“.`, "fehler");
+  sichereLaka(v, ausgangName, s.id);
+  const z = zuweisung(s);
+  for (const nr of a.kanaele) if (!kanalGeraet(v.id, nr) && !z.strom.includes(zielText(v.id, nr))) z.strom.push(zielText(v.id, nr));
+  aenderung();
+}
+/* Kanal-Raster in der Verteiler-Karte: Klick weist dem aktuellen Screen zu bzw. hebt auf */
+function kanalRasterHtml(v, s) {
+  if (!s) return "";
+  return `<div class="label">Kanäle für „${esc(s.name)}“ · Klick: zuweisen</div>` + (verteilerLed(v).ausgaenge || []).map(a => `<div class="klein" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>${esc(a.name)}</span><button data-zuweisen-ausgang="${esc(a.name)}" style="padding:0 8px">ganzer Ausgang</button></div>
+    <div class="kanalgitter">${a.kanaele.map(nr => {
+      const scr = kanalScreen(v.id, nr), dev = kanalGeraet(v.id, nr), k = P.kreise.find(x => x.verteiler === v.id && x.kanal === nr);
+      if (dev) return `<div class="kanal" title="${esc(dev.name)}" style="opacity:.6"><b>${nr}</b><br>${esc(dev.name).slice(0, 8)}</div>`;
+      if (scr && scr !== s.id) return `<div class="kanal" title="${esc(screenById(scr)?.name)}" style="opacity:.45"><b>${nr}</b><br>${esc(screenById(scr)?.name || "").slice(0, 8)}</div>`;
+      if (scr === s.id) return `<button class="kanal zugewiesen" data-zuweisen="${zielText(v.id, nr)}" style="border-color:${k ? kreisFarbe(k) : "var(--akzent)"}"><b>${nr}</b><br>${k ? kreisName(k) : "frei"}</button>`;
+      return `<button class="kanal frei" data-zuweisen="${zielText(v.id, nr)}"><b>${nr}</b><br>${kanalPhase(v, nr).phase}</button>`;
+    }).join("")}</div>`).join("");
+}
+
+/* ---------- Signal ---------- */
+function portStrang(gId, nr) { return P.straenge.find(k => k.prozessor === gId && (k.port === nr || k.backupPort === nr)) || null; }
+function portScreen(gId, nr) {
+  const k = portStrang(gId, nr);
+  if (k) return k.screen;
+  return P.screens.find(s => zuweisung(s).signal.includes(zielText(gId, nr)))?.id || null;
+}
+function zugewiesenePorts(s) {
+  const z = new Set(zuweisung(s).signal);
+  for (const k of P.straenge.filter(k => k.screen === s.id)) { z.add(zielText(k.prozessor, k.port)); if (Number.isFinite(k.backupPort)) z.add(zielText(k.prozessor, k.backupPort)); }
+  const gIdx = id => P.geraete.findIndex(g => g.id === id);
+  return [...z].map(t => { const [gId, n] = t.split("|"); return { g: geraetById(gId), nr: Number(n), ziel: t }; })
+    .filter(x => x.g && prozessorPorts(x.g).some(p => p.nr === x.nr))
+    .map(x => { const k = portStrang(x.g.id, x.nr); return { ...x, strang: k, rolle: !k ? "frei" : k.port === x.nr ? "haupt" : "backup" }; })
+    .sort((a, b) => gIdx(a.g.id) - gIdx(b.g.id) || a.nr - b.nr);
+}
+function portZuweisen(s, gId, nr) {
+  const z = zuweisung(s); const t = zielText(gId, nr);
+  if (z.signal.includes(t)) { z.signal = z.signal.filter(x => x !== t); return aenderung(); }
+  const anderer = portScreen(gId, nr);
+  if (anderer === s.id) return toast(`Port ${nr} gehört schon zu „${s.name}“ (Strang).`, "info");
+  if (anderer) return toast(`Port ${nr} ist „${screenById(anderer)?.name}“ zugewiesen.`, "fehler");
+  z.signal.push(t);
+  aenderung();
+}
+function portRasterHtml(g, s) {
+  if (!s) return "";
+  return `<div class="label">Ports für „${esc(s.name)}“ · Klick: zuweisen</div><div class="portgitter">${prozessorPorts(g).map(p => {
+    const scr = portScreen(g.id, p.nr), k = portStrang(g.id, p.nr);
+    if (scr && scr !== s.id) return `<div class="port" title="${esc(screenById(scr)?.name)}" style="opacity:.45"><b>${p.nr}</b><br>${esc(screenById(scr)?.name || "").slice(0, 8)}</div>`;
+    if (scr === s.id) return `<button class="port zugewiesen" data-zuweisen="${zielText(g.id, p.nr)}" style="border-color:${k ? strangFarbe(k) : "var(--akzent)"}${k && k.backupPort === p.nr ? ";border-style:dashed" : ""}"><b>${p.nr}</b><br>${k ? (k.port === p.nr ? strangName(k) : "B" + k.port) : "frei"}</button>`;
+    return `<button class="port frei" data-zuweisen="${zielText(g.id, p.nr)}"><b>${p.nr}</b><br>—</button>`;
+  }).join("")}</div>`;
+}
+
+/* Freie zugewiesene Ziele (für Pinsel ohne Auswahl und Vorschläge) */
+function freieZugewieseneKanaele(s) { return zugewieseneKanaele(s).filter(x => !x.kreis && !x.geraet); }
+function freieZugewiesenePorts(s) { return zugewiesenePorts(s).filter(x => x.rolle === "frei"); }
+
+/* ===== 38-symbole.js ===== */
+/* Spinne (je Laka), Stagebox und Multicore-Auflösung als Symbol in der Wand.
+   Das Symbol lässt sich in der Zeichnung verschieben; Linien führen zu den Kreisanfängen bzw. Strangan-/-enden.
+   Kabellängen werden aus dem Abstand entlang der Wand (rechtwinklig, wie an den Rahmen geführt) plus der
+   Reserve aus den Hausregeln abgeleitet und auf die nächste Länge des Kabeltyps aufgerundet.
+   laka.pos = { x, y }  ·  weg.pos = { screen, x, y }  (mm im Screen; fehlt = Mitte der Ziele) */
+
+function modulMitte(s, id) { const m = s.module.find(x => x.id === id); if (!m) return null; const r = modRect(m); return { x: r.x + r.b / 2, y: r.y + r.h / 2 }; }
+function wandAbstandMm(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
+function benoetigtM(mm) { return mm / 1000 + (P.regeln.kabelReserveM ?? 1); }
+/* nächste Länge des Kabeltyps ≥ Bedarf; ohne Längenliste auf 0,5 m aufrunden */
+function standardLaenge(lib, m) {
+  const l = eintrag(lib)?.attribute?.led?.laengenM;
+  if (Array.isArray(l) && l.length) { const passt = [...l].sort((a, b) => a - b).find(x => x >= m - 1e-9); if (passt != null) return passt; }
+  return Math.ceil(m * 2) / 2;
+}
+function mitteVon(punkte, s) {
+  if (punkte.length) return { x: Math.round(punkte.reduce((a, p) => a + p.x, 0) / punkte.length / 10) * 10, y: Math.round(punkte.reduce((a, p) => a + p.y, 0) / punkte.length / 10) * 10 };
+  const g = grenzen(s.module); return { x: g.x + g.b / 2, y: g.y + g.h / 2 };
+}
+
+/* ---------- Spinne ---------- */
+function spinneZiele(s, l) {
+  return P.kreise.filter(k => k.screen === s.id && lakaFuerKreis(k) === l && k.module.length).map(k => ({ kreis: k, punkt: modulMitte(s, k.module[0]) })).filter(z => z.punkt);
+}
+function spinnePos(s, l) { return l.pos || mitteVon(spinneZiele(s, l).map(z => z.punkt), s); }
+function spinneBedarf(s, l) { const p = spinnePos(s, l); return spinneZiele(s, l).map(z => ({ kreis: z.kreis, m: benoetigtM(wandAbstandMm(p, z.punkt)) })); }
+
+/* ---------- Stagebox / Multicore ---------- */
+function wegZiele(s, d) {
+  const ziele = [];
+  for (const nr of d.ports) {
+    const k = P.straenge.find(x => x.prozessor === d.prozessor && x.screen === s.id && (x.port === nr || x.backupPort === nr));
+    if (!k || !k.module.length) continue;
+    const haupt = k.port === nr;
+    ziele.push({ nr, strang: k, haupt, punkt: modulMitte(s, haupt ? k.module[0] : k.module[k.module.length - 1]) });
+  }
+  return ziele.filter(z => z.punkt);
+}
+function wegPos(s, d) { return d.pos?.screen === s.id ? d.pos : mitteVon(wegZiele(s, d).map(z => z.punkt), s); }
+function wegeAufScreen(s) { return P.geraete.filter(istWeg).filter(d => wegZiele(s, d).length || d.pos?.screen === s.id); }
+/* Länge des Kabels von der Stagebox/Auflösung zu einem Port-Ziel (null = nicht bestimmbar) */
+function wegKabelLaenge(d, nr) {
+  if (Number.isFinite(d.ausgangLaengeM)) return d.ausgangLaengeM;   // feste Länge von Hand
+  for (const s of P.screens) {
+    const z = wegZiele(s, d).find(x => x.nr === nr);
+    if (z) return standardLaenge(d.ausgangKabel, benoetigtM(wandAbstandMm(wegPos(s, d), z.punkt)));
+  }
+  return null;
+}
+
+/* ---------- Zeichnen ---------- */
+function symbolSvg(s, art) {
+  if (!s.module.length) return "";
+  const g = grenzen(s.module);
+  const mm = Math.max(g.b, g.h, 1000), r = mm * 0.028, st = Math.max(4, mm / 900), fs = mm * 0.02;
+  const teile = [];
+  const symbol = (id, p, text, farbe, form) => `<g data-symbol="${id}" style="cursor:move">${form === "kreis"
+    ? `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#141414" stroke="${farbe}" stroke-width="${st * 1.6}"/>`
+    : `<rect x="${p.x - r * 1.3}" y="${p.y - r * 0.8}" width="${r * 2.6}" height="${r * 1.6}" rx="${r * 0.25}" fill="#141414" stroke="${farbe}" stroke-width="${st * 1.6}"/>`}
+    <text x="${p.x}" y="${p.y + fs * 0.35}" font-size="${fs}" fill="#e8e8e8" text-anchor="middle" pointer-events="none">${esc(text)}</text></g>`;
+  const linie = (a, b, farbe, gestrichelt) => `<polyline points="${a.x},${a.y} ${b.x},${a.y} ${b.x},${b.y}" fill="none" stroke="${farbe}" stroke-width="${st * 1.6}"${gestrichelt ? ` stroke-dasharray="${st * 6} ${st * 4}"` : ""} opacity=".85" pointer-events="none"/>`;
+  if (art === "strom") {
+    P.lakas.filter(l => l.screen === s.id).forEach((l, i) => {
+      const p = spinnePos(s, l);
+      for (const z of spinneZiele(s, l)) teile.push(linie(p, z.punkt, kreisFarbe(z.kreis)));
+      teile.push(symbol("laka:" + l.id, p, "Sp" + (i + 1), libFarbe(l.lib) || "#808000", "kreis"));
+    });
+  } else {
+    for (const d of wegeAufScreen(s)) {
+      const p = wegPos(s, d);
+      for (const z of wegZiele(s, d)) teile.push(linie(p, z.punkt, strangFarbe(z.strang), !z.haupt));
+      teile.push(symbol("weg:" + d.id, p, wegKurz(d), d.art === "stagebox" ? "#4da3ff" : "#63e6be", "rechteck"));
+    }
+  }
+  return teile.length ? `<g class="symbole">${teile.join("")}</g>` : "";
+}
+
+/* Symbol mit der Maus/dem Finger verschieben (vor Auswahl und Pinsel) */
+function symbolZiehen(svg, s) {
+  let zug = null;
+  svg.addEventListener("pointerdown", e => {
+    const el = e.target.closest("[data-symbol]"); if (!el || e.button !== 0) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    zug = { el, id: el.dataset.symbol, start: svgPunkt(svg, e), pid: e.pointerId };
+    svg.setPointerCapture(e.pointerId);
+  }, true);
+  svg.addEventListener("pointermove", e => {
+    if (!zug || e.pointerId !== zug.pid) return;
+    e.stopImmediatePropagation();
+    const p = svgPunkt(svg, e);
+    zug.dx = p.x - zug.start.x; zug.dy = p.y - zug.start.y;
+    zug.el.setAttribute("transform", `translate(${zug.dx} ${zug.dy})`);
+  }, true);
+  svg.addEventListener("pointerup", e => {
+    if (!zug || e.pointerId !== zug.pid) return;
+    e.stopImmediatePropagation();
+    const z = zug; zug = null;
+    if (!z.dx && !z.dy) return;
+    const [art, id] = z.id.split(":");
+    if (art === "laka") { const l = P.lakas.find(x => x.id === id); const p = spinnePos(s, l); l.pos = { x: Math.round((p.x + z.dx) / 10) * 10, y: Math.round((p.y + z.dy) / 10) * 10 }; }
+    else { const d = geraetById(id); const p = wegPos(s, d); d.pos = { screen: s.id, x: Math.round((p.x + z.dx) / 10) * 10, y: Math.round((p.y + z.dy) / 10) * 10 }; }
+    aenderung();
+  }, true);
+}
+
+/* ---------- Prüfungen ---------- */
+function symbolPruefungen() {
+  const liste = [];
+  for (const s of P.screens) for (const l of P.lakas.filter(l => l.screen === s.id)) {
+    const spinne = libListe("spinne").find(e => e.attribute.led.steckerEin === eintrag(l.lib)?.attribute?.led?.stecker);
+    const bein = spinne?.attribute?.led?.laengeM;
+    if (!Number.isFinite(bein)) continue;
+    const zuLang = spinneBedarf(s, l).filter(b => b.m > bein + 1e-9);
+    if (zuLang.length) liste.push({ art: "warn", text: `${s.name}: Spinne an ${l.ausgang} – ${zuLang.map(b => `${kreisName(b.kreis)} braucht ${fmtFlex(Math.round(b.m * 10) / 10)} m`).join(", ")}, Spinne hat ${fmtFlex(bein)} m. Spinne näher setzen oder Verlängerung.`, ziel: "screen:" + s.id });
   }
   return liste;
 }
@@ -4355,7 +4725,8 @@ function kabelListe() {
       const quelle = nr => {
         const d = portWeg(g.id, nr);
         if (!d) return { lib: g.portKabel, laengeM: g.portLaengeM ?? null, von: `${g.name} · Port ${nr}` };
-        return { lib: d.ausgangKabel, laengeM: d.ausgangLaengeM ?? null, von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
+        return { lib: d.ausgangKabel, laengeM: wegKabelLaenge(d, nr), bemerkung: Number.isFinite(d.ausgangLaengeM) ? "" : "Länge aus Position in der Wand",
+          von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
       };
       add({ key: "port:" + k.id, gewerk: "signal", ...quelle(k.port), nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
       if (Number.isFinite(k.backupPort)) { const q = quelle(k.backupPort); add({ key: "backup:" + k.id, gewerk: "signal", ...q, von: q.von + " Backup", nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id }); }
@@ -4750,6 +5121,8 @@ const REGEL_FELDER = [
   { k: "backup", label: "Backup standardmäßig (ab Strangende)", art: "ja" },
   { k: "portMax", label: "Max. Port-Auslastung (%)", art: "zahl", min: 10, max: 100 },
   { k: "catMax", label: "Max. Cat-Länge (m)", art: "zahl", min: 1, max: 500 },
+  { abschnitt: "Kabel" },
+  { k: "kabelReserveM", label: "Reserve je Kabel (m)", art: "zahl", min: 0, max: 20 },
   { abschnitt: "Druck" },
   { k: "druckZusatz", label: "Zusatz Großformat", art: "auswahl", optionen: [["A3", "A3 quer"], ["A4", "A4 quer"], ["keins", "keins"]] },
   { k: "riggingFreigabe", label: "Freigabefeld Rigging", art: "auswahl", optionen: [["intern", "intern"], ["extern", "extern (Location/Statiker)"]] },
@@ -5158,6 +5531,7 @@ function start() {
   ui.screen = P.screens[0]?.id || null;
   gerustEreignisse();
   touchEreignisse();
+  baumEreignisse();
   for (const f of [aufbauEreignisse, riggingEreignisse, typeof stromEreignisse === "function" && stromEreignisse,
     typeof signalEreignisse === "function" && signalEreignisse, typeof ausgabeEreignisse === "function" && ausgabeEreignisse, mappingEreignisse,
     typeof kabelEreignisse === "function" && kabelEreignisse, typeof libraryEreignisse === "function" && libraryEreignisse,

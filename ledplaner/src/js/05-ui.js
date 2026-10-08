@@ -4,7 +4,7 @@
 
 const ui = {
   haupt: "planen", reiter: "aufbau",
-  modus: { strom: "wand", signal: "wand", ausgabe: "screen" },
+  modus: { aufbau: "wand", strom: "wand", signal: "wand", ausgabe: "screen" },
   screen: null,               // gewählter Screen (id)
   auswahl: new Set(),         // gewählte Module (ids)
   werkzeug: "auswahl",        // auswahl | pinsel
@@ -111,14 +111,14 @@ function renderBaum() {
   const prozessoren = P.geraete.filter(g => g.art === "prozessor");
   const li = (klasse, attr, name, rechts = "") => `<li class="${klasse}" ${attr}><span class="name">${esc(name)}</span>${rechts}</li>`;
   $("#baum").innerHTML = [
-    `<li class="gruppe">Screens <button data-aktion="screen-neu" title="Neuen Screen anlegen" style="padding:0 8px">+</button></li>`,
+    `<li class="gruppe" data-gruppe="screens" title="Klick: alle Screens · Rechtsklick: Menü">Screens <button data-aktion="screen-neu" title="Neuen Screen anlegen" style="padding:0 8px">+</button></li>`,
     ...P.screens.map(x => li(x.id === s?.id ? "sel" : "", `data-screen="${x.id}"`, x.name, `<span class="leise klein">${x.module.length}</span>`)),
     P.screens.length ? "" : `<li class="leise">noch kein Screen</li>`,
-    `<li class="gruppe">Stromverteiler</li>`,
+    `<li class="gruppe" data-gruppe="strom" title="Klick: alle Verteiler und Einspeisungen · Rechtsklick: Menü">Stromverteiler</li>`,
     ...verteiler.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, g.name)),
     ...einspeisungen.map(g => li(ui.sel.verteiler === g.id ? "sel" : "", `data-geraet="${g.id}"`, "⏚ " + g.name)),
     verteiler.length || einspeisungen.length ? "" : `<li class="leise">—</li>`,
-    `<li class="gruppe">Prozessoren</li>`,
+    `<li class="gruppe" data-gruppe="prozessoren" title="Klick: alle Prozessoren · Rechtsklick: Menü">Prozessoren</li>`,
     ...prozessoren.flatMap(g => [li(ui.sel.prozessor === g.id && !ui.sel.weg ? "sel" : "", `data-geraet="${g.id}"`, g.name),
       ...wegGeraete(g.id).map(d => li(ui.sel.weg === d.id ? "sel" : "", `data-geraet="${d.id}"`, "↳ " + d.name))]),
     prozessoren.length ? "" : `<li class="leise">—</li>`,
@@ -139,7 +139,11 @@ function gerustEreignisse() {
     const a = e.target.closest("[data-aktion]")?.dataset.aktion;
     if (a === "screen-neu") return screenAnlegen();
     const sc = e.target.closest("[data-screen]");
-    if (sc) { ui.screen = sc.dataset.screen; ui.auswahl.clear(); render(); return; }
+    if (sc) {   // Screen gewählt: im aktuellen Reiter die Wand zeigen
+      ui.screen = sc.dataset.screen; ui.auswahl.clear();
+      if (ui.reiter in ui.modus && ui.reiter !== "ausgabe") ui.modus[ui.reiter] = "wand";
+      render(); return;
+    }
     const g = e.target.closest("[data-geraet]");
     if (g) {
       const ger = geraetById(g.dataset.geraet);

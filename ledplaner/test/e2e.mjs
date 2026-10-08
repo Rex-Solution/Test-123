@@ -120,8 +120,13 @@ await p.selectOption('[data-s-feld="verteilung"]', "minimal");
 await p.click('[data-s="vorschlag"]'); await p.waitForTimeout(100);
 pruefe("Vorschlag minimal: 3 Kreise", await ev(() => P.kreise.length === 3 && P.kreise.every(k => Math.round(kreisLast(k)) === 2452)));
 
-// Pinsel: Kanal 10 wählen und zwei Module übermalen
-await p.selectOption('[data-s-feld="pinselziel"]', await ev(() => `${P.geraete.find(g => g.art === "verteiler").id}|10`));
+// Kanal 10 der Wand zuweisen (Verteiler-Karte), dann unten in der Liste wählen und zwei Module übermalen
+const vz = await ev(() => { const v = P.geraete.find(g => g.art === "verteiler"); ui.sel.verteiler = v.id; ui.sel.kreis = null; render(); return v.id; });
+await p.click(`#rechts [data-zuweisen="${vz}|10"]`); await p.waitForTimeout(50);
+pruefe("Zuweisung: Kanal 10 erscheint unten als freier Kanal", await p.locator(`#liste [data-ziel="${vz}|10"]`).count() === 1 && await ev(v => zugewieseneKanaele(P.screens[0]).some(x => x.v.id === v && x.nr === 10 && !x.kreis), vz));
+pruefe("Zuweisung: alle Kanäle des Laka-Ausgangs gelistet (1–6 + 10)", await ev(() => zugewieseneKanaele(P.screens[0]).map(x => x.nr).join(",")) === "1,2,3,4,5,6,10");
+await p.click(`#liste [data-ziel="${vz}|10"]`); await p.waitForTimeout(50);
+pruefe("Zuweisung: Klick auf Zeile wählt den Pinsel", await ev(v => ui.werkzeug === "pinsel" && ui.pinsel.strom === v + "|10", vz));
 const [m1, m2] = await ev(() => P.screens[0].module.slice(0, 2).map(m => m.id));
 const a = await modulBox(m1), bb = await modulBox(m2);
 await p.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await p.mouse.down();
@@ -143,7 +148,7 @@ await ev(() => {
   P.screens[0].module.push({ id: "m-fremd", lib: "test-fremd", x: 6000, y: 3000 });
   render();
 });
-await p.selectOption('[data-d-feld="pinselziel"]', await ev(() => { const g = P.geraete.find(x => x.art === "prozessor"); return `${g.id}|1`; }));
+await p.click(`#liste [data-ziel="${await ev(() => P.geraete.find(x => x.art === "prozessor").id)}|1"]`); await p.waitForTimeout(50);
 const fm = await modulBox("m-fremd");
 await p.mouse.move(fm.x + fm.width / 2, fm.y + fm.height / 2); await p.mouse.down(); await p.mouse.up();
 pruefe("Port-Regel: fremde Serie nicht auf Port 1", await ev(() => !P.straenge.find(k => k.port === 1).module.includes("m-fremd")));
@@ -178,7 +183,7 @@ await p.click('[data-d="weg-neu"][data-lib="beispiel-multicore-cat4-25"]');
 const mc = await ev(() => { const d = P.geraete.find(g => g.art === "multicore"); return { ports: d.ports, zeilen: kabelListe().filter(z => /Multicore 1/.test(z.von + z.nach)).map(z => z.von) }; });
 pruefe("Multicore: übernimmt die 4 belegten Ports", JSON.stringify(mc.ports) === "[1,2,3,4]", JSON.stringify(mc));
 pruefe("Multicore: Kabel ab Auflösung + Multicore selbst", mc.zeilen.filter(v => v.includes("Ader")).length === 4 && mc.zeilen.some(v => v.includes("Port 1, 2, 3, 4")), JSON.stringify(mc.zeilen));
-pruefe("Multicore: Prüfung Länge zur Wand", await ev(() => signalPruefungen().some(x => x.text.includes("Multicore 1: Kabellänge zur Wand fehlt"))));
+pruefe("Multicore: Kabellänge zur Wand aus der Position berechnet", await ev(() => kabelListe().filter(z => z.von.startsWith("Multicore 1 · Ader")).every(z => Number.isFinite(z.laengeM) && z.bemerkung.includes("aus Position"))));
 await p.fill('[data-w-feld="ausgangLaengeM"]', "90"); await p.press('[data-w-feld="ausgangLaengeM"]', "Tab"); await p.waitForTimeout(100);
 pruefe("Multicore: Cat-Strecke über 100 m gemeldet", await ev(() => signalPruefungen().some(x => x.text.includes("Cat-Strecke 115 m"))));
 pruefe("CVT10 in der Library wählbar", !(await p.locator('[data-d="weg-neu"][data-lib="beispiel-novastar-cvt10"]').isDisabled()));
@@ -384,6 +389,62 @@ const h2 = await lw.evaluate(() => [...document.getElementById("c").getContext("
 pruefe("Live-Ausgabe 1248 × 728 mit wandernden Cursorn", (await lw.evaluate(() => document.getElementById("c").width)) === 1248 && h1 !== h2);
 await lw.close();
 
+/* ---------- Projektbaum: Übersichten und Kontextmenü ---------- */
+await p.click('[data-haupt="planen"]');
+await p.click('#baum li[data-gruppe="strom"]'); await p.waitForTimeout(50);
+pruefe("Baum: Klick „Stromverteiler“ → alle Verteiler", await ev(() => ui.reiter === "strom" && ui.modus.strom === "verteiler") && await p.locator(".uebersicht .karte").count() >= 2);
+await p.click('#baum li[data-gruppe="prozessoren"]'); await p.waitForTimeout(50);
+pruefe("Baum: Klick „Prozessoren“ → alle Prozessoren", await ev(() => ui.reiter === "signal" && ui.modus.signal === "prozessoren"));
+await p.click('#baum li[data-gruppe="screens"]'); await p.waitForTimeout(50);
+pruefe("Baum: Klick „Screens“ → Übersicht aller Screens", await ev(() => ui.reiter === "aufbau" && ui.modus.aufbau === "alle") && await p.locator("[data-screen-karte]").count() === await ev(() => P.screens.length));
+await p.click("[data-screen-karte]"); await p.waitForTimeout(50);
+pruefe("Baum: Karte öffnet die Wand", await ev(() => ui.modus.aufbau === "wand"));
+const nV = await ev(() => P.geraete.filter(g => g.art === "verteiler").length);
+await p.click(`#baum [data-geraet="${await ev(() => P.geraete.find(g => g.art === "verteiler").id)}"]`, { button: "right" }); await p.waitForTimeout(50);
+await p.click("#kontextmenue button:text-is('Duplizieren')"); await p.waitForTimeout(50);
+pruefe("Kontextmenü: Verteiler duplizieren", await ev(n => P.geraete.filter(g => g.art === "verteiler").length === n + 1 && P.geraete.some(g => g.name.endsWith("(Kopie)")), nV));
+await p.click('#baum li[data-gruppe="prozessoren"]', { button: "right" }); await p.waitForTimeout(50);
+await p.screenshot({ path: path.join(AUSGABE, "kontextmenue.png") });
+await p.click("#kontextmenue button:text-is('NovaStar MX30')"); await p.waitForTimeout(50);
+pruefe("Kontextmenü: Prozessor über Überschrift hinzufügen", await ev(() => P.geraete.filter(g => g.art === "prozessor").length === 2));
+const kopie = await ev(() => P.geraete.find(g => g.name.endsWith("(Kopie)")).id);
+await p.click(`#baum [data-geraet="${kopie}"]`, { button: "right" }); await p.waitForTimeout(50);
+await p.click("#kontextmenue button:text-is('Löschen')"); await p.waitForTimeout(50);
+pruefe("Kontextmenü: Löschen", await ev(id => !geraetById(id), kopie));
+await ev(() => { const g = P.geraete.filter(g => g.art === "prozessor")[1]; P.geraete = P.geraete.filter(x => x !== g); ui.sel.prozessor = null; aenderung(); });
+await p.click(`#baum [data-geraet="${await ev(() => P.geraete.find(g => g.art === "verteiler").id)}"]`, { button: "right" }); await p.keyboard.press("Escape");
+pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count() === 0);
+
+/* ---------- Spinne und Stagebox als Symbol in der Wand ---------- */
+{
+  await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "strom"; ui.modus.strom = "wand"; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });
+  const laka = await ev(() => P.lakas[0].id);
+  pruefe("Symbol: Spinne in der Strom-Zeichnung mit Linien zu 6 Kreisanfängen", await p.locator(`#zeichnung [data-symbol="laka:${laka}"]`).count() === 1 && await ev(() => spinneZiele(P.screens[0], P.lakas[0]).length === 6));
+  pruefe("Symbol: Spinnenbein zu kurz gemeldet", await ev(() => stromPruefungen().some(x => x.text.includes("Spinne an Harting 1"))));
+  const sp = await p.locator(`#zeichnung [data-symbol="laka:${laka}"]`).boundingBox();
+  const pxMm = await ev(() => 1 / mmJePixel($("#zeichnung svg")));
+  const vorher = await ev(() => spinnePos(P.screens[0], P.lakas[0]));
+  await p.mouse.move(sp.x + sp.width / 2, sp.y + sp.height / 2); await p.mouse.down();
+  await p.mouse.move(sp.x + sp.width / 2 + 1000 * pxMm, sp.y + sp.height / 2, { steps: 5 }); await p.mouse.up(); await p.waitForTimeout(80);
+  pruefe("Symbol: Spinne verschoben (≈ 1 m nach rechts), keine Kreise verändert", await ev(v => { const l = P.lakas[0]; return l.pos && Math.abs(l.pos.x - (v.x + 1000)) <= 20 && P.kreise.length === 6; }, vorher));
+  // Stagebox: Länge aus Position
+  await ev(() => { ui.reiter = "signal"; ui.modus.signal = "wand"; const d = P.geraete.find(g => g.art === "stagebox"); d.ausgangLaengeM = null; aenderung(); });
+  pruefe("Symbol: CVT10 in der Signal-Zeichnung", await p.locator(`#zeichnung [data-symbol^="weg:"]`).count() === 1);
+  const sb = await ev(() => kabelListe().filter(z => z.von.startsWith("Stagebox 1 · Ausgang")).map(z => z.laengeM));
+  pruefe("Symbol: Port-Kabel ab Stagebox mit berechneter Länge", sb.length === 4 && sb.every(Number.isFinite), JSON.stringify(sb));
+  await ev(() => { const s = P.screens[0], d = P.geraete.find(g => g.art === "stagebox"), k = P.straenge.find(x => x.port === 1); const m = modulMitte(s, k.module[0]); d.pos = { screen: s.id, ...m }; aenderung(); });
+  pruefe("Symbol: Stagebox direkt am Strangstart → 1 m (nur Reserve)", await ev(() => kabelListe().find(z => z.von.includes("(Port 1)") && !z.von.includes("Backup")).laengeM === 1));
+  const gz = await ev(() => { const g = P.geraete.find(x => x.art === "prozessor"); ui.sel.prozessor = g.id; ui.sel.weg = null; render(); return g.id; });
+  await p.click(`#rechts [data-zuweisen="${gz}|5"]`); await p.waitForTimeout(50);
+  pruefe("Zuweisung: Port 5 der Wand zugewiesen → unten als frei gelistet", await p.locator(`#liste [data-ziel="${gz}|5"]`).count() === 1);
+  await p.click(`#liste [data-ziel="${gz}|5"]`); await p.waitForTimeout(50);
+  pruefe("Zuweisung: Klick auf freien Port wählt den Pinsel", await ev(g => ui.werkzeug === "pinsel" && ui.pinsel.signal === g + "|5", gz));
+  await ev(() => { ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });
+  await p.screenshot({ path: path.join(AUSGABE, "symbole-signal.png") });
+  await ev(() => { ui.reiter = "strom"; render(); });
+  await p.screenshot({ path: path.join(AUSGABE, "symbole-strom.png") });
+}
+
 /* ---------- Rex-Anbindung (simulierter Datenbank-Agent) ---------- */
 async function rexSeite(module) {
   const c = await browser.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
@@ -504,7 +565,9 @@ async function rexSeite(module) {
   // Pinsel im Reiter Strom mit einem Finger
   await e(() => { ui.reiter = "strom"; render(); });
   await pg.click('[data-s="pinsel"]');
-  await pg.selectOption('[data-s-feld="pinselziel"]', await e(() => `${P.geraete.find(g => g.art === "verteiler").id}|12`));
+  const vz12 = await e(() => { const v = P.geraete.find(g => g.art === "verteiler"); ui.sel.verteiler = v.id; render(); return v.id; });
+  await pg.click(`#rechts [data-zuweisen="${vz12}|12"]`); await pause();
+  await pg.click(`#liste [data-ziel="${vz12}|12"]`); await pause();
   const [q1, q2] = await e(() => P.screens[0].module.slice(0, 2).map(m => m.id));
   const [p1x, p1y] = mitte(await box(`[data-mod="${q1}"] rect`)), [p2x, p2y] = mitte(await box(`[data-mod="${q2}"] rect`));
   await finger("touchStart", [[p1x, p1y]]); await pause();

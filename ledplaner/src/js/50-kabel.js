@@ -65,7 +65,8 @@ function kabelListe() {
       const quelle = nr => {
         const d = portWeg(g.id, nr);
         if (!d) return { lib: g.portKabel, laengeM: g.portLaengeM ?? null, von: `${g.name} · Port ${nr}` };
-        return { lib: d.ausgangKabel, laengeM: d.ausgangLaengeM ?? null, von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
+        return { lib: d.ausgangKabel, laengeM: wegKabelLaenge(d, nr), bemerkung: Number.isFinite(d.ausgangLaengeM) ? "" : "Länge aus Position in der Wand",
+          von: `${d.name} · ${d.art === "stagebox" ? "Ausgang" : "Ader"} ${wegAusgang(d, nr)} (Port ${nr})` };
       };
       add({ key: "port:" + k.id, gewerk: "signal", ...quelle(k.port), nach: `${s.name} · ${namen.get(ms[0]?.id) || "—"} (Daten ein)`, screen: s.id });
       if (Number.isFinite(k.backupPort)) { const q = quelle(k.backupPort); add({ key: "backup:" + k.id, gewerk: "signal", ...q, von: q.von + " Backup", nach: `${s.name} · ${namen.get(ms[ms.length - 1]?.id) || "—"} (Strangende)`, screen: s.id }); }
