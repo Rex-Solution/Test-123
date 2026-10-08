@@ -349,4 +349,4 @@ Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
 **Nächste Schritte:**
 1. Bestandsliste und Datenblätter nachreichen (laufend, blockiert nicht).
-2. **Phase 0 starten**: Skizzen (Wireframes) der Oberfläche – Kopfleiste, die vier Reiter mit Werkzeugleiste und Listen, Library-Manager – und das Library-Datenformat festschreiben.
+2. **Phase 0**: Skizze der Oberfläche liegt vor (`ledplaner-skizze.html`, klickbar, ohne Funktion, nach Rex-Styleguide, mit Beispiel-Screen) – Rückmeldung einarbeiten, danach Library-Datenformat festschreiben.
