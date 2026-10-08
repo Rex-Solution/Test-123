@@ -1,0 +1,168 @@
+{
+  "format": "rex-materialliste",
+  "formatVersion": 1,
+  "modul": "ledplaner",
+  "erstellt": "2026-10-08T19:30:45.510Z",
+  "projekt": {
+    "rexId": null,
+    "titel": "Beispiel Bühne Mitte",
+    "kunde": "",
+    "veranstaltung": "",
+    "ort": "",
+    "ersteller": "",
+    "revision": "1",
+    "datum": "2026-10-08"
+  },
+  "positionen": [
+    {
+      "gruppe": "LED-Module",
+      "materialId": "beispiel-ledtek-p4swh-pro-v3",
+      "name": "LEDTEK P4+sWH PRO V3",
+      "kategorie": "Video · LED-Modul",
+      "anzahl": 12,
+      "laengeM": null,
+      "gewichtKg": 102,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "LED-Module",
+      "materialId": "beispiel-ledtek-p4wh-pro-v3",
+      "name": "LEDTEK P4+WH PRO V3",
+      "kategorie": "Video · LED-Modul",
+      "anzahl": 36,
+      "laengeM": null,
+      "gewichtKg": 500.40000000000003,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Rigging",
+      "materialId": "beispiel-flugrahmen-1m",
+      "name": "Flugrahmen 1 m (P4+ PRO)",
+      "kategorie": "Rigging",
+      "anzahl": 6,
+      "laengeM": null,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Geräte",
+      "materialId": "beispiel-novastar-cvt10",
+      "name": "NovaStar CVT10",
+      "kategorie": "Video · Stagebox",
+      "anzahl": 1,
+      "laengeM": null,
+      "gewichtKg": 2.1,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Geräte",
+      "materialId": "beispiel-novastar-mx30",
+      "name": "NovaStar MX30",
+      "kategorie": "Video · LED-Prozessor",
+      "anzahl": 1,
+      "laengeM": null,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Geräte",
+      "materialId": "beispiel-stagesmarts-c24",
+      "name": "StageSmarts C24 (4 × Harting)",
+      "kategorie": "Strom · Verteiler",
+      "anzahl": 1,
+      "laengeM": null,
+      "gewichtKg": 18,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-cat6",
+      "name": "Cat6 etherCON",
+      "kategorie": "Kabel",
+      "anzahl": 46,
+      "laengeM": 1,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-cat6",
+      "name": "Cat6 etherCON",
+      "kategorie": "Kabel",
+      "anzahl": 4,
+      "laengeM": 5,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-cee63",
+      "name": "CEE 63 A 5-pol",
+      "kategorie": "Kabel",
+      "anzahl": 1,
+      "laengeM": 25,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-fiber",
+      "name": "Glasfaser OpticalCON",
+      "kategorie": "Kabel",
+      "anzahl": 1,
+      "laengeM": 60,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-hdmi",
+      "name": "HDMI 2.0",
+      "kategorie": "Kabel",
+      "anzahl": 1,
+      "laengeM": null,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-kaltgeraete",
+      "name": "Kaltgeräte / IEC",
+      "kategorie": "Kabel",
+      "anzahl": 2,
+      "laengeM": null,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-laka-h16-25",
+      "name": "Laka Harting 16-pol · 25 m",
+      "kategorie": "Strom · Laka",
+      "anzahl": 1,
+      "laengeM": 25,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-kabel-true1",
+      "name": "PowerCON TRUE1",
+      "kategorie": "Kabel",
+      "anzahl": 42,
+      "laengeM": 1,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    },
+    {
+      "gruppe": "Kabel",
+      "materialId": "beispiel-spinne-h16-true1-5m",
+      "name": "Spinne Harting → 6 × TRUE1 · 5 m",
+      "kategorie": "Strom · Spinne",
+      "anzahl": 1,
+      "laengeM": 5,
+      "gewichtKg": null,
+      "herkunft": "beispiel"
+    }
+  ]
+}

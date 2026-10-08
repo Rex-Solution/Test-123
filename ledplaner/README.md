@@ -2,7 +2,8 @@
 
 Modul im Rex-System zur Planung von LED-Wänden (Aufbau, Strom, Signal, Ausgabe, Kabel).
 Konzept: `../ledplaner-konzept.md` · Datenformat Library: `../ledplaner-library-format.md` ·
-Beispieldaten/Quellen: `../ledplaner-beispieldaten.md` · Oberfläche: `../rex-styleguide.md`.
+Beispieldaten/Quellen: `../ledplaner-beispieldaten.md` · Oberfläche: `../rex-styleguide.md` ·
+**Übergabe ins Rex-System: `../ledplaner-uebergabe.md`** · Beispieldateien (Projekt, Library, Materialliste): `beispiele/`.
 
 ## Bauen und Testen
 

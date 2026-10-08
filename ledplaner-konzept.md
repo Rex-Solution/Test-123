@@ -393,6 +393,8 @@ Rückmeldung 2: neue Screens übernehmen das Bracket (auch ohne Gewicht wählbar
 Reihe; Projektbaum per Ziehen sortierbar; Spinnen als eigene Library-Geräte (Abgangslängen); Ausgänge per Drag & Drop
 tauschen; Schieflast als Warnung in den Karten; Stageboxen im Stromplan; Bereich „Backup“; Stageboxen/Multicores in
 „Alle Prozessoren“; „Max. Module je Datenstrang“ entfernt.
+Rückmeldung 3: Brackets enden an jedem Knick; Bracket-Bestand je Wand (z.B. 3 × 1 m, 4 × 0,5 m); Klick auf ein Modul
+in der Palette fragt die Anzahl in X und Y. Übergabe ins Rex-System: `ledplaner-uebergabe.md`.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

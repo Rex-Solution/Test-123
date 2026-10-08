@@ -1,0 +1,1274 @@
+{
+  "format": "rex-ledplaner",
+  "formatVersion": 1,
+  "gespeichert": "2026-10-08T19:30:45.510Z",
+  "daten": {
+    "titel": "Beispiel Bühne Mitte",
+    "kunde": "",
+    "veranstaltung": "",
+    "ort": "",
+    "ersteller": "",
+    "revision": "1",
+    "datum": "2026-10-08"
+  },
+  "regeln": {
+    "reserve": 20,
+    "schieflast": 20,
+    "planung": "max",
+    "spannung": 230,
+    "absicherung": 16,
+    "einschaltPruefen": true,
+    "backup": true,
+    "portMax": 90,
+    "catMax": 100,
+    "druckZusatz": "A3",
+    "riggingFreigabe": "intern",
+    "kabelReserveM": 1
+  },
+  "library": {
+    "beispiel-ledtek-p4wh-pro-v3": {
+      "id": "beispiel-ledtek-p4wh-pro-v3",
+      "name": "LEDTEK P4+WH PRO V3",
+      "kategorie": "Video · LED-Modul",
+      "attribute": {
+        "hersteller": "LEDTEK",
+        "gewicht": 13.9,
+        "stromverbrauch": 175,
+        "grafik": null,
+        "quelle": "LEDTEK / Händler, Stand 10/2026 – Werte prüfen",
+        "anschluesse": [
+          {
+            "name": "Strom ein",
+            "typ": "PowerCON TRUE1",
+            "richtung": "in",
+            "rolle": "strom"
+          },
+          {
+            "name": "Strom aus",
+            "typ": "PowerCON TRUE1",
+            "richtung": "out",
+            "rolle": "strom"
+          },
+          {
+            "name": "Daten ein",
+            "typ": "etherCON",
+            "richtung": "in",
+            "rolle": "daten"
+          },
+          {
+            "name": "Daten aus",
+            "typ": "etherCON",
+            "richtung": "out",
+            "rolle": "daten"
+          }
+        ],
+        "led": {
+          "typ": "modul",
+          "serie": "P4+ PRO V3",
+          "receivingCard": "NovaStar A8s",
+          "pixelB": 104,
+          "pixelH": 208,
+          "mmB": 500,
+          "mmH": 1000,
+          "mmT": 85,
+          "pitchMm": 4.81,
+          "wTyp": 90,
+          "einschaltstromA": null,
+          "strom": {
+            "maxJeBruecke": null
+          },
+          "mechanik": {
+            "maxGeflogen": null,
+            "maxGestellt": null,
+            "kurve": true,
+            "winkelGrad": null
+          },
+          "ip": "IP65"
+        }
+      }
+    },
+    "beispiel-ledtek-p4swh-pro-v3": {
+      "id": "beispiel-ledtek-p4swh-pro-v3",
+      "name": "LEDTEK P4+sWH PRO V3",
+      "kategorie": "Video · LED-Modul",
+      "attribute": {
+        "hersteller": "LEDTEK",
+        "gewicht": 8.5,
+        "stromverbrauch": 88,
+        "grafik": null,
+        "quelle": "LEDTEK / Händler, Stand 10/2026 – Werte prüfen (Leistung geschätzt)",
+        "anschluesse": [
+          {
+            "name": "Strom ein",
+            "typ": "PowerCON TRUE1",
+            "richtung": "in",
+            "rolle": "strom"
+          },
+          {
+            "name": "Strom aus",
+            "typ": "PowerCON TRUE1",
+            "richtung": "out",
+            "rolle": "strom"
+          },
+          {
+            "name": "Daten ein",
+            "typ": "etherCON",
+            "richtung": "in",
+            "rolle": "daten"
+          },
+          {
+            "name": "Daten aus",
+            "typ": "etherCON",
+            "richtung": "out",
+            "rolle": "daten"
+          }
+        ],
+        "led": {
+          "typ": "modul",
+          "serie": "P4+ PRO V3",
+          "receivingCard": "NovaStar A8s",
+          "pixelB": 104,
+          "pixelH": 104,
+          "mmB": 500,
+          "mmH": 500,
+          "mmT": null,
+          "pitchMm": 4.81,
+          "wTyp": 45,
+          "einschaltstromA": null,
+          "strom": {
+            "maxJeBruecke": null
+          },
+          "mechanik": {
+            "maxGeflogen": null,
+            "maxGestellt": null,
+            "kurve": true,
+            "winkelGrad": null
+          },
+          "ip": "IP65"
+        }
+      }
+    },
+    "beispiel-stagesmarts-c24": {
+      "id": "beispiel-stagesmarts-c24",
+      "name": "StageSmarts C24 (4 × Harting)",
+      "kategorie": "Strom · Verteiler",
+      "attribute": {
+        "hersteller": "StageSmarts",
+        "gewicht": 18,
+        "quelle": "StageSmarts Datenblatt / Händler",
+        "led": {
+          "typ": "verteiler",
+          "einspeisung": {
+            "typ": "CEE 63 A 5-pol",
+            "ampere": 63,
+            "netz": "TN-S 230/400 V"
+          },
+          "kanaele": [
+            {
+              "nr": 1,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 2,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 3,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 4,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 5,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 6,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 1"
+            },
+            {
+              "nr": 7,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 8,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 9,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 10,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 11,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 12,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 2"
+            },
+            {
+              "nr": 13,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 14,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 15,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 16,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 17,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 18,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 3"
+            },
+            {
+              "nr": 19,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            },
+            {
+              "nr": 20,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            },
+            {
+              "nr": 21,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            },
+            {
+              "nr": 22,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            },
+            {
+              "nr": 23,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            },
+            {
+              "nr": 24,
+              "ampere": 16,
+              "charakteristik": "C",
+              "fi": "30 mA Typ A",
+              "phase": null,
+              "ausgang": "Harting 4"
+            }
+          ],
+          "ausgaenge": [
+            {
+              "name": "Harting 1",
+              "stecker": "Harting 16-pol",
+              "kanaele": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            {
+              "name": "Harting 2",
+              "stecker": "Harting 16-pol",
+              "kanaele": [
+                7,
+                8,
+                9,
+                10,
+                11,
+                12
+              ]
+            },
+            {
+              "name": "Harting 3",
+              "stecker": "Harting 16-pol",
+              "kanaele": [
+                13,
+                14,
+                15,
+                16,
+                17,
+                18
+              ]
+            },
+            {
+              "name": "Harting 4",
+              "stecker": "Harting 16-pol",
+              "kanaele": [
+                19,
+                20,
+                21,
+                22,
+                23,
+                24
+              ]
+            }
+          ],
+          "phasenBekannt": false,
+          "messung": true,
+          "he": 6
+        }
+      }
+    },
+    "beispiel-kabel-cee63": {
+      "id": "beispiel-kabel-cee63",
+      "name": "CEE 63 A 5-pol",
+      "kategorie": "Kabel",
+      "attribute": {
+        "hersteller": "",
+        "led": {
+          "typ": "kabel",
+          "gewerk": "strom",
+          "farbsystem": "Strom",
+          "steckerA": "CEE 63 A",
+          "steckerB": "CEE 63 A",
+          "laengenM": [
+            10,
+            25,
+            50
+          ],
+          "brueckeLaengeM": null,
+          "maxLaengeM": null
+        }
+      }
+    },
+    "beispiel-flugrahmen-1m": {
+      "id": "beispiel-flugrahmen-1m",
+      "name": "Flugrahmen 1 m (P4+ PRO)",
+      "kategorie": "Rigging",
+      "attribute": {
+        "hersteller": "LEDTEK",
+        "gewicht": null,
+        "led": {
+          "typ": "rigging",
+          "art": "flugrahmen",
+          "serien": [
+            "P4+ PRO V3"
+          ],
+          "breiteModule": 2,
+          "lastMaxKg": null,
+          "punkte": null
+        }
+      }
+    },
+    "beispiel-flugrahmen-05m": {
+      "id": "beispiel-flugrahmen-05m",
+      "name": "Flugrahmen 0,5 m (P4+ PRO)",
+      "kategorie": "Rigging",
+      "attribute": {
+        "hersteller": "LEDTEK",
+        "gewicht": null,
+        "led": {
+          "typ": "rigging",
+          "art": "flugrahmen",
+          "serien": [
+            "P4+ PRO V3"
+          ],
+          "breiteModule": 1,
+          "lastMaxKg": null,
+          "punkte": null
+        }
+      }
+    },
+    "beispiel-laka-h16-25": {
+      "id": "beispiel-laka-h16-25",
+      "name": "Laka Harting 16-pol · 25 m",
+      "kategorie": "Strom · Laka",
+      "attribute": {
+        "hersteller": "",
+        "gewicht": null,
+        "led": {
+          "typ": "laka",
+          "stecker": "Harting 16-pol",
+          "kreise": 6,
+          "ampereJeKreis": 16,
+          "laengeM": 25
+        }
+      }
+    },
+    "beispiel-novastar-mx30": {
+      "id": "beispiel-novastar-mx30",
+      "name": "NovaStar MX30",
+      "kategorie": "Video · LED-Prozessor",
+      "attribute": {
+        "hersteller": "NovaStar",
+        "gewicht": null,
+        "stromverbrauch": 55,
+        "quelle": "NovaStar Handbuch MX30 V1.0.1 + Händler",
+        "anschluesse": [
+          {
+            "name": "HDMI 2.0",
+            "typ": "HDMI",
+            "richtung": "in",
+            "rolle": "video",
+            "maxB": 4096,
+            "maxH": 2160,
+            "maxHz": 60,
+            "loop": true
+          },
+          {
+            "name": "HDMI 1.4",
+            "typ": "HDMI",
+            "richtung": "in",
+            "rolle": "video",
+            "maxB": 4096,
+            "maxH": 1080,
+            "maxHz": 60,
+            "loop": true
+          },
+          {
+            "name": "DP 1.1",
+            "typ": "DP",
+            "richtung": "in",
+            "rolle": "video",
+            "maxB": null,
+            "maxH": null,
+            "maxHz": 60
+          },
+          {
+            "name": "SDI",
+            "typ": "SDI",
+            "richtung": "in",
+            "rolle": "video",
+            "maxB": 1920,
+            "maxH": 1080,
+            "maxHz": 60,
+            "loop": true,
+            "anzahl": 2
+          },
+          {
+            "name": "Port",
+            "typ": "LAN",
+            "richtung": "out",
+            "rolle": "port",
+            "anzahl": 10
+          },
+          {
+            "name": "OPT",
+            "typ": "Fiber",
+            "richtung": "out",
+            "rolle": "glasfaser",
+            "anzahl": 2
+          },
+          {
+            "name": "Strom ein",
+            "typ": "Kaltgeräte",
+            "richtung": "in",
+            "rolle": "strom"
+          }
+        ],
+        "led": {
+          "typ": "prozessor",
+          "familie": "COEX",
+          "receivingCards": [
+            "NovaStar A8s"
+          ],
+          "pxJePort": 659722,
+          "pxGesamt": 6500000,
+          "layer": 3,
+          "backup": true,
+          "he": null
+        }
+      }
+    },
+    "beispiel-kabel-cat6": {
+      "id": "beispiel-kabel-cat6",
+      "name": "Cat6 etherCON",
+      "kategorie": "Kabel",
+      "attribute": {
+        "hersteller": "",
+        "led": {
+          "typ": "kabel",
+          "gewerk": "signal",
+          "farbsystem": "LAN",
+          "steckerA": "etherCON",
+          "steckerB": "etherCON",
+          "laengenM": [
+            1,
+            5,
+            10,
+            20,
+            30,
+            60,
+            90
+          ],
+          "brueckeLaengeM": 1,
+          "maxLaengeM": 100
+        }
+      }
+    },
+    "beispiel-novastar-cvt10": {
+      "id": "beispiel-novastar-cvt10",
+      "name": "NovaStar CVT10",
+      "kategorie": "Video · Stagebox",
+      "attribute": {
+        "hersteller": "NovaStar",
+        "gewicht": 2.1,
+        "stromverbrauch": 22,
+        "grafik": null,
+        "quelle": "Händlerangaben (CVT10-M/-S), Stand 10/2026 – Leistung mit aktuellem NovaStar-Datenblatt prüfen",
+        "anschluesse": [
+          {
+            "name": "OPT",
+            "typ": "Fiber",
+            "richtung": "in",
+            "rolle": "glasfaser",
+            "anzahl": 2
+          },
+          {
+            "name": "Port",
+            "typ": "LAN",
+            "richtung": "out",
+            "rolle": "port",
+            "anzahl": 10
+          },
+          {
+            "name": "Strom ein",
+            "typ": "PowerCON TRUE1",
+            "richtung": "in",
+            "rolle": "strom"
+          }
+        ],
+        "led": {
+          "typ": "stagebox",
+          "eingang": "2 × 10G optisch (LC; -M multimode 300 m, -S singlemode)",
+          "ports": 10,
+          "pxJePort": null,
+          "he": 1
+        }
+      }
+    },
+    "beispiel-kabel-fiber": {
+      "id": "beispiel-kabel-fiber",
+      "name": "Glasfaser OpticalCON",
+      "kategorie": "Kabel",
+      "attribute": {
+        "hersteller": "",
+        "led": {
+          "typ": "kabel",
+          "gewerk": "signal",
+          "farbsystem": "Fiber",
+          "steckerA": "opticalCON",
+          "steckerB": "opticalCON",
+          "laengenM": [
+            50,
+            100,
+            200
+          ],
+          "brueckeLaengeM": null,
+          "maxLaengeM": null
+        }
+      }
+    }
+  },
+  "screens": [
+    {
+      "id": "smuzxlw4g0",
+      "name": "Bühne Mitte",
+      "beschreibung": "Bühne Mitte, hinter der Band",
+      "ukM": 2.5,
+      "bauart": "geflogen",
+      "module": [
+        {
+          "id": "mmuzxlw4g1",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4g2",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 0,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4g3",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 0,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g4",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 0,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4g5",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4g6",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4g7",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g8",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 500,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4g9",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1000,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4ga",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1000,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gb",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1000,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4gc",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 1000,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gd",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4ge",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gf",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 1500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4gg",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 1500,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gh",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2000,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4gi",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2000,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gj",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2000,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4gk",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 2000,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gl",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4gm",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gn",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 2500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4go",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 2500,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gp",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3000,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4gq",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3000,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gr",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3000,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4gs",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 3000,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gt",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4gu",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gv",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 3500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4gw",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 3500,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4gx",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4000,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4gy",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4000,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4gz",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4000,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g10",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 4000,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4g11",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4g12",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4g13",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 4500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g14",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 4500,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4g15",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5000,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4g16",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5000,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4g17",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5000,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g18",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 5000,
+          "y": 3000
+        },
+        {
+          "id": "mmuzxlw4g19",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5500,
+          "y": 0
+        },
+        {
+          "id": "mmuzxlw4g1a",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5500,
+          "y": 1000
+        },
+        {
+          "id": "mmuzxlw4g1b",
+          "lib": "beispiel-ledtek-p4wh-pro-v3",
+          "x": 5500,
+          "y": 2000
+        },
+        {
+          "id": "mmuzxlw4g1c",
+          "lib": "beispiel-ledtek-p4swh-pro-v3",
+          "x": 5500,
+          "y": 3000
+        }
+      ],
+      "winkel": {},
+      "strom": {
+        "richtung": "spalten",
+        "start": "ol",
+        "verteilung": "ausgang"
+      },
+      "signal": {
+        "richtung": "spalten",
+        "start": "ol"
+      },
+      "rigging": {
+        "lib": "beispiel-flugrahmen-1m",
+        "lib2": "beispiel-flugrahmen-05m",
+        "rest": "ergaenzen",
+        "seite": "rechts",
+        "anzeigen": true
+      },
+      "zuweisung": {
+        "strom": [],
+        "signal": []
+      }
+    }
+  ],
+  "geraete": [
+    {
+      "id": "emuzxlw4g1d",
+      "art": "einspeisung",
+      "name": "Hausanschluss",
+      "stecker": "CEE 63 A",
+      "ampere": 63,
+      "standort": "Bühne links"
+    },
+    {
+      "id": "vmuzxlw4h1e",
+      "art": "verteiler",
+      "lib": "beispiel-stagesmarts-c24",
+      "name": "Verteiler 1",
+      "standort": "Bühne links hinten",
+      "speisung": {
+        "von": "emuzxlw4g1d",
+        "kabel": "beispiel-kabel-cee63",
+        "laengeM": 25
+      }
+    },
+    {
+      "id": "pmuzxlw5s1m",
+      "art": "prozessor",
+      "lib": "beispiel-novastar-mx30",
+      "name": "Prozessor 1",
+      "standort": "FOH / Regie",
+      "portKabel": "beispiel-kabel-cat6",
+      "portLaengeM": null,
+      "strom": {
+        "verteiler": "vmuzxlw4h1e",
+        "kanal": 7
+      }
+    },
+    {
+      "id": "sbmuzxlw6n1p",
+      "art": "stagebox",
+      "lib": "beispiel-novastar-cvt10",
+      "name": "Stagebox 1",
+      "prozessor": "pmuzxlw5s1m",
+      "ports": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "standort": "hinter der Wand",
+      "ausgangKabel": "beispiel-kabel-cat6",
+      "ausgangLaengeM": 5,
+      "zuleitung": {
+        "kabel": "beispiel-kabel-fiber",
+        "laengeM": 60,
+        "anzahl": 1
+      },
+      "strom": {
+        "verteiler": "vmuzxlw4h1e",
+        "kanal": 8
+      }
+    }
+  ],
+  "kreise": [
+    {
+      "id": "kmuzxlw4j1f",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 1,
+      "module": [
+        "mmuzxlw4g1",
+        "mmuzxlw4g2",
+        "mmuzxlw4g3",
+        "mmuzxlw4g4",
+        "mmuzxlw4g8",
+        "mmuzxlw4g7",
+        "mmuzxlw4g6",
+        "mmuzxlw4g5"
+      ]
+    },
+    {
+      "id": "kmuzxlw4m1h",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 2,
+      "module": [
+        "mmuzxlw4g9",
+        "mmuzxlw4ga",
+        "mmuzxlw4gb",
+        "mmuzxlw4gc",
+        "mmuzxlw4gg",
+        "mmuzxlw4gf",
+        "mmuzxlw4ge",
+        "mmuzxlw4gd"
+      ]
+    },
+    {
+      "id": "kmuzxlw4m1i",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 3,
+      "module": [
+        "mmuzxlw4gh",
+        "mmuzxlw4gi",
+        "mmuzxlw4gj",
+        "mmuzxlw4gk",
+        "mmuzxlw4go",
+        "mmuzxlw4gn",
+        "mmuzxlw4gm",
+        "mmuzxlw4gl"
+      ]
+    },
+    {
+      "id": "kmuzxlw4m1j",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 4,
+      "module": [
+        "mmuzxlw4gp",
+        "mmuzxlw4gq",
+        "mmuzxlw4gr",
+        "mmuzxlw4gs",
+        "mmuzxlw4gw",
+        "mmuzxlw4gv",
+        "mmuzxlw4gu",
+        "mmuzxlw4gt"
+      ]
+    },
+    {
+      "id": "kmuzxlw4m1k",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 5,
+      "module": [
+        "mmuzxlw4gx",
+        "mmuzxlw4gy",
+        "mmuzxlw4gz",
+        "mmuzxlw4g10",
+        "mmuzxlw4g14",
+        "mmuzxlw4g13",
+        "mmuzxlw4g12",
+        "mmuzxlw4g11"
+      ]
+    },
+    {
+      "id": "kmuzxlw4m1l",
+      "screen": "smuzxlw4g0",
+      "verteiler": "vmuzxlw4h1e",
+      "kanal": 6,
+      "module": [
+        "mmuzxlw4g15",
+        "mmuzxlw4g16",
+        "mmuzxlw4g17",
+        "mmuzxlw4g18",
+        "mmuzxlw4g1c",
+        "mmuzxlw4g1b",
+        "mmuzxlw4g1a",
+        "mmuzxlw4g19"
+      ]
+    }
+  ],
+  "straenge": [
+    {
+      "id": "dmuzxlw691n",
+      "screen": "smuzxlw4g0",
+      "prozessor": "pmuzxlw5s1m",
+      "port": 1,
+      "backupPort": 3,
+      "backupGeraet": null,
+      "module": [
+        "mmuzxlw4g1",
+        "mmuzxlw4g2",
+        "mmuzxlw4g3",
+        "mmuzxlw4g4",
+        "mmuzxlw4g8",
+        "mmuzxlw4g7",
+        "mmuzxlw4g6",
+        "mmuzxlw4g5",
+        "mmuzxlw4g9",
+        "mmuzxlw4ga",
+        "mmuzxlw4gb",
+        "mmuzxlw4gc",
+        "mmuzxlw4gg",
+        "mmuzxlw4gf",
+        "mmuzxlw4ge",
+        "mmuzxlw4gd",
+        "mmuzxlw4gh",
+        "mmuzxlw4gi",
+        "mmuzxlw4gj",
+        "mmuzxlw4gk",
+        "mmuzxlw4go",
+        "mmuzxlw4gn",
+        "mmuzxlw4gm",
+        "mmuzxlw4gl"
+      ]
+    },
+    {
+      "id": "dmuzxlw691o",
+      "screen": "smuzxlw4g0",
+      "prozessor": "pmuzxlw5s1m",
+      "port": 2,
+      "backupPort": 4,
+      "backupGeraet": null,
+      "module": [
+        "mmuzxlw4gp",
+        "mmuzxlw4gq",
+        "mmuzxlw4gr",
+        "mmuzxlw4gs",
+        "mmuzxlw4gw",
+        "mmuzxlw4gv",
+        "mmuzxlw4gu",
+        "mmuzxlw4gt",
+        "mmuzxlw4gx",
+        "mmuzxlw4gy",
+        "mmuzxlw4gz",
+        "mmuzxlw4g10",
+        "mmuzxlw4g14",
+        "mmuzxlw4g13",
+        "mmuzxlw4g12",
+        "mmuzxlw4g11",
+        "mmuzxlw4g15",
+        "mmuzxlw4g16",
+        "mmuzxlw4g17",
+        "mmuzxlw4g18",
+        "mmuzxlw4g1c",
+        "mmuzxlw4g1b",
+        "mmuzxlw4g1a",
+        "mmuzxlw4g19"
+      ]
+    }
+  ],
+  "lakas": [
+    {
+      "id": "lmuzxlw4m1g",
+      "lib": "beispiel-laka-h16-25",
+      "verteiler": "vmuzxlw4h1e",
+      "ausgang": "Harting 1",
+      "screen": "smuzxlw4g0",
+      "laengeM": 25
+    }
+  ],
+  "kabel": [],
+  "kabelAnpassung": {},
+  "outputs": [
+    {
+      "id": "omuzxlw701q",
+      "name": "Medienserver 1 · Out 1",
+      "zuspieler": "Medienserver 1",
+      "b": 3840,
+      "h": 2160,
+      "hz": 50,
+      "anschluss": "HDMI",
+      "prozessor": "pmuzxlw5s1m",
+      "eingang": "HDMI 2.0"
+    }
+  ],
+  "pixelraum": {
+    "pmuzxlw5s1m": {
+      "smuzxlw4g0": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  "layer": [
+    {
+      "id": "ymuzxlw711r",
+      "prozessor": "pmuzxlw5s1m",
+      "output": "omuzxlw701q",
+      "ax": 0,
+      "ay": 0,
+      "b": 1248,
+      "h": 728,
+      "zx": 0,
+      "zy": 0,
+      "zb": 1248,
+      "zh": 728,
+      "modus": "1:1"
+    }
+  ],
+  "ausgabe": {
+    "palette": "regenbogen",
+    "beschriftung": "modul",
+    "linie": 2,
+    "kreis": true,
+    "kreuz": true,
+    "info": true,
+    "cursorTempo": 240,
+    "cursorBreite": 4
+  }
+}
