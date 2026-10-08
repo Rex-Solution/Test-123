@@ -30,7 +30,7 @@ function screenSvgInhalt(screen, opt = {}) {
   // Maße
   if (screen.module.length && opt.masse !== false) {
     const a = mm * 0.05, fs = mm * 0.028, st = strich * 0.8;
-    const y = g.y + g.h + a + (opt.masseTiefer ? mm * 0.035 : 0), x = g.x + g.b + a;   // masseTiefer: Platz für Fugen-Marken
+    const y = g.y + g.h + a + (opt.masseTiefer ? mm * 0.035 : 0) + untenVersatz(screen), x = g.x + g.b + a;   // masseTiefer: Platz für Fugen-Marken
     teile.push(`<g stroke="#9a9a9a" stroke-width="${st}" fill="none">
       <line x1="${g.x}" y1="${y}" x2="${g.x + g.b}" y2="${y}"/><line x1="${g.x}" y1="${y - a / 3}" x2="${g.x}" y2="${y + a / 3}"/><line x1="${g.x + g.b}" y1="${y - a / 3}" x2="${g.x + g.b}" y2="${y + a / 3}"/>
       <line x1="${x}" y1="${g.y}" x2="${x}" y2="${g.y + g.h}"/><line x1="${x - a / 3}" y1="${g.y}" x2="${x + a / 3}" y2="${g.y}"/><line x1="${x - a / 3}" y1="${g.y + g.h}" x2="${x + a / 3}" y2="${g.y + g.h}"/></g>

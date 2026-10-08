@@ -150,9 +150,10 @@ function berichtHtml() {
 
 function riggingDruckTabelle(s) {
   const d = riggingDaten(s);
-  if (s.bauart !== "geflogen" || !d.rahmen.length) return `<p style="font-size:9pt">${s.bauart === "gestellt" ? "Gestellt · Bodenlast gesamt " + fmt(d.gesamtKg, 1) + " kg" : "Kein Flugrahmen gewählt."}</p>`;
-  return `<h3>Rigging</h3><table><tr><th>Rahmen</th><th class="z">Spalten</th><th class="z">Last Rahmen</th><th class="z">Last je Punkt</th><th class="z">Zulässig</th></tr>
-    ${d.rahmen.map(r => `<tr><td>${esc(d.lib.name)} · ${r.nr}</td><td class="z">${r.spalten}</td><td class="z">${fmt(r.kg, 1)} kg</td><td class="z">${fmt(r.kg / (d.punkte.length / d.rahmen.length), 1)} kg</td><td class="z">${r.lastMaxKg ? fmt(r.lastMaxKg) + " kg" : "—"}</td></tr>`).join("")}
+  if (!d.rahmen.length) return `<p style="font-size:9pt">${s.bauart === "gestellt" ? "Gestellt · Bodenlast gesamt " + fmt(d.gesamtKg, 1) + " kg" : "Kein Bracket gewählt."}</p>`;
+  const geflogen = s.bauart === "geflogen";
+  return `<h3>Rigging · ${geflogen ? "Brackets oben" : "Stacking unten"}</h3><table><tr><th>Bracket</th><th class="z">Plätze belegt</th><th class="z">Last</th><th class="z">${geflogen ? "Last je Punkt" : ""}</th><th class="z">Zulässig</th></tr>
+    ${d.rahmen.map(r => { const n = d.punkte.filter(p => p.rahmen === r.nr).length; return `<tr><td>${r.nr} · ${esc(r.lib.name)}</td><td class="z">${r.belegt} / ${r.plaetze}</td><td class="z">${fmt(r.kg, 1)} kg</td><td class="z">${geflogen && n ? fmt(r.kg / n, 1) + " kg" : ""}</td><td class="z">${r.lastMaxKg ? fmt(r.lastMaxKg) + " kg" : "—"}</td></tr>`; }).join("")}
     <tr><td><b>Gesamt</b></td><td></td><td class="z"><b>${fmt(d.gesamtKg, 1)} kg${d.unbekannt.length ? " + ?" : ""}</b></td><td></td><td></td></tr></table>
     <p style="font-size:8pt;color:#666">Richtwerte, gleichmäßig auf die Punkte verteilt${d.unbekannt.length ? " · fehlt: " + esc(d.unbekannt.join(", ")) : ""}. Freigabe: ${P.regeln.riggingFreigabe === "extern" ? "extern (Location/Statiker)" : "intern"} · Name: ____________ Datum: ________</p>`;
 }

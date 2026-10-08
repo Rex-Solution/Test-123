@@ -160,7 +160,7 @@ Anschlüsse: Eingang (z.B. Glasfaser), Ausgangs-Ports (Daten), Strom ein (`attri
 | --- | --- | --- | --- |
 | `art` | Auswahl | ✔ | `flugrahmen` · `stacking` · `bodenstuetze` · `zubehoer` |
 | `serien` | Liste Text | ✔ | passende Modulserien |
-| `breiteModule` | Zahl | ✔ | Breite in Modulen (z.B. 2) |
+| `breiteModule` | Zahl | ✔ | Plätze = Breite in Modulen (50-cm-Bracket: 1, 1-m-Bracket: 2 – links/rechts). Module sitzen fest an diesen Plätzen |
 | `lastMaxKg` | Zahl kg | Prüf | zulässige Last |
 | `punkte` | Liste | Prüf | Aufhängepunkte: `xMm` (Abstand von links), `lastMaxKg` |
 

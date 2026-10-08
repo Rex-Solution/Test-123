@@ -21,7 +21,7 @@ function materialListe() {
     for (const m of s.module) n.set(m.lib, (n.get(m.lib) || 0) + 1);
     for (const [lib, a] of n) add("LED-Module", lib, a);
     const r = riggingDaten(s);
-    if (r.lib && r.rahmen.length) add("Rigging", r.lib.id, r.rahmen.length);
+    for (const ra of r.rahmen) add("Rigging", ra.lib.id, 1);
   }
   for (const g of P.geraete) {
     if (g.art === "einspeisung" || g.art === "multicore") continue; // Multicore steht als Kabel in der Packliste

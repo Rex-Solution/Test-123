@@ -221,6 +221,10 @@ const BEISPIEL_LIBRARY = [
       led: { typ: "multicore", adern: 4, laengeM: m, aufloesung: "4 × etherCON" } } })),
   { id: "beispiel-flugrahmen-1m", name: "Flugrahmen 1 m (P4+ PRO)", kategorie: "Rigging",
     attribute: { hersteller: "LEDTEK", gewicht: null, led: { typ: "rigging", art: "flugrahmen", serien: ["P4+ PRO V3"], breiteModule: 2, lastMaxKg: null, punkte: null } } },
+  { id: "beispiel-flugrahmen-05m", name: "Flugrahmen 0,5 m (P4+ PRO)", kategorie: "Rigging",
+    attribute: { hersteller: "LEDTEK", gewicht: null, led: { typ: "rigging", art: "flugrahmen", serien: ["P4+ PRO V3"], breiteModule: 1, lastMaxKg: null, punkte: null } } },
+  ...[["1m", "1 m", 2], ["05m", "0,5 m", 1]].map(([k, t, n]) => ({ id: "beispiel-stacking-" + k, name: `Stacking-Bracket ${t} (P4+ PRO)`, kategorie: "Rigging",
+    attribute: { hersteller: "LEDTEK", gewicht: null, led: { typ: "rigging", art: "stacking", serien: ["P4+ PRO V3"], breiteModule: n, lastMaxKg: null, punkte: null } } })),
   ...[
     ["kabel-cee125", "CEE 125 A 5-pol", "strom", "Strom", "CEE 125 A", "CEE 125 A", [10, 25, 50], null],
     ["kabel-cee63", "CEE 63 A 5-pol", "strom", "Strom", "CEE 63 A", "CEE 63 A", [10, 25, 50], null],

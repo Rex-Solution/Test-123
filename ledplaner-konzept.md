@@ -35,7 +35,8 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Gemischte Module | Erlaubt im selben Screen. **Ein Datenport/-strang nur mit Modulen derselben Serie und derselben Receiving Card** (damit gleicher Pitch); verschiedene Größen dieser Serie (z.B. 1 × 0,5 m und 0,5 × 0,5 m) dürfen auf denselben Port |
 | Position | Je Screen **Höhe und Beschreibung** (z.B. „Bühne Mitte, UK 2,50 m“); **Kabellängen von Hand** |
 | Library LED-Modul | Grunddaten, Mechanik, Daten-/Strom-Grenzen, Grafik, **Receiving Card** |
-| Aufbau | Material **+ Lasten + Riggingplan**; Bauformen gerade, unregelmäßig/Lücken, Kurven/Winkel; 3D später |
+| Aufbau | Material **+ Lasten + Riggingplan**; Bauformen gerade, unregelmäßig/Lücken, Kurven/Winkel; 3D-Ansicht |
+| Brackets | Module sitzen **fest an Bracket-Plätzen** (ein Platz = eine Modulbreite; 50-cm-Bracket = 1 Platz, 1-m-Bracket = 2 Plätze links/rechts). Brackets legt der Planer **automatisch** über die belegten Spalten; Module rasten nur auf Plätzen ein. Rest (z.B. ungerade Spalten bei 1 m) **je Screen wählbar**: kleines Bracket ergänzen (Standard) oder großes halb belegt, Seite links/rechts. **Lücken erlaubt**, werden gemeldet. Gestellt **analog von unten** (Stacking-Bracket). Ohne gewähltes Bracket bleiben Module frei. |
 | Strom | **Mehrere Ebenen** (Einspeisung → Haupt-/Unterverteiler → Laka mit Spinne oder CEE-Kabel → Wand); Phasen L1/L2/L3; Reserve; **Einschaltstrom**-Prüfung |
 | Stromwege | **Vorschlag** des Programms oder **Pinsel**: Reihenfolge wird gemalt |
 | Verteiler-Übersicht | Last je Phase, Last je Abgang, **Max. und Durchschnitt**; kein automatischer Ausgleich |
@@ -382,6 +383,8 @@ Tablet-Bedienung: Zwei-Finger-Zoom/-Verschieben, Zoom-Knöpfe, Module mit dem Fi
 Einrasten als Schalter (statt Shift/Alt), Pinsel mit dem Finger, größere Bedienelemente, Seitenspalten hochkant ausklappbar.
 3D-Ansicht im Aufbau (Umschalter „3D“): Module mit Kurve und Unterkante, Flugrahmen, Boden-Raster, Person als Maßstab,
 drehen und zoomen mit Maus oder Fingern; 3D-Bild auch in der Kundenansicht.
+Brackets: Module fest an Bracket-Plätzen (Raster), Brackets automatisch inkl. Rest-Regel (ergänzen/halb, Seite),
+Lücken-Prüfung, „Ins Bracket-Raster setzen“, gestellt mit Stacking-Brackets von unten.
 
 **Nächste Schritte:**
 1. Im echten Einsatz ausprobieren (Beispielprojekt unter Einstellungen → Speichern/Laden) und Rückmeldung sammeln.

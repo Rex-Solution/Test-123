@@ -303,6 +303,45 @@ await p.click('[data-reiter="aufbau"]'); await p.click('[data-a="vorne"]'); awai
 pruefe("3D: zurück zur Vorderansicht", await p.locator("#zeichnung svg[data-ansicht]").count() === 1 && await p.locator("#zeichnung svg[data-dreid]").count() === 0);
 pruefe("3D: Kundenansicht mit 3D-Bild", await ev(() => kundenHtml().includes("data-dreid")));
 
+/* ---------- Brackets: Module fest an Bracket-Plätzen ---------- */
+{
+await ev(() => { P.screens[0].winkel = {}; ui.auswahl.clear(); aenderung(); });
+const br = () => ev(() => riggingDaten(P.screens[0]).rahmen.map(r => [r.lib.id.replace("beispiel-", ""), r.x, r.belegt, r.plaetze]));
+pruefe("Bracket: Raster 500 mm aktiv, 6 × 1 m", await ev(() => bracketRaster(P.screens[0])?.platz === 500) && JSON.stringify((await br()).map(x => x[0])) === JSON.stringify(Array(6).fill("flugrahmen-1m")));
+// Ziehen: rastet nur auf Bracket-Plätze (300 mm nach rechts → nächster Platz 500 mm)
+const ziel = await ev(() => { const s = P.screens[0]; const m = s.module.find(m => m.x === 5500 && m.y === 3000); return m.id; });
+const zb = await modulBox(ziel);
+const pxJeMm = await ev(() => 1 / mmJePixel($("#zeichnung svg")));
+await p.mouse.move(zb.x + zb.width / 2, zb.y + zb.height / 2); await p.mouse.down();
+await p.mouse.move(zb.x + zb.width / 2 + 330 * pxJeMm, zb.y + zb.height / 2 + 120 * pxJeMm, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(80);
+pruefe("Bracket: Ziehen rastet auf den nächsten Platz (6000/3000)", await ev(id => { const m = P.screens[0].module.find(m => m.id === id); return m.x === 6000 && m.y === 3000; }, ziel));
+pruefe("Bracket: Lücke gemeldet (Modul hängt ohne Verbindung zum Bracket)", await ev(() => riggingPruefungen().some(x => x.text.includes("Lücke in 1 Spalte "))));
+// ungerade: 13. Spalte belegt → 6 × 1 m + 1 × 0,5 m (ergänzen)
+pruefe("Bracket: ungerade → 50-cm-Bracket ergänzt (rechts)", JSON.stringify((await br()).slice(-2)) === JSON.stringify([["flugrahmen-1m", 5000, 2, 2], ["flugrahmen-05m", 6000, 1, 1]]), JSON.stringify(await br()));
+await p.selectOption('[data-rig="rest"]', "halb"); await p.waitForTimeout(50);
+pruefe("Bracket: halb belegt → 7 × 1 m, letztes 1/2", JSON.stringify((await br()).slice(-1)) === JSON.stringify([["flugrahmen-1m", 6000, 1, 2]]) && (await br()).length === 7);
+await p.selectOption('[data-rig="seite"]', "links"); await p.waitForTimeout(50);
+pruefe("Bracket: Seite links → halbes Bracket ragt links über", JSON.stringify((await br())[0]) === JSON.stringify(["flugrahmen-1m", -500, 1, 2]), JSON.stringify(await br()));
+await p.selectOption('[data-rig="rest"]', "ergaenzen"); await p.selectOption('[data-rig="seite"]', "rechts"); await p.waitForTimeout(50);
+// Pfeiltaste: ein Platz
+await ev(id => { ui.auswahl = new Set([id]); render(); }, ziel);
+await p.keyboard.press("ArrowLeft"); await p.waitForTimeout(50);
+pruefe("Bracket: Pfeiltaste verschiebt um einen Platz (6000 → 5500)", await ev(id => P.screens[0].module.find(m => m.id === id).x === 5500, ziel));
+// außerhalb des Rasters → Hinweis und „Ins Bracket-Raster setzen“
+await ev(id => { const m = P.screens[0].module.find(m => m.id === id); m.x = 6130; m.y = 3000; aenderung(); }, ziel);
+pruefe("Bracket: Modul außerhalb des Rasters gemeldet", await ev(() => riggingPruefungen().some(x => x.text.includes("1 Module nicht auf Bracket-Plätzen"))));
+await p.click('[data-rig-a="raster"]'); await p.waitForTimeout(50);
+pruefe("Bracket: „Ins Bracket-Raster setzen“", await ev(id => P.screens[0].module.find(m => m.id === id).x === 6000, ziel));
+await ev(id => { const s = P.screens[0]; const m = s.module.find(m => m.id === id); m.x = 5500; aenderung(); }, ziel);
+// gestellt: Stacking-Bracket unten, keine Aufhängepunkte
+await ev(() => { const s = P.screens[0]; s.bauart = "gestellt"; for (const id of ["beispiel-stacking-1m", "beispiel-stacking-05m"]) { nutzeEintrag(id); P.library[id].attribute.gewicht = 9; } s.rigging.lib = "beispiel-stacking-1m"; s.rigging.lib2 = "beispiel-stacking-05m"; aenderung(); });
+const st = await ev(() => { const d = riggingDaten(P.screens[0]); return { n: d.rahmen.length, punkte: d.punkte.length, kg: +d.gesamtKg.toFixed(1), unten: riggingSvg(P.screens[0]).includes("rect") }; });
+pruefe("Bracket gestellt: 6 Stacking-Brackets unten, Bodenlast", st.n === 6 && st.punkte === 0 && st.kg === 602.4 + 54 && st.unten, JSON.stringify(st));
+await ev(() => { $("#toasts").innerHTML = ""; });
+await p.screenshot({ path: path.join(AUSGABE, "bracket-gestellt.png") });
+await ev(() => { const s = P.screens[0]; s.bauart = "geflogen"; s.rigging.lib = "beispiel-flugrahmen-1m"; s.rigging.lib2 = "beispiel-flugrahmen-05m"; aenderung(); });
+}
+
 /* ---------- Speichern / Laden / Autosave ---------- */
 await p.click('[data-haupt="planen"]');
 const [dl] = await Promise.all([p.waitForEvent("download"), p.keyboard.press("Control+s")]);

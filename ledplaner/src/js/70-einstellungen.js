@@ -112,7 +112,8 @@ function beispielProjektLaden() {
   const v = verteilerAnlegen("beispiel-stagesmarts-c24", false);
   v.standort = "Bühne links hinten"; v.speisung.von = ein.id; v.speisung.laengeM = 25;
   s.strom.verteilung = "ausgang";
-  s.rigging = { lib: "beispiel-flugrahmen-1m", anzeigen: true }; nutzeEintrag("beispiel-flugrahmen-1m");
+  s.rigging = { lib: "beispiel-flugrahmen-1m", lib2: "beispiel-flugrahmen-05m", rest: "ergaenzen", seite: "rechts", anzeigen: true };
+  nutzeEintrag("beispiel-flugrahmen-1m"); nutzeEintrag("beispiel-flugrahmen-05m");
   gespeicherterStand = null;
   historieStart();
   ui.haupt = "planen"; ui.reiter = "strom";

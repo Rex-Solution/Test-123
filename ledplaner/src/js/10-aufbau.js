@@ -34,8 +34,8 @@ REITER.aufbau = {
       return `<div class="palette-item" draggable="${nutzbar}" data-lib="${e.id}" title="${nutzbar ? "In die Zeichnung ziehen oder anklicken" : "Pflichtangaben fehlen – in der Library ergänzen"}" style="${nutzbar ? "" : "opacity:.5"}">
         <span class="form" style="width:${Math.max(6, (led.mmB || 500) * f)}px;height:${Math.max(6, (led.mmH || 500) * f)}px"></span>
         <span class="name">${esc(e.name)}</span>${badgeHtml(e)}</div>`;
-    }).join("") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: rechts anfügen.
-      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei). Klick: rechts anfügen.
+    }).join("") + (bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? `<p class="klein leise">Bracket-Raster aktiv: Module sitzen fest an Bracket-Plätzen und rasten beim Ziehen, Einfügen und mit den Pfeiltasten nur dort ein.</p>` : "") + (ui.touch ? `<p class="klein leise">Mit dem Finger in die Wand ziehen: Modul setzen (rastet ein, „Einrasten: aus“ = frei). Antippen: rechts anfügen.
+      Zwei Finger: zoomen und verschieben. Ein Finger auf freier Fläche: Auswahlrahmen.</p>` : `<p class="klein leise">Ziehen: Modul setzen${bracketRaster(aktuellerScreen() || { module: [], bauart: "" }) ? "" : " (rastet an Nachbarn ein, <kbd>Alt</kbd> = frei)"}. Klick: rechts anfügen.
       <kbd>Entf</kbd> entfernen · <kbd>Strg</kbd>+<kbd>A</kbd> alles · Pfeile 10 mm (<kbd>Shift</kbd> 100 mm).</p>`);
   },
 
@@ -138,9 +138,10 @@ REITER.aufbau = {
     if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === "d") { aufbauDuplizieren(s); return true; }
     const pfeile = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     if (pfeile[k] && ui.auswahl.size) {
-      const schritt = e.shiftKey ? 100 : 10;
+      const raster = bracketRaster(s);   // an Brackets: um einen Platz bzw. eine Modulhöhe
       const [dx, dy] = pfeile[k];
-      verschiebeAuswahl(s, dx * schritt * (ui.hinten ? -1 : 1), dy * schritt);
+      const sx = raster ? raster.platz : e.shiftKey ? 100 : 10, sy = raster ? raster.hoehe : e.shiftKey ? 100 : 10;
+      verschiebeAuswahl(s, dx * sx * (ui.hinten ? -1 : 1), dy * sy);
       return true;
     }
     return false;
@@ -203,8 +204,10 @@ async function rasterEinfuegen() {
   if (!(sp >= 1 && sp <= 200 && re >= 1 && re <= 200)) return toast("Spalten/Reihen: 1 bis 200.", "fehler");
   nutzeEintrag(erg.lib);
   const { b, h } = modMass({ lib: erg.lib });
+  const raster = bracketRaster(s, erg.lib);
+  const start = raster ? aufRaster(raster, erg.x || 0, erg.y || 0) : { x: erg.x || 0, y: erg.y || 0 };
   const neu = [];
-  for (let r = 0; r < re; r++) for (let c = 0; c < sp; c++) neu.push({ id: neueId("m"), lib: erg.lib, x: (erg.x || 0) + c * b, y: (erg.y || 0) + r * h });
+  for (let r = 0; r < re; r++) for (let c = 0; c < sp; c++) neu.push({ id: neueId("m"), lib: erg.lib, x: start.x + c * b, y: start.y + r * h });
   if (!platzFrei(s, neu.map(modRect))) return toast("Das Raster überlappt vorhandene Module.", "fehler");
   s.module.push(...neu);
   ui.auswahl = new Set(neu.map(m => m.id));
@@ -317,7 +320,12 @@ function aufbauInteraktion(svg, s) {
     const p = svgPunkt(svg, e);
     if (zug) {
       let dx = (p.x - zug.start.x) * (ui.hinten ? -1 : 1), dy = p.y - zug.start.y;
-      if (!e.altKey && ui.einrasten) {
+      const raster = bracketRaster(s);
+      if (raster) {   // an Brackets gebunden: nur auf Bracket-Plätze
+        const r = modRect(s.module.find(m => m.id === zug.ankerId));
+        const z = aufRaster(raster, r.x + dx, r.y + dy);
+        dx = z.x - r.x; dy = z.y - r.y;
+      } else if (!e.altKey && ui.einrasten) {
         const anker = s.module.find(m => m.id === zug.ankerId);
         const r = modRect(anker);
         const andere = s.module.filter(m => !ui.auswahl.has(m.id)).map(modRect);
@@ -366,7 +374,9 @@ function modulAbsetzen(svg, s, lib, clientX, clientY, frei) {
   const p = svgPunkt(svg, { clientX, clientY });
   let x = p.x - b / 2, y = p.y - h / 2;
   if (ui.hinten) { const g = grenzen(s.module); x = g.x + g.x + g.b - x - b; }
-  if (!frei && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
+  const raster = bracketRaster(s, lib);
+  if (raster) ({ x, y } = aufRaster(raster, x, y));
+  else if (!frei && s.module.length) ({ x, y } = einrasten({ x, y, b, h }, s.module.map(modRect), 40 * mmJePixel(svg)));
   else if (!s.module.length) { x = Math.round(x / 10) * 10; y = Math.round(y / 10) * 10; }
   const m = modulHinzufuegen(s, lib, x, y);
   if (m) { ui.auswahl = new Set([m.id]); aenderung(); }

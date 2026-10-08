@@ -38,9 +38,9 @@ function dreidSzene(s) {
     }
   }
   // Flugrahmen und Aufhängung
-  const r = s.bauart === "geflogen" ? riggingDaten(s) : null;
-  if (r?.rahmen.length) {
-    const oben = uk + g.h;
+  const r = riggingDaten(s);
+  if (r.rahmen.length) {
+    const oben = s.bauart === "geflogen" ? uk + g.h : uk - 120;   // gestellt: Stacking-Bracket unter der Wand
     for (const ra of r.rahmen) {
       const xs = [ra.x, ...kanten.filter(k => k > ra.x + 0.5 && k < ra.x + ra.b - 0.5), ra.x + ra.b];
       for (let i = 0; i + 1 < xs.length; i++) {
@@ -48,7 +48,7 @@ function dreidSzene(s) {
         flaechen.push({ pts: [[x1, oben + 120, z1], [x2, oben + 120, z2], [x2, oben, z2], [x1, oben, z1]], rahmen: true });
       }
     }
-    for (const p of r.punkte) { const [x, z] = pos(p.x); linien.push({ a: [x, oben + 120, z], b: [x, oben + 2500, z], farbe: "#9a9a9a", strich: true }); }
+    if (s.bauart === "geflogen") for (const p of r.punkte) { const [x, z] = pos(p.x); linien.push({ a: [x, oben + 120, z], b: [x, oben + 2500, z], farbe: "#9a9a9a", strich: true }); }
   }
   // Boden-Raster (1 m) und Person
   const breite = Math.ceil((L.sehne / 2 + 3000) / 1000) * 1000;

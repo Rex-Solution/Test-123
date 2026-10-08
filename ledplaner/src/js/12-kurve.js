@@ -108,14 +108,14 @@ async function winkelDialog(s) {
 function kurveMarkenSvg(s, alleFugen = true) {
   if (!s.module.length) return "";
   const g = grenzen(s.module);
-  const mm = Math.max(g.b, g.h, 1000), fs = mm * 0.02, st = Math.max(4, mm / 900);
+  const mm = Math.max(g.b, g.h, 1000), fs = mm * 0.02, st = Math.max(4, mm / 900), dy = untenVersatz(s);
   let t = `<g class="fugen">`;
   for (const f of screenFugen(s)) {
     if (!f.grad && (!alleFugen || !f.durchgehend)) continue;
     const farbe = !f.durchgehend ? "#d29922" : f.grad ? "#4da3ff" : "#6b6b6b";
     if (f.grad) t += `<line x1="${f.x}" y1="${g.y}" x2="${f.x}" y2="${g.y + g.h}" stroke="${farbe}" stroke-width="${st * 3}" stroke-dasharray="${st * 10} ${st * 6}" pointer-events="none"/>`;
-    t += `<g data-fuge="${f.x}" style="cursor:pointer"><rect x="${f.x - fs * 1.6}" y="${g.y + g.h + fs * 0.25}" width="${fs * 3.2}" height="${fs * 1.3}" rx="${fs * 0.3}" fill="#141414" stroke="${farbe}" stroke-width="${st}"/>
-      <text x="${f.x}" y="${g.y + g.h + fs * 1.25}" font-size="${fs * 0.9}" fill="${farbe}" text-anchor="middle">${f.grad > 0 ? "+" : ""}${fmtFlex(f.grad)}°</text></g>`;
+    t += `<g data-fuge="${f.x}" style="cursor:pointer"><rect x="${f.x - fs * 1.6}" y="${g.y + g.h + dy + fs * 0.25}" width="${fs * 3.2}" height="${fs * 1.3}" rx="${fs * 0.3}" fill="#141414" stroke="${farbe}" stroke-width="${st}"/>
+      <text x="${f.x}" y="${g.y + g.h + dy + fs * 1.25}" font-size="${fs * 0.9}" fill="${farbe}" text-anchor="middle">${f.grad > 0 ? "+" : ""}${fmtFlex(f.grad)}°</text></g>`;
   }
   return t + "</g>";
 }
