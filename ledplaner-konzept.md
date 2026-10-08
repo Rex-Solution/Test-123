@@ -47,6 +47,8 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Signalfluss-Planer | Beide Module **eigenständig nutzbar**; sind **beide freigeschaltet**, lassen sie sich **verknüpfen** (dann kommen Zuspieler aus dem Signalfluss-Plan) |
 | Oberfläche | **Rex-Styleguide** (`rex-styleguide.md`): dunkel, Kopfleiste mit Hauptreitern **Planen · Library · Einstellungen**, Library als Manager-Ansicht |
 | Ausgaben | Pläne (PDF), Listen, Kundenansicht, Rückgabe ans Rex-System |
+| Druckformat | Standard **A4 hoch**; zusätzlich alle Pläne als **A4 quer oder A3 quer** |
+| Farben Strom/Signal | **Interne freie Farben** für Kreise, Ports und Phasen erlaubt (Palette in Abschnitt 3) |
 | Werkzeugleiste | Duplizieren/Spiegeln, Erweitern/Kürzen, Module auswählen, Ausrichten/Maße |
 | Freischaltung | Über die **Benutzerverwaltung des Rex-Systems**; bis zur DB-Anbindung ein einfacher Schalter |
 | Name | **LED-Planer** |
@@ -107,13 +109,37 @@ ungespeicherten Änderungen, Rückfrage nur vor Löschen/Datenverlust.
 - **Kabel** nach Kabel-Farbsystem: Strom `#a3a3a3`, LAN `#22d3ee`, Fiber `#f97316`,
   Multicore/Laka (Harting) `#808000`, Socapex `#0f766e`, HDMI/SDI/DP wie festgelegt.
 - **Stecker** nach Gewerk: Strom Orange-Familie, Netzwerk & Daten Türkis, Glasfaser Blau, Video Flieder.
-- Offen: Farben zur Unterscheidung **einzelner Stromkreise, Ports und Phasen**
-  (siehe offene Fragen) – der Styleguide erlaubt keine freien Farben.
+- **Interne Farben für Strom und Signal** (Ausnahme vom Styleguide, freigegeben
+  am 08.10.2026): Stromkreise und Datenports bekommen eigene Farben, damit Wege in
+  der Zeichnung unterscheidbar sind. Vorschlag (10 Töne, auf dunklem Grund gut
+  lesbar, ohne Rot – Rot bleibt Fehlern vorbehalten):
+
+  | Nr. | Farbe | Nr. | Farbe |
+  | --- | --- | --- | --- |
+  | 1 | `#4dabf7` Blau | 6 | `#66d9e8` Cyan |
+  | 2 | `#f783ac` Rosa | 7 | `#c0eb75` Limette |
+  | 3 | `#63e6be` Mint | 8 | `#e599f7` Orchidee |
+  | 4 | `#ffd43b` Gelb | 9 | `#ffc078` Apricot |
+  | 5 | `#b197fc` Lila | 10 | `#91a7ff` Indigo |
+
+  Ab Kreis/Port 11 wiederholen sich die Farben mit **gestrichelter** Linie.
+  Backup-Wege: gleiche Farbe wie der Hauptweg, **gepunktet**. Überlastete Wege:
+  zusätzlich orange Umrandung (`--warnung`) und Prüfhinweis. Im Druck werden
+  dieselben Töne dunkler abgestuft, damit sie auf Weiß lesbar bleiben.
+- **Phasen** (intern): L1 `#c08050` Braun · L2 `#e8e8e8` (steht für Schwarz; auf
+  dunklem Grund hell, im Druck `#111`) · L3 `#8b949e` Grau – angelehnt an die
+  Aderfarben, immer zusätzlich mit Beschriftung „L1/L2/L3“.
 
 ### Druck
 Weißes Papier, Kopfzeile mit Logo und Titel, Deckblatt, Überschriften in
-Großbuchstaben, A4 hoch (Ausnahme für große Pläne siehe offene Fragen).
-Zeichnungen dürfen ihren dunklen Grund behalten.
+Großbuchstaben. Zeichnungen dürfen ihren dunklen Grund behalten.
+
+Zwei Druckvarianten werden angeboten:
+1. **Standard: A4 hoch** nach Styleguide – vollständiger Bericht (Deckblatt,
+   alle Pläne und Listen).
+2. **Zusatz: Großformat** – dieselben Pläne (Aufbau/Rigging, Strom, Signal,
+   Ausgabe) noch einmal wahlweise auf **A4 quer** oder **A3 quer**, für große
+   Wände und zum Aushängen vor Ort. Listen bleiben im A4-hoch-Bericht.
 
 ### Verknüpfung
 Braucht der LED-Planer Daten des Signalfluss-Planers, wird dessen Oberfläche
@@ -284,9 +310,7 @@ es aber schon in Phase 1.
 
 1. **Bestand**: Eigene Stromverteiler, Lakas/Spinnen, Stageboxen, Multicores, Flugrahmen. LED-Module und Prozessor: Beispieldaten in `ledplaner-beispieldaten.md` (LEDTEK P4+WH/P4+sWH PRO V3, NovaStar MX30).
 2. **Datenblätter**: LEDTEK V3 (Einschaltstrom, max. Module je Brücke/Strang, Rigging-Grenzen), NovaStar-Kompatibilität MX30 ↔ A8s.
-3. **Farben für Kreise, Ports und Phasen**: Der Styleguide verbietet freie Farben. Vorschlag: Linienfarbe nach Kabeltyp, Kreise/Ports über Nummer + Strichart unterscheiden, Phasen L1/L2/L3 als Beschriftung – oder das Farbsystem um eine Reihe „Kreise/Ports“ erweitern?
-4. **Druckformat**: Styleguide sagt A4 hoch. Für Rigging-, Strom- und Signalpläne großer Wände A4/A3 **quer** zulassen?
-5. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
+3. **Mapping (Signal/Ausgabe)**: eigene Runde – u.a. wie Bereiche mit unterschiedlichem Pitch in einem Screen gemappt werden.
 
 ## 13. Stand und nächste Schritte
 
@@ -300,6 +324,6 @@ geteilter Führung, Mehrbenutzer mit Sperre, Laptop + offline, Name, Rolle des
 Prototyps, Fahrplan in fünf Phasen. Es wurde nichts programmiert.
 
 **Nächste Schritte:**
-1. Fragen 3 und 4 (Farben, Druckformat) klären; Bestandsliste und Datenblätter nachreichen.
+1. Bestandsliste und Datenblätter nachreichen.
 2. Runde zum **Mapping** (Signal und Ausgabe).
 3. Danach Phase 0: Skizzen der vier Reiter und Library-Datenformat.
