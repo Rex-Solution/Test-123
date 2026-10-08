@@ -57,7 +57,7 @@ zurückspringen, die Reihenfolge oben ist der empfohlene Weg.
 | Kabel | Eigener Reiter **Kabel**: jede Verbindung mit **Kabeltyp, Länge, Anzahl, Von, Nach**; bearbeitbar in der Liste und beim angeklickten Kabel; Zusammenfassung nach Typ und Länge als Packliste |
 | Freischaltung | Über die **Benutzerverwaltung des Rex-Systems**; bis zur DB-Anbindung ein einfacher Schalter |
 | Name | **LED-Planer** |
-| Geräte vor Ort | Vorerst **Laptop** (Maus/Tastatur), muss **offline** funktionieren; **Tablet** (Touch) später |
+| Geräte vor Ort | **Laptop** (Maus/Tastatur) und **Tablet** (Touch, seit 10/2026), muss **offline** funktionieren |
 | Führung bei Verknüpfung | **Geteilt**: LED-Planer führend für Prozessoren, Stageboxen, Ports; Signalfluss-Planer führend für Zuspieler und Outputs; im jeweils anderen Modul nur lesbar bzw. als Vorschlag |
 | Mehrbenutzer | **Nacheinander mit Sperre** („wird gerade von X bearbeitet“), andere lesen; ab DB-Anbindung |
 | Prototyp | `ledraster.html` dient **nur als Referenz**; der LED-Planer wird neu geschrieben |
