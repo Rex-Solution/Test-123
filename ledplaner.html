@@ -252,7 +252,7 @@ body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
     <button role="tab" data-haupt="einstellungen">Einstellungen</button>
   </nav>
   <div class="status">
-    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version e0f7288</span>
+    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version e831fc3</span>
     <span id="status-name"></span>
     <span id="status-gespeichert" class="leise"></span>
   </div>
@@ -756,6 +756,14 @@ const BEISPIEL_LIBRARY = [
         { name: "Port", typ: "LAN", richtung: "out", rolle: "port", anzahl: 10 },
         { name: "Strom ein", typ: "PowerCON TRUE1", richtung: "in", rolle: "strom" }],
       led: { typ: "stagebox", eingang: "2 × 10G optisch (LC; -M multimode 300 m, -S singlemode)", ports: 10, pxJePort: null, he: 1 } } },
+  { id: "beispiel-novastar-cvt4k-s", name: "NovaStar CVT4K-S", kategorie: "Video · Stagebox",
+    attribute: { hersteller: "NovaStar", gewicht: 4.6, stromverbrauch: 10, grafik: null,
+      quelle: "Händlerangaben (Procom, Stage Lighting Store), Stand 10/2026 – Stecker Strom angenommen, Pixel je Port und Höhe fehlen; mit NovaStar-Datenblatt prüfen",
+      anschluesse: [
+        { name: "OPT", typ: "Fiber", richtung: "in", rolle: "glasfaser", anzahl: 4 },
+        { name: "Port", typ: "LAN", richtung: "out", rolle: "port", anzahl: 16 },
+        { name: "Strom ein", typ: "Kaltgeräte", richtung: "in", rolle: "strom" }],
+      led: { typ: "stagebox", eingang: "4 × LC Singlemode (2 Haupt, 2 Backup)", ports: 16, pxJePort: null, he: null } } },
   ...[25, 50].map(m => ({ id: "beispiel-multicore-cat4-" + m, name: `Cat-Multicore 4-fach · ${m} m`, kategorie: "Video · Multicore",
     attribute: { hersteller: "", gewicht: null, quelle: "Platzhalter – Bestand",
       led: { typ: "multicore", adern: 4, laengeM: m, aufloesung: "4 × etherCON" } } })),
