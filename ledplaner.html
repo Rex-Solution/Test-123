@@ -252,7 +252,7 @@ body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
     <button role="tab" data-haupt="einstellungen">Einstellungen</button>
   </nav>
   <div class="status">
-    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version d123c5b</span>
+    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version b637c6e</span>
     <span id="status-name"></span>
     <span id="status-gespeichert" class="leise"></span>
   </div>
@@ -561,8 +561,9 @@ const SCHEMA = {
     { abschnitt: "Kapazität" },
     { p: "led.pxJePort", label: "Pixel je Port", einheit: "px", art: "zahl", pf: "pflicht" },
     { p: "led.pxGesamt", label: "Pixel gesamt", einheit: "px", art: "zahl", pf: "pflicht" },
-    { p: "led.layer", label: "Layer", art: "zahl", pf: "pflicht" },
+    { p: "led.layer", label: "Layer", art: "zahl", pf: "pruef" },
     { p: "led.backup", label: "Backup-Ports möglich", art: "ja", pf: "" },
+    { p: "led.portsUeberStagebox", label: "Ports nur über Stagebox (z.B. CVT)", art: "ja", pf: "" },
     { abschnitt: "Gerät" }, { p: "led.he", label: "Höheneinheiten", art: "zahl", pf: "pruef" },
     GEMEINSAM.gewicht("pruef"), GEMEINSAM.strom("pruef"), GEMEINSAM.quelle, GEMEINSAM.warengruppe, GEMEINSAM.anschluesse,
   ],
@@ -723,13 +724,13 @@ const BEISPIEL_LIBRARY = [
       led: { typ: "prozessor", familie: "COEX", receivingCards: ["NovaStar A8s"], pxJePort: 659722, pxGesamt: 6500000, layer: 3, backup: true, he: null } } },
   { id: "beispiel-novastar-mx2000-pro", name: "NovaStar MX2000 Pro", kategorie: "Video · LED-Prozessor",
     attribute: { hersteller: "NovaStar", gewicht: 8.2, stromverbrauch: null,
-      quelle: "Händlerangaben MX2000 Pro (Stage Lighting Store, Audioeffetti), Stand 10/2026; Bestückung bei Rex: 1 × HDMI 4K, 1 × DP 4K, 4 × 10G-Glasfaser; Pixel je Port = 10 × 659.722 (10G = 10 × 1G) – Datenblatt prüfen, Layer fehlt",
+      quelle: "Händlerangaben MX2000 Pro (Stage Lighting Store, Audioeffetti), Stand 10/2026; Bestückung bei Rex: 1 × HDMI 4K, 1 × DP 4K, 4 × 10G-Glasfaser; Ports und Layer kommen über die angeschlossene CVT (10 Ports je CVT, je Port 659.722 px wie bei 1G) – Datenblatt prüfen",
       anschluesse: [
         { name: "HDMI 2.0", typ: "HDMI", richtung: "in", rolle: "video", maxB: 4096, maxH: 2160, maxHz: 60 },
         { name: "DP 1.2", typ: "DP", richtung: "in", rolle: "video", maxB: 4096, maxH: 2160, maxHz: 60 },
         { name: "OPT", typ: "Fiber", richtung: "out", rolle: "glasfaser", anzahl: 4 },
         { name: "Strom ein", typ: "Kaltgeräte", richtung: "in", rolle: "strom" }],
-      led: { typ: "prozessor", familie: "MX", receivingCards: ["NovaStar A8s"], pxJePort: 6597220, pxGesamt: 35380000, layer: null, backup: true, he: 2 } } },
+      led: { typ: "prozessor", familie: "MX", receivingCards: ["NovaStar A8s"], pxJePort: 659722, pxGesamt: 35380000, layer: null, backup: true, he: 2, portsUeberStagebox: true } } },
   { id: "beispiel-stagesmarts-c24", name: "StageSmarts C24 (4 × Harting)", kategorie: "Strom · Verteiler",
     attribute: { hersteller: "StageSmarts", gewicht: 18, quelle: "StageSmarts Datenblatt / Händler",
       led: { typ: "verteiler", einspeisung: { typ: "CEE 63 A 5-pol", ampere: 63, netz: "TN-S 230/400 V" },
@@ -3645,7 +3646,18 @@ function stagboxStromSvg(s) {
 function prozessorLed(g) { return eintrag(g.lib)?.attribute?.led || {}; }
 function prozessorPorts(g) {
   const ports = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "port");
-  return ports.length ? ports.map((a, i) => ({ nr: i + 1, name: a.name })) : [];
+  const eigene = ports.length ? ports.map((a, i) => ({ nr: i + 1, name: a.name })) : [];
+  /* Prozessor ohne eigene Ports (led.portsUeberStagebox, z.B. MX2000 Pro): jede angeschlossene Stagebox stellt ihre Ports bereit */
+  for (const b of portBloecke(g)) for (let nr = b.von; nr <= b.bis; nr++) eigene.push({ nr, name: `${b.box.name} · Port ${nr - b.von + 1}` });
+  return eigene;
+}
+/* Port-Blöcke der Stageboxen eines Prozessors mit led.portsUeberStagebox (fortlaufend hinter den eigenen Ports) */
+function portBloecke(g) {
+  if (!prozessorLed(g).portsUeberStagebox) return [];
+  let nr = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "port").length;
+  return wegGeraete(g.id).filter(d => d.art === "stagebox").map(box => {
+    const n = wegKapazitaet(box) || 0; const b = { box, von: nr + 1, bis: nr + n }; nr += n; return b;
+  });
 }
 function modulSchluessel(m) { const led = eintrag(m.lib)?.attribute?.led || {}; return `${led.serie || "?"}|${led.receivingCard || "?"}`; }
 function modulPixel(m) { const led = eintrag(m.lib)?.attribute?.led || {}; return (led.pixelB || 0) * (led.pixelH || 0); }
@@ -4222,8 +4234,10 @@ function wegAnlegen(art, libId, gId) {
 /* Freie (belegte, aber noch keinem Weg zugeordnete) Ports bis zur Kapazität übernehmen */
 function wegPortsAuffuellen(d) {
   const kap = wegKapazitaet(d) ?? Infinity;
+  const blk = portBloecke(geraetById(d.prozessor)).find(b => b.box === d);   /* Prozessor ohne eigene Ports: nur Ports der eigenen Stagebox */
   for (const nr of genutztePorts(d.prozessor)) {
     if (d.ports.length >= kap) break;
+    if (blk && (nr < blk.von || nr > blk.bis)) continue;
     if (!portWeg(d.prozessor, nr)) d.ports.push(nr);
   }
 }
@@ -4340,6 +4354,12 @@ function wegAendern(d, feld, w) {
 /* ---------- Prüfungen ---------- */
 function wegePruefungen() {
   const liste = [];
+  for (const g of P.geraete.filter(x => x.art === "prozessor" && prozessorLed(x).portsUeberStagebox)) {
+    const vorhanden = new Set(prozessorPorts(g).map(p => p.nr));
+    const ohne = [...belegtePorts(g.id)].filter(nr => !vorhanden.has(nr)).sort((a, b) => a - b);
+    if (ohne.length) liste.push({ art: "fehler", text: `${g.name}: Port ${ohne.join(", ")} belegt, aber keine Stagebox liefert diese Ports – Stagebox anlegen oder Stränge verschieben.`, ziel: "prozessor:" + g.id });
+    else if (!vorhanden.size) liste.push({ art: "info", text: `${g.name}: Ports kommen von einer Stagebox – zuerst eine anlegen.`, ziel: "prozessor:" + g.id });
+  }
   for (const d of P.geraete.filter(istWeg)) {
     const g = geraetById(d.prozessor); const z = "weg:" + d.id;
     if (!g) { liste.push({ art: "fehler", text: `${d.name}: Prozessor fehlt.`, ziel: z }); continue; }

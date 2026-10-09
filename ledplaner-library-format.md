@@ -95,8 +95,9 @@ Anschlüsse (`attribute.anschluesse`): Strom ein/aus, Daten ein/aus – siehe 4.
 | `receivingCards` | Liste Text | ✔ | Kompatibilität; nur diese Prozessoren werden im Reiter Signal angeboten |
 | `pxJePort` | Zahl px | ✔ | Kapazität je Ausgangsport bei 60 Hz / 8 bit |
 | `pxGesamt` | Zahl px | ✔ | Gesamtkapazität |
-| `layer` | Zahl | ✔ | Prüfung im Reiter Ausgabe |
+| `layer` | Zahl | Prüf | Prüfung im Reiter Ausgabe; `null` = keine Prüfung (z.B. MX2000 Pro: Layer hängen an der CVT) |
 | `backup` | ja/nein | – | Backup-Ports möglich |
+| `portsUeberStagebox` | ja/nein | – | Prozessor hat keine eigenen Ports; jede angeschlossene Stagebox (z.B. CVT10) stellt ihre Ports bereit, fortlaufend nummeriert (MX2000 Pro) |
 | `he` | Zahl | Prüf | Höheneinheiten |
 
 Anschlüsse: Eingänge (mit `maxB`, `maxH`, `maxHz`, `loop`) und Ausgangs-Ports (Daten), optional Glasfaser.

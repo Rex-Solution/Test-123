@@ -4,7 +4,18 @@
 function prozessorLed(g) { return eintrag(g.lib)?.attribute?.led || {}; }
 function prozessorPorts(g) {
   const ports = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "port");
-  return ports.length ? ports.map((a, i) => ({ nr: i + 1, name: a.name })) : [];
+  const eigene = ports.length ? ports.map((a, i) => ({ nr: i + 1, name: a.name })) : [];
+  /* Prozessor ohne eigene Ports (led.portsUeberStagebox, z.B. MX2000 Pro): jede angeschlossene Stagebox stellt ihre Ports bereit */
+  for (const b of portBloecke(g)) for (let nr = b.von; nr <= b.bis; nr++) eigene.push({ nr, name: `${b.box.name} · Port ${nr - b.von + 1}` });
+  return eigene;
+}
+/* Port-Blöcke der Stageboxen eines Prozessors mit led.portsUeberStagebox (fortlaufend hinter den eigenen Ports) */
+function portBloecke(g) {
+  if (!prozessorLed(g).portsUeberStagebox) return [];
+  let nr = anschluesseAusklappen(eintrag(g.lib)?.attribute?.anschluesse).filter(a => a.rolle === "port").length;
+  return wegGeraete(g.id).filter(d => d.art === "stagebox").map(box => {
+    const n = wegKapazitaet(box) || 0; const b = { box, von: nr + 1, bis: nr + n }; nr += n; return b;
+  });
 }
 function modulSchluessel(m) { const led = eintrag(m.lib)?.attribute?.led || {}; return `${led.serie || "?"}|${led.receivingCard || "?"}`; }
 function modulPixel(m) { const led = eintrag(m.lib)?.attribute?.led || {}; return (led.pixelB || 0) * (led.pixelH || 0); }

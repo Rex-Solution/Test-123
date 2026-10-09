@@ -48,8 +48,10 @@ function wegAnlegen(art, libId, gId) {
 /* Freie (belegte, aber noch keinem Weg zugeordnete) Ports bis zur Kapazität übernehmen */
 function wegPortsAuffuellen(d) {
   const kap = wegKapazitaet(d) ?? Infinity;
+  const blk = portBloecke(geraetById(d.prozessor)).find(b => b.box === d);   /* Prozessor ohne eigene Ports: nur Ports der eigenen Stagebox */
   for (const nr of genutztePorts(d.prozessor)) {
     if (d.ports.length >= kap) break;
+    if (blk && (nr < blk.von || nr > blk.bis)) continue;
     if (!portWeg(d.prozessor, nr)) d.ports.push(nr);
   }
 }
@@ -166,6 +168,12 @@ function wegAendern(d, feld, w) {
 /* ---------- Prüfungen ---------- */
 function wegePruefungen() {
   const liste = [];
+  for (const g of P.geraete.filter(x => x.art === "prozessor" && prozessorLed(x).portsUeberStagebox)) {
+    const vorhanden = new Set(prozessorPorts(g).map(p => p.nr));
+    const ohne = [...belegtePorts(g.id)].filter(nr => !vorhanden.has(nr)).sort((a, b) => a - b);
+    if (ohne.length) liste.push({ art: "fehler", text: `${g.name}: Port ${ohne.join(", ")} belegt, aber keine Stagebox liefert diese Ports – Stagebox anlegen oder Stränge verschieben.`, ziel: "prozessor:" + g.id });
+    else if (!vorhanden.size) liste.push({ art: "info", text: `${g.name}: Ports kommen von einer Stagebox – zuerst eine anlegen.`, ziel: "prozessor:" + g.id });
+  }
   for (const d of P.geraete.filter(istWeg)) {
     const g = geraetById(d.prozessor); const z = "weg:" + d.id;
     if (!g) { liste.push({ art: "fehler", text: `${d.name}: Prozessor fehlt.`, ziel: z }); continue; }

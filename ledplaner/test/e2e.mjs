@@ -431,6 +431,28 @@ await ev(() => { const g = P.geraete.filter(g => g.art === "prozessor")[1]; P.ge
 await p.click(`#baum [data-geraet="${await ev(() => P.geraete.find(g => g.art === "verteiler").id)}"]`, { button: "right" }); await p.keyboard.press("Escape");
 pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count() === 0);
 
+/* ---------- MX2000 Pro: Ports kommen erst über die CVT ---------- */
+{
+  const r = await ev(() => {
+    window.confirm = () => true; beispielProjektLaden();
+    const g = prozessorAnlegen("beispiel-novastar-mx2000-pro");
+    const vorher = prozessorPorts(g).length;
+    const e = eintrag("beispiel-novastar-mx2000-pro");
+    const sb = wegAnlegen("stagebox", "beispiel-novastar-cvt10", g.id);
+    const mitCvt = prozessorPorts(g).map(p => p.nr);
+    const sb2 = wegAnlegen("stagebox", "beispiel-novastar-cvt10", g.id);
+    const zwei = prozessorPorts(g).length;
+    P.straenge.push({ id: "t1", screen: P.screens[0].id, prozessor: g.id, port: 25, backupPort: null, backupGeraet: null, module: [] });
+    const pr = wegePruefungen().some(x => x.art === "fehler" && x.text.includes("Port 25"));
+    P.straenge = P.straenge.filter(k => k.id !== "t1");
+    return { vorher, mitCvt: mitCvt.join(), zwei, pr, nutzbar: eintragNutzbar(e), layerOffen: vollstaendigkeit(e).offen.includes("Layer") };
+  });
+  pruefe("MX2000 Pro: ohne CVT keine Ports", r.vorher === 0, JSON.stringify(r));
+  pruefe("MX2000 Pro: eine CVT10 liefert Port 1–10, zwei CVT 20 Ports", r.mitCvt === "1,2,3,4,5,6,7,8,9,10" && r.zwei === 20, JSON.stringify(r));
+  pruefe("MX2000 Pro: Strang an Port ohne CVT wird gemeldet", r.pr, JSON.stringify(r));
+  pruefe("MX2000 Pro: nutzbar, Layer als offenes Prüffeld", r.nutzbar && r.layerOffen, JSON.stringify(r));
+}
+
 /* ---------- Spinne und Stagebox als Symbol in der Wand ---------- */
 {
   await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "strom"; ui.modus.strom = "wand"; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });
