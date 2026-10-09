@@ -310,6 +310,8 @@ const DEMO_SIGNALTYPEN = [
   { id: 'Speaker',  name: 'Lautsprecher (NL4)', farbe: '#5c3d2e' },
   { id: 'DMX',      name: 'DMX',               farbe: '#0ca678' },
   { id: 'Intercom', name: 'Intercom',          farbe: '#d6336c' },
+  { id: 'CEE',      name: 'Strom CEE (Starkstrom)', farbe: '#e03131' },
+  { id: 'Laka',     name: 'Strom Laka',        farbe: '#343a40' },
 ];
 
 const a = (name, typ, richtung) => ({ name, typ, richtung });
@@ -386,6 +388,10 @@ const DEMO_MATERIAL = [
     attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "LedTek", warengruppe: "Videotechnik/LED/LedTek/P2+/" } },
   { id: '1539', name: "LedTek P4+ WH V3", kategorie: 'Video · LED',
     attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "LedTek", warengruppe: "Videotechnik/LED/LedTek/P4+/" } },
+  { id: '1563', name: "Frameled Vanish 3.9-7.8", kategorie: 'Video · LED',
+    attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "Frameled", warengruppe: "Videotechnik/LED/Frameled/Vanish/" } },
+  { id: '1553', name: "Novastar MX2000 Pro", kategorie: 'Video · LED',
+    attribute: { anschluesse: [...reihe('HDMI 2.0 In','HDMI','in',4), ...reihe('DP 1.2 In','DP','in',4), ...reihe('Fiber Out','Fiber','out',8), a('LAN','LAN','bidi'), a('USB Control','USB','bidi')], gewicht: 8.2, hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
   { id: '1466', name: "Yamaha CL5", kategorie: 'Ton · Mischpult',
     attribute: { anschluesse: [...reihe('Omni In','Audio','in',8), ...reihe('Omni Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi'), a('Network','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Digital/Yamaha/" } },
   { id: '1470', name: "Yamaha QL1", kategorie: 'Ton · Mischpult',
@@ -448,6 +454,8 @@ const DEMO_MATERIAL = [
     attribute: { anschluesse: [a('DMX In','DMX','in'), a('DMX Out','DMX','out')], gewicht: 5.2, stromverbrauch: 110, hersteller: "Elation", warengruppe: "Lichttechnik/Scheinwerfer/MovingHead/Beam/" } },
   { id: '1002', name: "Elation ACL360 Bar", kategorie: 'Licht · Scheinwerfer',
     attribute: { anschluesse: [a('DMX In','DMX','in'), a('DMX Out','DMX','out')], gewicht: 10, stromverbrauch: 135, hersteller: "Elation", warengruppe: "Lichttechnik/Scheinwerfer/MovingHead/Bar/" } },
+  { id: '1570', name: "Stromverteiler 125A CEE auf 6x Laka", kategorie: 'Strom · Verteiler',
+    attribute: { anschluesse: [a('CEE 125A In','CEE','in'), ...reihe('Laka Out','Laka','out',6)], hersteller: "", warengruppe: "Stromtechnik/Verteiler/" } },
   { id: '1884', name: "GigaCore 10i", kategorie: 'Netzwerk · Switch',
     attribute: { anschluesse: [...reihe('LAN','LAN','bidi',8), ...reihe('SFP+','Fiber','bidi',2)], gewicht: 2.2, stromverbrauch: 13.5, hersteller: "Luminex", warengruppe: "Netzwerktechnik/Switch/Luminex/" } },
   { id: '1886', name: "GigaCore 16i", kategorie: 'Netzwerk · Switch',

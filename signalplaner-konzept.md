@@ -78,6 +78,8 @@ Datenbank kommen.
 | Speaker | Lautsprecher (NL4) | #5c3d2e |
 | DMX | DMX | #0ca678 |
 | Intercom | Intercom | #d6336c |
+| CEE | Strom CEE (Starkstrom) | #e03131 |
+| Laka | Strom Laka | #343a40 |
 
 ### Verbindungsregeln
 
