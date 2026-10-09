@@ -1,0 +1,30 @@
+feature,area,priority,original,clone,notes
+Leinwand-Auflösung frei einstellbar,leinwand,must,yes,yes,
+Auflösungs-Presets (HD/UHD/…),leinwand,should,yes,yes,
+Raster pro Kachel (Kachelgröße × Spalten × Zeilen),screen,must,yes,yes,
+Mehrere Raster auf einer Leinwand,screen,must,yes,yes,
+Position (Versatz) je Raster,screen,must,yes,yes,
+Raster per Maus verschieben,screen,should,yes,yes,
+Halbe Kachelhöhe (letzte Zeile),screen,must,yes,yes,
+Halbe Spalte links/rechts,screen,should,yes,yes,
+Kachelnummern / Beschriftung,darstellung,must,yes,yes,
+Mehrere Farbpaletten,darstellung,must,yes,yes,
+Kachelrahmen-Linien,darstellung,must,yes,yes,
+Kreis und Mittelkreuz,darstellung,should,yes,yes,
+Diagonalen je Kachel,darstellung,could,yes,yes,
+Versatz-Marker,darstellung,must,yes,yes,
+Leinwand-Maske,darstellung,must,yes,yes,
+PNG-Export gesamte Leinwand,export,must,yes,yes,
+PNG-Export je Raster,export,should,yes,yes,
+Masken-PNG (weiß auf schwarz),export,could,no,yes,eigene Ergänzung
+Live-Ausgabe im eigenen Fenster,live,must,yes,yes,Popup 1:1 (auch bei Windows-Skalierung); Bildschirmwahl in Chrome/Edge
+Wandernde Cursor in der Live-Ausgabe,live,must,yes,yes,
+Vollbild in der Live-Ausgabe,live,should,yes,yes,Taste F / Doppelklick
+After-Effects-Skript-Generator,export,should,yes,partial,ExtendScript .jsx; Leinwand-Comp + Unterkomposition je Wand. In echtem AE noch nicht getestet
+Slice-Liste CSV/JSON,export,should,no,yes,Ersatz für Resolume/Millumin-Export
+Standard-Raster beim Start,projekt,should,yes,yes,"""Als Standard"" + ""Neu""; zusätzlich Autosave der Sitzung"
+Projekt speichern/laden,projekt,must,yes,yes,
+Warnungen (außerhalb Leinwand / Überlappung),screen,could,no,yes,eigene Ergänzung
+Kachel-Presets aus Rex-Material-DB,projekt,could,no,partial,feste Liste gängiger Kachelauflösungen; DB-Anbindung offen
+Resolume Advanced-Output-Export,export,could,yes,no,Format nicht öffentlich spezifiziert / nicht prüfbar
+Millumin-Setup-Export,export,could,yes,no,Format nicht öffentlich spezifiziert / nicht prüfbar

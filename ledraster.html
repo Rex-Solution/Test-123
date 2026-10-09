@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED-Raster-Generator</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel2: #f1f3f5;
+    --line: #d5d9de;
+    --text: #1f2328;
+    --muted: #68717b;
+    --accent: #1c7ed6;
+    --accent-bg: #e7f1fb;
+    --ok: #2f9e44;
+    --bad: #e03131;
+    --warn: #b7791f;
+    --warn-bg: #fff3bf;
+    --buehne: #2b2f33;
+    --sel: #ffd43b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-columns: 290px 1fr 310px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "kopf kopf kopf" "links flaeche rechts";
+    overflow: hidden;
+  }
+
+  header {
+    grid-area: kopf;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0 10px 0 0; }
+  header .spacer { flex: 1; }
+  .trenner { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+  .umschalter { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .umschalter button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
+  .umschalter button:last-child { border-right: 0; }
+  .umschalter button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  #meldung { font-size: 13px; color: var(--muted); min-height: 1em; }
+  #meldung.bad { color: var(--bad); }
+  #meldung.ok { color: var(--ok); }
+
+  button, select, input {
+    font: inherit; color: var(--text);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 10px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primaer { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primaer:hover { filter: brightness(1.1); color: #fff; }
+  button.gefahr:hover { border-color: var(--bad); color: var(--bad); }
+  .umschalter button[aria-pressed="true"]:hover { color: #fff; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:invalid { border-color: var(--bad); }
+
+  aside { background: var(--panel); overflow-y: auto; padding: 12px; }
+  #links { grid-area: links; border-right: 1px solid var(--line); }
+  #rechts { grid-area: rechts; border-left: 1px solid var(--line); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .info-block h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 14px 0 6px; }
+  .hinweis { font-size: 12px; color: var(--muted); }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: var(--line); color: var(--muted); white-space: nowrap; }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+
+  .formgitter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+  .formgitter label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .formgitter label.breit { grid-column: 1 / -1; }
+  .formgitter label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
+  .formgitter input:not([type="checkbox"]), .formgitter select { width: 100%; min-width: 0; }
+  .knopfzeile { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .knopfzeile button { flex: 1; }
+
+  .info-block { background: var(--panel2); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .info-block h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .info-block h3 .farbe { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .werte { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  .werte b { color: var(--text); font-weight: 600; }
+  .warnung { font-size: 12px; color: var(--warn); margin: 6px 0 0; }
+  .warnung:empty { display: none; }
+  table.summen { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.summen td { padding: 2px 0; border-bottom: 1px solid var(--line); }
+  table.summen td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  #screen-liste { display: flex; flex-direction: column; gap: 4px; }
+  .screen-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 6px 8px; text-align: left;
+    background: var(--panel2); border: 1px solid transparent; border-radius: 6px;
+  }
+  .screen-item.sel { border-color: var(--accent); background: var(--accent-bg); }
+  .screen-item .farbe { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .screen-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leer { padding: 14px 10px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+
+  #flaeche { grid-area: flaeche; position: relative; overflow: hidden; background: var(--buehne); }
+  #scroller { position: absolute; inset: 0; overflow: auto; }
+  #scroller.pan, #scroller.pan * { cursor: grab !important; }
+  #scroller.pan.aktiv, #scroller.pan.aktiv * { cursor: grabbing !important; }
+  #buehne { position: relative; padding: 24px; min-width: 100%; min-height: 100%; display: grid; place-items: center; }
+  #vorschau { display: block; image-rendering: pixelated; box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 8px 30px rgba(0,0,0,.4); cursor: default; touch-action: none; }
+  #vorschau.greifen { cursor: grab; }
+  #vorschau.ziehen { cursor: grabbing; }
+  #auswahl { position: absolute; pointer-events: none; outline: 2px dashed var(--sel); display: none; }
+  #zoomanzeige { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; pointer-events: none; }
+  #kartenanzeige { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; pointer-events: none; }
+
+  @media (max-width: 1000px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 55vh auto;
+      grid-template-areas: "kopf" "links" "flaeche" "rechts";
+      overflow: auto; height: auto;
+    }
+    #links { border-right: 0; border-bottom: 1px solid var(--line); }
+    #rechts { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LED-Raster-Generator</h1>
+  <button id="btn-neu" title="Standard laden (verwirft die aktuelle Planung)">Neu</button>
+  <button id="btn-laden" title="Projekt (.ledraster.json) öffnen">Öffnen …</button>
+  <button id="btn-speichern" title="Projekt als .ledraster.json speichern">Speichern</button>
+  <input id="datei" type="file" accept=".json,application/json" hidden>
+  <button id="btn-undo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">↶</button>
+  <button id="btn-redo" title="Wiederholen (Strg+Y)" aria-label="Wiederholen">↷</button>
+  <span class="trenner"></span>
+  <span class="umschalter" role="group" aria-label="Karte">
+    <button data-karte="aus" title="Lage der Wände auf dem Ausgang des Zuspielers (Output)">Ausgang</button>
+    <button data-karte="ein" title="Lage der Wände im Inhalt / in der Komposition (Input)">Inhalt</button>
+  </span>
+  <span class="umschalter" role="group" aria-label="Ansicht">
+    <button data-ansicht="test" title="Testbild">Testbild</button>
+    <button data-ansicht="daten" title="Datenwege je Port">Daten</button>
+    <button data-ansicht="strom" title="Stromkreise">Strom</button>
+  </span>
+  <span class="trenner"></span>
+  <button id="btn-zoom-aus" title="Verkleinern (Strg + Mausrad)">−</button>
+  <button id="btn-zoom-ein" title="Vergrößern (Strg + Mausrad)">+</button>
+  <button id="btn-einpassen" title="Leinwand einpassen">Einpassen</button>
+  <button id="btn-1zu1" title="1 Pixel = 1 Bildschirmpixel">1:1</button>
+  <span id="meldung" role="status"></span>
+  <span class="spacer"></span>
+  <button id="btn-bericht" title="Bericht mit Karten, Verkabelung und Kabelliste – drucken oder als PDF speichern">Bericht / PDF</button>
+  <button id="btn-png" title="Aktuelle Karte und Ansicht als PNG in Originalauflösung">PNG exportieren</button>
+  <button id="btn-live" class="primaer" title="Ausgabefenster mit 1:1-Testbild und wandernden Cursorn öffnen">▶ Live-Ausgabe</button>
+</header>
+
+<aside id="links">
+  <h2>Ausgang (Leinwand)</h2>
+  <div class="formgitter">
+    <label class="breit">Vorlage
+      <select id="lw-vorlage">
+        <option value="">– eigene Größe –</option>
+        <option value="1280x720">HD 720p · 1280 × 720</option>
+        <option value="1920x1080">Full HD · 1920 × 1080</option>
+        <option value="1920x1200">WUXGA · 1920 × 1200</option>
+        <option value="2560x1440">QHD · 2560 × 1440</option>
+        <option value="3840x2160">UHD · 3840 × 2160</option>
+        <option value="4096x2160">DCI 4K · 4096 × 2160</option>
+        <option value="7680x1080">4 × HD nebeneinander · 7680 × 1080</option>
+        <option value="7680x4320">8K · 7680 × 4320</option>
+      </select>
+    </label>
+    <label>Breite (px)<input id="lw-b" type="number" min="16" max="16384" step="1" required></label>
+    <label>Höhe (px)<input id="lw-h" type="number" min="16" max="16384" step="1" required></label>
+    <label class="breit">Projektname<input id="lw-name" placeholder="z.B. Halle 3 · Bühnenwand"></label>
+  </div>
+  <p class="werte" id="lw-werte"></p>
+
+  <h2>Inhalt (Komposition)</h2>
+  <div class="formgitter">
+    <label class="check breit"><input type="checkbox" id="in-auto"> Größe automatisch aus den Wänden</label>
+    <label>Breite (px)<input id="in-b" type="number" min="16" max="16384" step="1" required></label>
+    <label>Höhe (px)<input id="in-h" type="number" min="16" max="16384" step="1" required></label>
+  </div>
+
+  <h2>LED-Wände</h2>
+  <div id="screen-liste"></div>
+  <div class="knopfzeile">
+    <button id="btn-screen-neu">+ Wand</button>
+    <button id="btn-screen-dup" title="Gewählte Wand duplizieren und rechts daneben setzen">Duplizieren</button>
+  </div>
+  <p class="hinweis">
+    Wand anklicken und ziehen – rastet an Rändern und Nachbarn ein (<kbd>Alt</kbd>: frei).
+    Pfeiltasten 1 px, <kbd>Shift</kbd> eine Kachel, <kbd>Entf</kbd> löschen.
+    <kbd>Leertaste</kbd> + Ziehen verschiebt die Ansicht.
+  </p>
+
+  <h2>Summe aller Wände</h2>
+  <table class="summen" id="summen"></table>
+  <p class="hinweis">Gewicht und Leistung sind Richtwerte aus den Kabinettdaten.</p>
+
+  <h2>Standard</h2>
+  <div class="knopfzeile">
+    <button id="btn-std-setzen" title="Aktuelle Planung als Standard für „Neu“ speichern">Als Standard</button>
+    <button id="btn-std-reset" class="gefahr" title="Gespeicherten Standard löschen">Zurücksetzen</button>
+  </div>
+</aside>
+
+<main id="flaeche">
+  <div id="scroller">
+    <div id="buehne">
+      <canvas id="vorschau" width="1920" height="1080" aria-label="Vorschau der Leinwand"></canvas>
+      <div id="auswahl"></div>
+    </div>
+  </div>
+  <div id="kartenanzeige"></div>
+  <div id="zoomanzeige"></div>
+</main>
+
+<aside id="rechts">
+  <div id="eigenschaften"></div>
+
+  <h2>Darstellung Testbild</h2>
+  <div class="formgitter">
+    <label>Palette<select data-opt="palette"></select></label>
+    <label>Farbmodus
+      <select data-opt="farbmodus">
+        <option value="schach">Schachbrett je Wand</option>
+        <option value="bunt">Jede Kachel anders</option>
+        <option value="spalten">Nach Spalten</option>
+        <option value="zeilen">Nach Zeilen</option>
+      </select>
+    </label>
+    <label>Beschriftung
+      <select data-opt="beschriftung">
+        <option value="sz">Spalte.Zeile (3.2)</option>
+        <option value="bz">Buchstabe+Zeile (C2)</option>
+        <option value="nr">Laufende Nummer</option>
+        <option value="px">Pixel-Position</option>
+        <option value="keine">keine</option>
+      </select>
+    </label>
+    <label>Nummerierung
+      <select data-opt="zaehlung">
+        <option value="oben">ab oben links</option>
+        <option value="unten">ab unten links</option>
+      </select>
+    </label>
+    <label>Linienbreite (px)<input data-opt="linie" type="number" min="0" max="20" step="1"></label>
+    <label>Linienfarbe
+      <select data-opt="linienfarbe">
+        <option value="#ffffff">Weiß</option>
+        <option value="#000000">Schwarz</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" data-opt="maske"> Leinwand-Maske</label>
+    <label class="check"><input type="checkbox" data-opt="marker"> Versatz-Marker</label>
+    <label class="check"><input type="checkbox" data-opt="info"> Wand-Info</label>
+    <label class="check"><input type="checkbox" data-opt="kreis"> Kreis</label>
+    <label class="check"><input type="checkbox" data-opt="kreuz"> Mittelkreuz</label>
+    <label class="check"><input type="checkbox" data-opt="diagonalen"> Diagonalen</label>
+  </div>
+  <p class="hinweis">Maske aus: ungenutzte Leinwand wird schraffiert statt schwarz.</p>
+
+  <h2>Live-Cursor</h2>
+  <div class="formgitter">
+    <label class="check breit"><input type="checkbox" data-opt="cursor.an"> Wandernde Cursor</label>
+    <label>Richtung
+      <select data-opt="cursor.richtung">
+        <option value="beide">waagrecht + senkrecht</option>
+        <option value="x">nur senkrechte Linie →</option>
+        <option value="y">nur waagrechte Linie ↓</option>
+      </select>
+    </label>
+    <label>Bereich
+      <select data-opt="cursor.bereich">
+        <option value="wand">je Wand</option>
+        <option value="leinwand">ganze Leinwand</option>
+      </select>
+    </label>
+    <label>Tempo (px/s)<input data-opt="cursor.tempo" type="number" min="1" max="5000" step="1"></label>
+    <label>Breite (px)<input data-opt="cursor.breite" type="number" min="1" max="64" step="1"></label>
+  </div>
+  <p class="hinweis">Die Live-Ausgabe zeigt immer das Testbild des Ausgangs.</p>
+  <div class="knopfzeile" id="bildschirm-zeile" hidden>
+    <button id="btn-bildschirme" title="Browser fragt einmalig nach Erlaubnis, die angeschlossenen Bildschirme zu sehen">Bildschirme erkennen</button>
+    <select id="bildschirm-wahl" style="flex:1" title="Bildschirm für die Live-Ausgabe" hidden></select>
+  </div>
+
+  <h2>Export</h2>
+  <div class="knopfzeile">
+    <button id="btn-png-wand" title="Nur die gewählte Wand in aktueller Ansicht, in ihrer eigenen Auflösung">PNG dieser Wand</button>
+    <button id="btn-png-maske" title="Weiße Wandflächen auf Schwarz, für die aktuelle Karte">Masken-PNG</button>
+  </div>
+  <div class="knopfzeile">
+    <button id="btn-ae" title="ExtendScript (.jsx) für After Effects: Inhalts-Komposition mit einer Unterkomposition je Wand">After-Effects-Skript</button>
+  </div>
+  <div class="knopfzeile">
+    <button id="btn-csv" title="Koordinaten (Inhalt und Ausgang) aller Wände als CSV (Excel, Semikolon)">Slice-Liste CSV</button>
+    <button id="btn-json" title="Koordinaten aller Wände als JSON">Slice-Liste JSON</button>
+  </div>
+  <div class="knopfzeile">
+    <button id="btn-kabel-csv" title="Alle Datenports und Stromkreise mit Kabinetten, Auslastung und Zuleitungslänge">Kabelliste CSV</button>
+  </div>
+</aside>
+
+<script>
+"use strict";
+
+/* ---------- Grunddaten ---------- */
+
+const PALETTEN = {
+  regenbogen: { name: "Regenbogen", farben: ["#d94848", "#e8892b", "#d9c32b", "#4fae3f", "#2b9fb3", "#3f62d1", "#8a4fd1", "#c94a9a"] },
+  pastell:    { name: "Pastell",    farben: ["#f2a7a7", "#f6c99a", "#efe39a", "#b5dfa4", "#9fd6dd", "#a9b9ef", "#c7aaee", "#eba9cf"] },
+  neon:       { name: "Neon",       farben: ["#ff2d6f", "#ff9f1c", "#e8ff2d", "#2dff7a", "#2de1ff", "#2d6bff", "#b02dff"] },
+  erde:       { name: "Erdtöne",    farben: ["#8c5a3c", "#b5833f", "#7a8450", "#4f6f52", "#a65f4a", "#6b5b4b"] },
+  blau:       { name: "Blautöne",   farben: ["#1b3a6b", "#245a9e", "#2f7fc9", "#4fa3e0", "#7fc4ef", "#1f6f8b"] },
+  primaer:    { name: "Rot / Grün / Blau", farben: ["#ff0000", "#00ff00", "#0000ff"] },
+  grau:       { name: "Graustufen", farben: ["#3a3a3a", "#6a6a6a", "#9a9a9a", "#cacaca"] },
+  kontrast:   { name: "Schwarz / Weiß", farben: ["#ffffff", "#000000"] },
+};
+
+/* Farben der Ports / Stromkreise in der Verkabelungsansicht */
+const WEG_FARBEN = ["#e64980", "#228be6", "#40c057", "#fab005", "#7950f2", "#fd7e14", "#15aabf", "#82c91e", "#be4bdb", "#fa5252", "#4c6ef5", "#12b886"];
+
+/* Kabinett-Vorlagen: Richtwerte, keine Herstellerdaten – mit dem Datenblatt prüfen.
+   Später aus der Rex-Material-Datenbank (attribute.pixelB/pixelH/mmB/mmH/kg/wMax/wAvg). */
+const KABINETTE = [
+  { id: "p15-600", name: "P1.5 · 600 × 337,5 mm · 384 × 216 px", kb: 384, kh: 216, mmB: 600, mmH: 337.5, kg: 6.5, wMax: 130, wAvg: 45 },
+  { id: "p19-500", name: "P1.9 · 500 × 500 mm · 256 × 256 px", kb: 256, kh: 256, mmB: 500, mmH: 500, kg: 8, wMax: 190, wAvg: 65 },
+  { id: "p26-500", name: "P2.6 · 500 × 500 mm · 192 × 192 px", kb: 192, kh: 192, mmB: 500, mmH: 500, kg: 7.5, wMax: 180, wAvg: 60 },
+  { id: "p26-1000", name: "P2.6 · 500 × 1000 mm · 192 × 384 px", kb: 192, kh: 384, mmB: 500, mmH: 1000, kg: 13, wMax: 360, wAvg: 120 },
+  { id: "p29-500", name: "P2.9 · 500 × 500 mm · 168 × 168 px", kb: 168, kh: 168, mmB: 500, mmH: 500, kg: 7.5, wMax: 170, wAvg: 58 },
+  { id: "p39-500", name: "P3.9 · 500 × 500 mm · 128 × 128 px", kb: 128, kh: 128, mmB: 500, mmH: 500, kg: 7.5, wMax: 160, wAvg: 55 },
+  { id: "p39-1000", name: "P3.9 · 500 × 1000 mm · 128 × 256 px", kb: 128, kh: 256, mmB: 500, mmH: 1000, kg: 13, wMax: 320, wAvg: 110 },
+  { id: "p48-500", name: "P4.8 · 500 × 500 mm · 104 × 104 px", kb: 104, kh: 104, mmB: 500, mmH: 500, kg: 8, wMax: 150, wAvg: 50 },
+];
+
+const STARTECKEN = { ol: "oben links", or: "oben rechts", ul: "unten links", ur: "unten rechts" };
+
+const SPEICHER_STANDARD = "rex-ledraster-standard";
+const SPEICHER_AKTUELL = "rex-ledraster-aktuell";
+const MAX_SEITE = 16384;
+const MAX_FLAECHE = 120e6; // Pixel – darüber werden Browser-Canvas unzuverlässig
+const MAX_HISTORIE = 60;
+
+function standardOptionen() {
+  return {
+    palette: "regenbogen", farbmodus: "schach", beschriftung: "sz", zaehlung: "oben",
+    linie: 2, linienfarbe: "#ffffff",
+    maske: true, marker: true, info: true, kreis: true, kreuz: true, diagonalen: false,
+    cursor: { an: true, richtung: "beide", bereich: "wand", tempo: 240, breite: 4 },
+  };
+}
+
+function eingebauterStandard() {
+  const k = KABINETTE.find(k => k.id === "p39-500");
+  return {
+    name: "",
+    leinwand: { b: 1920, h: 1080 },
+    inhalt: { auto: true, b: 1920, h: 1080 },
+    optionen: standardOptionen(),
+    waende: [neueWand({ name: "Wand 1", x: 0, y: 0, kb: k.kb, kh: k.kh, spalten: 10, zeilen: 6, farbe: 0, kab: k })],
+  };
+}
+
+let uidZaehler = 1;
+function neueUid() { return "w" + Date.now().toString(36) + (uidZaehler++); }
+
+function zahl(v, std, min = -Infinity, max = Infinity) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : std;
+}
+function dez(v, std, min = -Infinity, max = Infinity) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : std;
+}
+function eins(v, erlaubt) { return erlaubt.includes(v) ? v : erlaubt[0]; }
+
+function neueWand(w = {}) {
+  const k = w.kab || {}, d = w.daten || {}, s = w.strom || {};
+  const kb = zahl(w.kb, 128, 1), kh = zahl(w.kh, 128, 1);
+  return {
+    uid: w.uid || neueUid(),
+    name: w.name ?? "Wand",
+    x: zahl(w.x, 0), y: zahl(w.y, 0),
+    // Position im Inhalt; ältere Projekte (v1) kennen sie nicht → gleich wie Ausgang
+    ix: zahl(w.ix ?? w.x, 0), iy: zahl(w.iy ?? w.y, 0),
+    kb, kh,
+    spalten: zahl(w.spalten, 4, 0), zeilen: zahl(w.zeilen, 3, 0),
+    halbeZeile: eins(w.halbeZeile, ["keine", "oben", "unten"]),
+    halbeSpalte: eins(w.halbeSpalte, ["keine", "links", "rechts"]),
+    farbe: zahl(w.farbe, 0, 0),
+    kab: {
+      mmB: dez(k.mmB, kb * 3.90625, 1, 10000), mmH: dez(k.mmH, kh * 3.90625, 1, 10000),
+      kg: dez(k.kg, 7.5, 0, 1000), wMax: dez(k.wMax, 160, 0, 100000), wAvg: dez(k.wAvg, 55, 0, 100000),
+    },
+    daten: {
+      richtung: eins(d.richtung, ["h", "v"]), start: eins(d.start, ["ol", "or", "ul", "ur"]),
+      pxProPort: zahl(d.pxProPort, 655360, 1), zuleitung: dez(d.zuleitung, 20, 0, 10000),
+    },
+    strom: {
+      richtung: eins(s.richtung, ["h", "v"]), start: eins(s.start, ["ol", "or", "ul", "ur"]),
+      ampere: dez(s.ampere, 16, 0.1, 1000), spannung: dez(s.spannung, 230, 1, 1000),
+      reserve: dez(s.reserve, 20, 0, 90), zuleitung: dez(s.zuleitung, 20, 0, 10000),
+    },
+  };
+}
+
+/* Bringt geladene Daten (Datei, localStorage, Version 1 oder 2) in eine gültige Form. */
+function normalisiere(roh) {
+  const p = roh && roh.projekt ? roh.projekt : roh;
+  if (!p || typeof p !== "object") throw new Error("Kein LED-Raster-Projekt");
+  const o = standardOptionen();
+  const ro = p.optionen || {};
+  for (const k of Object.keys(o)) if (k !== "cursor" && ro[k] !== undefined && typeof ro[k] === typeof o[k]) o[k] = ro[k];
+  if (ro.cursor) for (const k of Object.keys(o.cursor)) if (ro.cursor[k] !== undefined && typeof ro.cursor[k] === typeof o.cursor[k]) o.cursor[k] = ro.cursor[k];
+  if (!PALETTEN[o.palette]) o.palette = "regenbogen";
+  return {
+    name: typeof p.name === "string" ? p.name : "",
+    leinwand: { b: zahl(p.leinwand?.b, 1920, 16, MAX_SEITE), h: zahl(p.leinwand?.h, 1080, 16, MAX_SEITE) },
+    inhalt: {
+      auto: p.inhalt?.auto !== false,
+      b: zahl(p.inhalt?.b, 1920, 16, MAX_SEITE), h: zahl(p.inhalt?.h, 1080, 16, MAX_SEITE),
+    },
+    optionen: o,
+    waende: Array.isArray(p.waende) ? p.waende.map(neueWand) : [],
+  };
+}
+
+/* ---------- Karten: Ausgang (Output) und Inhalt (Input) ---------- */
+
+/* rk = Karte, in der gerade gerechnet/gezeichnet wird. Normalerweise die der
+   Oberfläche; die Live-Ausgabe und der Bericht schalten kurz um. */
+let rk = "aus";
+function mitKarte(karte, fn) { const alt = rk; rk = karte; try { return fn(); } finally { rk = alt; } }
+function pos(w) { return rk === "ein" ? { x: w.ix, y: w.iy } : { x: w.x, y: w.y }; }
+function setzePos(w, x, y) { if (rk === "ein") { w.ix = x; w.iy = y; } else { w.x = x; w.y = y; } }
+function kartenName(k = rk) { return k === "ein" ? "Inhalt" : "Ausgang"; }
+
+function inhaltGroesse() {
+  const i = projekt.inhalt;
+  if (!i.auto) return { b: i.b, h: i.h };
+  let b = 16, h = 16;
+  for (const w of projekt.waende) {
+    const g = geometrie(w);
+    b = Math.max(b, w.ix + g.b); h = Math.max(h, w.iy + g.h);
+  }
+  return { b: Math.min(MAX_SEITE, b), h: Math.min(MAX_SEITE, h) };
+}
+function flaecheGroesse() { return rk === "ein" ? inhaltGroesse() : projekt.leinwand; }
+
+/* ---------- Geometrie ---------- */
+
+/* Liefert Spalten/Zeilen einer Wand inklusive halber Spalte/Zeile. */
+function achsen(anzahl, groesse, halb, vorne) {
+  const halbeGroesse = Math.max(1, Math.floor(groesse / 2));
+  const liste = [];
+  let p = 0;
+  if (halb && vorne) { liste.push({ pos: p, len: halbeGroesse, halb: true }); p += halbeGroesse; }
+  for (let i = 0; i < anzahl; i++) { liste.push({ pos: p, len: groesse, halb: false }); p += groesse; }
+  if (halb && !vorne) { liste.push({ pos: p, len: halbeGroesse, halb: true }); p += halbeGroesse; }
+  return { liste, summe: p };
+}
+
+function geometrie(w) {
+  const sp = achsen(w.spalten, w.kb, w.halbeSpalte !== "keine", w.halbeSpalte === "links");
+  const ze = achsen(w.zeilen, w.kh, w.halbeZeile !== "keine", w.halbeZeile === "oben");
+  return { spalten: sp.liste, zeilen: ze.liste, b: sp.summe, h: ze.summe };
+}
+
+function rechteck(w) { const g = geometrie(w), p = pos(w); return { x: p.x, y: p.y, b: g.b, h: g.h }; }
+
+function schneiden(a, b) { return a.x < b.x + b.b && b.x < a.x + a.b && a.y < b.y + b.h && b.y < a.y + a.h; }
+
+function warnungenKarte(w) {
+  const r = rechteck(w);
+  const lw = flaecheGroesse();
+  const liste = [];
+  if (r.b === 0 || r.h === 0) return ["Wand hat keine Fläche"];
+  if (r.x < 0 || r.y < 0 || r.x + r.b > lw.b || r.y + r.h > lw.h) {
+    liste.push(r.x >= lw.b || r.y >= lw.h || r.x + r.b <= 0 || r.y + r.h <= 0 ? "liegt komplett außerhalb" : "ragt über den Rand hinaus");
+  }
+  for (const andere of projekt.waende) {
+    if (andere === w) continue;
+    const ra = rechteck(andere);
+    if (ra.b && ra.h && schneiden(r, ra)) liste.push("überlappt „" + (andere.name || "ohne Namen") + "“");
+  }
+  return liste;
+}
+
+function warnungen(w) {
+  const liste = [];
+  for (const k of ["aus", "ein"]) for (const t of mitKarte(k, () => warnungenKarte(w))) {
+    const z = t === "Wand hat keine Fläche" ? t : kartenName(k) + ": " + t;
+    if (!liste.includes(z)) liste.push(z);
+  }
+  for (const art of ["daten", "strom"]) {
+    const r = routen(w, art);
+    if (r.ueberlast) liste.push(art === "daten" ? "Ein Kabinett hat mehr Pixel als ein Port schafft" : "Ein Kabinett braucht mehr als ein Stromkreis liefert");
+  }
+  return liste;
+}
+
+/* ---------- Kabinette, Physik, Verkabelung ---------- */
+
+/* Alle Kabinette einer Wand in Schlangenlinie, beginnend an der Startecke.
+   richtung "h": zeilenweise, "v": spaltenweise. */
+function kabinettReihe(w, richtung, start) {
+  const g = geometrie(w);
+  const C = g.spalten.length, R = g.zeilen.length;
+  const oben = start[0] === "o", links = start[1] === "l";
+  const kab = (c, r) => {
+    const sp = g.spalten[c], ze = g.zeilen[r];
+    return { c, r, x: sp.pos, y: ze.pos, b: sp.len, h: ze.len, anteil: (sp.len * ze.len) / (w.kb * w.kh) };
+  };
+  const liste = [];
+  if (richtung === "h") {
+    for (let i = 0; i < R; i++) {
+      const r = oben ? i : R - 1 - i;
+      const vorwaerts = (i % 2 === 0) === links;
+      for (let j = 0; j < C; j++) liste.push(kab(vorwaerts ? j : C - 1 - j, r));
+    }
+  } else {
+    for (let i = 0; i < C; i++) {
+      const c = links ? i : C - 1 - i;
+      const vorwaerts = (i % 2 === 0) === oben;
+      for (let j = 0; j < R; j++) liste.push(kab(c, vorwaerts ? j : R - 1 - j));
+    }
+  }
+  return liste;
+}
+
+/* Teilt die Lasten in möglichst wenige, zusammenhängende und gleich große Abschnitte,
+   von denen keiner die Kapazität überschreitet. */
+function segmentieren(lasten, kap) {
+  const L = lasten.length;
+  if (!L) return { grenzen: [], ueberlast: false };
+  const P = [0];
+  for (const l of lasten) P.push(P[P.length - 1] + l);
+  const summe = P[L];
+  const eps = 1e-9 * Math.max(1, kap);
+  const n0 = Math.max(1, Math.ceil(summe / kap - 1e-9));
+  for (let n = n0; n <= L; n++) {
+    const grenzen = [0];
+    for (let k = 1; k < n; k++) {
+      const ziel = summe * k / n;
+      const von = grenzen[k - 1] + 1, bis = L - (n - k);
+      let best = von;
+      for (let i = von; i <= bis; i++) if (Math.abs(P[i] - ziel) < Math.abs(P[best] - ziel)) best = i;
+      grenzen.push(best);
+    }
+    grenzen.push(L);
+    let ok = true;
+    for (let k = 0; k < n; k++) if (P[grenzen[k + 1]] - P[grenzen[k]] > kap + eps) { ok = false; break; }
+    if (ok) return { grenzen, ueberlast: false };
+  }
+  // Mindestens ein einzelnes Kabinett ist zu groß: jedes bekommt einen eigenen Weg
+  return { grenzen: [...Array(L + 1).keys()], ueberlast: true };
+}
+
+const routenCache = new Map();
+function routen(w, art) {
+  const cfg = art === "daten" ? w.daten : w.strom;
+  const schluessel = art + JSON.stringify([w.kb, w.kh, w.spalten, w.zeilen, w.halbeSpalte, w.halbeZeile, w.kab, cfg]);
+  if (routenCache.has(schluessel)) return routenCache.get(schluessel);
+  const reihe = kabinettReihe(w, cfg.richtung, cfg.start);
+  const kap = art === "daten" ? cfg.pxProPort : cfg.ampere * cfg.spannung * (1 - cfg.reserve / 100);
+  const lasten = reihe.map(k => art === "daten" ? k.b * k.h : w.kab.wMax * k.anteil);
+  const { grenzen, ueberlast } = segmentieren(lasten, kap);
+  const segmente = [];
+  for (let i = 0; i + 1 < grenzen.length; i++) {
+    const kab = reihe.slice(grenzen[i], grenzen[i + 1]);
+    const last = lasten.slice(grenzen[i], grenzen[i + 1]).reduce((a, b) => a + b, 0);
+    segmente.push({ kab, last, auslastung: kap > 0 ? last / kap : 0 });
+  }
+  const erg = { art, kap, segmente, ueberlast, zuleitungen: segmente.length, bruecken: Math.max(0, reihe.length - segmente.length), kabinette: reihe.length };
+  if (routenCache.size > 500) routenCache.clear();
+  routenCache.set(schluessel, erg);
+  return erg;
+}
+
+function physik(w) {
+  const g = geometrie(w);
+  const mmPx = w.kab.mmB / w.kb, mmPy = w.kab.mmH / w.kh;
+  let anteil = 0, halbe = 0;
+  for (const ze of g.zeilen) for (const sp of g.spalten) {
+    anteil += (sp.len * ze.len) / (w.kb * w.kh);
+    if (sp.halb || ze.halb) halbe++;
+  }
+  const bM = g.b * mmPx / 1000, hM = g.h * mmPy / 1000;
+  return {
+    bM, hM, m2: bM * hM, pitchX: mmPx, pitchY: mmPy,
+    stueck: g.spalten.length * g.zeilen.length, halbe,
+    kg: w.kab.kg * anteil, wMax: w.kab.wMax * anteil, wAvg: w.kab.wAvg * anteil,
+    ampere: (w.kab.wMax * anteil) / w.strom.spannung,
+  };
+}
+
+/* ---------- Zahlen formatieren ---------- */
+
+const fmt = (v, nk = 0) => Number(v).toLocaleString("de-DE", { minimumFractionDigits: nk, maximumFractionDigits: nk });
+const fmtPx = v => v >= 1e6 ? fmt(v / 1e6, 2) + " Mio." : fmt(v);
+function pitchText(p) { return Math.abs(p.pitchX - p.pitchY) < 0.01 ? "P" + fmt(p.pitchX, 2) : "P" + fmt(p.pitchX, 2) + "/" + fmt(p.pitchY, 2); }
+
+/* ---------- Farben ---------- */
+
+function hexZuRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbZuHex(r, g, b) { return "#" + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join(""); }
+function helligkeit(hex) {
+  const [r, g, b] = hexZuRgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function abdunkeln(hex, f) {
+  const [r, g, b] = hexZuRgb(hex);
+  // Bei sehr dunklen Farben aufhellen, damit das Schachbrett sichtbar bleibt
+  if (helligkeit(hex) < 0.18) return rgbZuHex(r + (255 - r) * f * 0.6, g + (255 - g) * f * 0.6, b + (255 - b) * f * 0.6);
+  return rgbZuHex(r * (1 - f), g * (1 - f), b * (1 - f));
+}
+function mischen(hex, mit, f) {
+  const a = hexZuRgb(hex), b = hexZuRgb(mit);
+  return rgbZuHex(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+}
+function textFarbe(hex) { return helligkeit(hex) > 0.35 ? "#000000" : "#ffffff"; }
+
+function wandFarbe(w) {
+  const f = PALETTEN[projekt.optionen.palette].farben;
+  return f[w.farbe % f.length];
+}
+
+function kachelFarbe(w, c, r) {
+  const o = projekt.optionen;
+  const f = PALETTEN[o.palette].farben;
+  const n = f.length;
+  const basis = w.farbe;
+  switch (o.farbmodus) {
+    case "bunt": return f[n >= 3 ? (c + r * 2 + basis) % n : (c + r + basis) % n];
+    case "spalten": { const b = f[(c + basis) % n]; return r % 2 ? abdunkeln(b, 0.3) : b; }
+    case "zeilen":  { const b = f[(r + basis) % n]; return c % 2 ? abdunkeln(b, 0.3) : b; }
+    default: {
+      if (o.palette === "kontrast") return f[(c + r + basis) % 2];
+      const b = f[basis % n];
+      return (c + r) % 2 ? abdunkeln(b, 0.35) : b;
+    }
+  }
+}
+
+/* ---------- Beschriftung ---------- */
+
+function spaltenBuchstabe(i) {
+  let s = "";
+  i += 1;
+  while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+function kachelText(w, g, c, r, x, y) {
+  const o = projekt.optionen;
+  const zeile = o.zaehlung === "unten" ? g.zeilen.length - 1 - r : r;
+  const p = pos(w);
+  switch (o.beschriftung) {
+    case "sz": return (c + 1) + "." + (zeile + 1);
+    case "bz": return spaltenBuchstabe(c) + (zeile + 1);
+    case "nr": return String(zeile * g.spalten.length + c + 1);
+    case "px": return (p.x + x) + "," + (p.y + y);
+    default: return "";
+  }
+}
+
+/* ---------- Zeichnen ---------- */
+
+const SCHRIFT = `system-ui, "Segoe UI", sans-serif`;
+let schraffur = null;
+function schraffurMuster(ctx) {
+  if (!schraffur) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 16;
+    const k = c.getContext("2d");
+    k.fillStyle = "#141618"; k.fillRect(0, 0, 16, 16);
+    k.strokeStyle = "#2a2e33"; k.lineWidth = 3;
+    k.beginPath(); k.moveTo(-4, 20); k.lineTo(20, -4); k.moveTo(-4, 4); k.lineTo(4, -4); k.moveTo(12, 20); k.lineTo(20, 12); k.stroke();
+    schraffur = c;
+  }
+  return ctx.createPattern(schraffur, "repeat");
+}
+
+/* Rahmen innen an einem Rechteck – pixelgenau ohne Kantenglättung */
+function rahmen(ctx, x, y, b, h, d) {
+  if (d <= 0 || b <= 0 || h <= 0) return;
+  d = Math.min(d, Math.floor(b / 2), Math.floor(h / 2)) || 1;
+  ctx.fillRect(x, y, b, d);
+  ctx.fillRect(x, y + h - d, b, d);
+  ctx.fillRect(x, y + d, d, h - 2 * d);
+  ctx.fillRect(x + b - d, y + d, d, h - 2 * d);
+}
+
+/* Halbtransparenter Kasten mit mehreren Textzeilen, mittig – nur wenn er passt */
+function infoKasten(ctx, cx, cy, zeilen, fs, maxB, maxH) {
+  const groesse = i => i === 0 ? fs : Math.round(fs * 0.7);
+  const breiten = zeilen.map((z, i) => { ctx.font = `${i === 0 ? 700 : 500} ${groesse(i)}px ${SCHRIFT}`; return ctx.measureText(z).width; });
+  const bb = Math.max(...breiten) + fs * 1.2;
+  const bh = fs * 1.5 + (zeilen.length - 1) * fs * 0.9;
+  if (bb > maxB * 0.95 || bh > maxH * 0.9) return false;
+  ctx.fillStyle = "rgba(0,0,0,.72)";
+  ctx.fillRect(Math.round(cx - bb / 2), Math.round(cy - bh / 2), Math.round(bb), Math.round(bh));
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  let y = cy - bh / 2 + fs * 0.85;
+  zeilen.forEach((z, i) => {
+    ctx.font = `${i === 0 ? 700 : 500} ${groesse(i)}px ${SCHRIFT}`;
+    ctx.fillText(z, cx, y);
+    y += i === 0 ? fs * 1.0 : fs * 0.9;
+  });
+  return true;
+}
+
+function zeichneWand(ctx, w) {
+  const o = projekt.optionen;
+  const g = geometrie(w);
+  if (!g.b || !g.h) return;
+  const p = pos(w);
+  const linie = Math.max(0, o.linie | 0);
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.beginPath(); ctx.rect(0, 0, g.b, g.h); ctx.clip();
+
+  // Kacheln
+  const schrift = Math.max(8, Math.min(120, Math.round(Math.min(w.kb, w.kh) * 0.2)));
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  g.zeilen.forEach((ze, r) => {
+    g.spalten.forEach((sp, c) => {
+      const farbe = kachelFarbe(w, c, r);
+      ctx.fillStyle = farbe;
+      ctx.fillRect(sp.pos, ze.pos, sp.len, ze.len);
+      if (o.diagonalen) {
+        ctx.strokeStyle = textFarbe(farbe) === "#000000" ? "rgba(0,0,0,.35)" : "rgba(255,255,255,.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sp.pos, ze.pos); ctx.lineTo(sp.pos + sp.len, ze.pos + ze.len);
+        ctx.moveTo(sp.pos + sp.len, ze.pos); ctx.lineTo(sp.pos, ze.pos + ze.len);
+        ctx.stroke();
+      }
+      const text = kachelText(w, g, c, r, sp.pos, ze.pos);
+      if (text) {
+        const fs = Math.min(schrift, Math.floor(Math.min(sp.len, ze.len) * 0.45));
+        if (fs >= 6) {
+          ctx.font = `700 ${fs}px ${SCHRIFT}`;
+          if (ctx.measureText(text).width < sp.len - 4) {
+            ctx.fillStyle = textFarbe(farbe);
+            // erste Kachel: Text tiefer setzen, damit der Versatz-Marker ihn nicht verdeckt
+            const tief = o.marker && c === 0 && r === 0 ? 0.72 : 0.5;
+            ctx.fillText(text, sp.pos + sp.len / 2, ze.pos + ze.len * tief + 1);
+          }
+        }
+      }
+    });
+  });
+
+  // Kachelrahmen
+  if (linie > 0) {
+    ctx.fillStyle = o.linienfarbe;
+    for (const ze of g.zeilen) for (const sp of g.spalten) rahmen(ctx, sp.pos, ze.pos, sp.len, ze.len, linie);
+  }
+
+  // Kreis und Mittelkreuz über die ganze Wand
+  const strich = Math.max(2, linie || 2);
+  if (o.kreuz) {
+    ctx.fillStyle = o.linienfarbe;
+    ctx.fillRect(Math.floor(g.b / 2 - strich / 2), 0, strich, g.h);
+    ctx.fillRect(0, Math.floor(g.h / 2 - strich / 2), g.b, strich);
+  }
+  if (o.kreis) {
+    ctx.strokeStyle = o.linienfarbe; ctx.lineWidth = strich;
+    ctx.beginPath();
+    ctx.arc(g.b / 2, g.h / 2, Math.max(1, Math.min(g.b, g.h) / 2 - strich / 2), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Versatz-Marker: Eckwinkel + Koordinaten oben links
+  if (o.marker) {
+    const len = Math.max(12, Math.min(80, Math.round(Math.min(g.b, g.h) * 0.12)));
+    const d = Math.max(3, Math.round(len / 8));
+    for (const [ex, ey, sx, sy] of [[0, 0, 1, 1], [g.b, 0, -1, 1], [0, g.h, 1, -1], [g.b, g.h, -1, -1]]) {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(sx > 0 ? ex : ex - len - d, sy > 0 ? ey : ey - d * 2, len + d, d * 2);
+      ctx.fillRect(sx > 0 ? ex : ex - d * 2, sy > 0 ? ey : ey - len - d, d * 2, len + d);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(sx > 0 ? ex : ex - len, sy > 0 ? ey : ey - d, len, d);
+      ctx.fillRect(sx > 0 ? ex : ex - d, sy > 0 ? ey : ey - len, d, len);
+    }
+    const fs = Math.max(10, Math.min(28, Math.round(Math.min(g.b, g.h) * 0.045)));
+    ctx.font = `700 ${fs}px ui-monospace, Consolas, monospace`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    const t = `X ${p.x}  Y ${p.y}`;
+    const tb = ctx.measureText(t).width;
+    ctx.fillStyle = "rgba(0,0,0,.75)";
+    ctx.fillRect(d * 2 + 2, d * 2 + 2, tb + fs * 0.6, fs * 1.4);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(t, d * 2 + 2 + fs * 0.3, d * 2 + 2 + fs * 0.2);
+  }
+
+  // Wand-Info in der Mitte
+  if (o.info) {
+    const ph = physik(w);
+    infoKasten(ctx, g.b / 2, g.h / 2, [
+      w.name || "Wand",
+      `${g.b} × ${g.h} px`,
+      `${w.spalten}${w.halbeSpalte !== "keine" ? "½" : ""} × ${w.zeilen}${w.halbeZeile !== "keine" ? "½" : ""} Kacheln à ${w.kb} × ${w.kh}`,
+      `${fmt(ph.bM, 2)} × ${fmt(ph.hM, 2)} m · ${pitchText(ph)}`,
+    ], Math.max(10, Math.min(48, Math.round(Math.min(g.b / 16, g.h / 9)))), g.b, g.h);
+  }
+
+  ctx.restore();
+}
+
+function pfeil(ctx, x1, y1, x2, y2, groesse) {
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath();
+  ctx.moveTo(mx + Math.cos(a) * groesse, my + Math.sin(a) * groesse);
+  ctx.lineTo(mx + Math.cos(a + 2.5) * groesse, my + Math.sin(a + 2.5) * groesse);
+  ctx.lineTo(mx + Math.cos(a - 2.5) * groesse, my + Math.sin(a - 2.5) * groesse);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* Verkabelungsansicht einer Wand: Kabinette je Port/Kreis eingefärbt, Weg mit Pfeilen */
+function zeichneKabel(ctx, w, art) {
+  const g = geometrie(w);
+  if (!g.b || !g.h) return;
+  const p = pos(w);
+  const ro = routen(w, art);
+  const kuerzel = art === "daten" ? "D" : "S";
+  const kmin = Math.min(w.kb, w.kh);
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.beginPath(); ctx.rect(0, 0, g.b, g.h); ctx.clip();
+  ctx.fillStyle = "#101214";
+  ctx.fillRect(0, 0, g.b, g.h);
+
+  ro.segmente.forEach((seg, si) => {
+    const farbe = WEG_FARBEN[si % WEG_FARBEN.length];
+    const zuViel = seg.auslastung > 1.0001;
+    seg.kab.forEach((k, ki) => {
+      ctx.fillStyle = mischen(farbe, "#101214", zuViel ? 0.25 : 0.55);
+      ctx.fillRect(k.x, k.y, k.b, k.h);
+      ctx.fillStyle = zuViel ? "#ff2020" : "#0b0c0e";
+      rahmen(ctx, k.x, k.y, k.b, k.h, Math.max(1, Math.round(kmin / 64)));
+      const fs = Math.max(7, Math.min(40, Math.round(Math.min(k.b, k.h) * 0.16)));
+      ctx.font = `600 ${fs}px ${SCHRIFT}`;
+      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      if (ki > 0) ctx.fillText(String(ki + 1), k.x + fs * 0.4, k.y + fs * 0.3);
+    });
+    // Weg durch die Mittelpunkte
+    const pts = seg.kab.map(k => [k.x + k.b / 2, k.y + k.h / 2]);
+    const lb = Math.max(2, Math.round(kmin * 0.045));
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    for (const [breite, f] of [[lb + 4, "#000000"], [lb, farbe]]) {
+      ctx.strokeStyle = f; ctx.lineWidth = breite;
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#ffffff";
+    for (let i = 1; i < pts.length; i++) pfeil(ctx, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], lb * 2.2);
+    // Startpunkt mit Port-/Kreisnummer
+    const [sx, sy] = pts[0];
+    const r = Math.max(8, Math.round(kmin * 0.2));
+    ctx.fillStyle = farbe;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = Math.max(2, r / 6); ctx.strokeStyle = "#ffffff"; ctx.stroke();
+    ctx.fillStyle = textFarbe(farbe);
+    ctx.font = `800 ${Math.round(r * 0.85)}px ${SCHRIFT}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(kuerzel + (si + 1), sx, sy + 1);
+  });
+
+  if (projekt.optionen.info) {
+    const maxAus = Math.max(0, ...ro.segmente.map(s => s.auslastung));
+    const zeilen = art === "daten"
+      ? [w.name || "Wand", `${ro.zuleitungen} Datenport${ro.zuleitungen === 1 ? "" : "s"} · max. ${fmt(maxAus * 100)} %`,
+         `${fmtPx(w.daten.pxProPort)} px je Port · Start ${STARTECKEN[w.daten.start]}`]
+      : [w.name || "Wand", `${ro.zuleitungen} Stromkreis${ro.zuleitungen === 1 ? "" : "e"} · max. ${fmt(maxAus * 100)} %`,
+         `${fmt(w.strom.ampere, 1)} A / ${fmt(w.strom.spannung)} V · ${fmt(w.strom.reserve)} % Reserve`];
+    infoKasten(ctx, g.b / 2, g.h / 2, zeilen, Math.max(10, Math.min(40, Math.round(Math.min(g.b / 18, g.h / 10)))), g.b, g.h);
+  }
+  ctx.restore();
+}
+
+/* Zeichnet die aktuelle Karte (rk) in der gewünschten Ansicht – ohne Cursor. */
+function zeichneLeinwand(ctx, ansicht) {
+  const lw = flaecheGroesse();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  if (projekt.optionen.maske || ansicht !== "test") { ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, lw.b, lw.h); }
+  else { ctx.fillStyle = schraffurMuster(ctx); ctx.fillRect(0, 0, lw.b, lw.h); }
+  for (const w of projekt.waende) {
+    if (ansicht === "test") zeichneWand(ctx, w); else zeichneKabel(ctx, w, ansicht);
+  }
+  ctx.restore();
+}
+
+/* Wandernde Cursor für die Live-Ausgabe (immer Ausgang); t in Sekunden. */
+function zeichneCursor(ctx, t) {
+  const c = projekt.optionen.cursor;
+  if (!c.an) return;
+  const d = Math.max(1, c.breite | 0);
+  const bereiche = c.bereich === "leinwand"
+    ? [{ x: 0, y: 0, b: projekt.leinwand.b, h: projekt.leinwand.h }]
+    : mitKarte("aus", () => projekt.waende.map(rechteck)).filter(r => r.b > 0 && r.h > 0);
+  for (const r of bereiche) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(r.x, r.y, r.b, r.h); ctx.clip();
+    if (c.richtung !== "y") {
+      const x = r.x + Math.floor((t * c.tempo) % (r.b + d)) - d;
+      ctx.fillStyle = "#000000"; ctx.fillRect(x - 1, r.y, d + 2, r.h);
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(x, r.y, d, r.h);
+    }
+    if (c.richtung !== "x") {
+      const y = r.y + Math.floor((t * c.tempo) % (r.h + d)) - d;
+      ctx.fillStyle = "#000000"; ctx.fillRect(r.x, y - 1, r.b, d + 2);
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(r.x, y, r.b, d);
+    }
+    ctx.restore();
+  }
+}
+
+/* ---------- Zustand ---------- */
+
+let projekt = laden();
+let gewaehlt = projekt.waende[0]?.uid || null;
+let zoom = null; // null = einpassen
+const ui = { karte: "aus", ansicht: "test" };
+
+function laden() {
+  try {
+    const a = localStorage.getItem(SPEICHER_AKTUELL);
+    if (a) return normalisiere(JSON.parse(a));
+  } catch (e) { /* ungültig oder gesperrt → Standard */ }
+  return standard();
+}
+
+function standard() {
+  try {
+    const s = localStorage.getItem(SPEICHER_STANDARD);
+    if (s) return normalisiere(JSON.parse(s));
+  } catch (e) { /* ignorieren */ }
+  return eingebauterStandard();
+}
+
+function sichern() {
+  try { localStorage.setItem(SPEICHER_AKTUELL, JSON.stringify(projekt)); } catch (e) { /* privater Modus */ }
+}
+
+function wand(uid = gewaehlt) { return projekt.waende.find(w => w.uid === uid) || null; }
+
+/* Rückgängig/Wiederholen: Zustände werden kurz nach einer Änderung gemerkt,
+   damit ein ganzes Ziehen ein einziger Schritt ist. */
+const historie = { zurueck: [], vor: [], stand: JSON.stringify(projekt), timer: 0 };
+function historieMerken() {
+  clearTimeout(historie.timer);
+  historie.timer = setTimeout(() => {
+    const jetzt = JSON.stringify(projekt);
+    if (jetzt === historie.stand) return;
+    historie.zurueck.push(historie.stand);
+    if (historie.zurueck.length > MAX_HISTORIE) historie.zurueck.shift();
+    historie.vor.length = 0;
+    historie.stand = jetzt;
+    knoepfeHistorie();
+  }, 350);
+}
+function historieSchritt(von, nach) {
+  clearTimeout(historie.timer);
+  const jetzt = JSON.stringify(projekt);
+  // Noch nicht gemerkte Änderung zuerst festhalten (sonst ginge sie beim Rückgängig verloren)
+  if (jetzt !== historie.stand) { historie.zurueck.push(historie.stand); historie.stand = jetzt; historie.vor.length = 0; }
+  if (!von.length) return;
+  nach.push(historie.stand);
+  historie.stand = von.pop();
+  projekt = normalisiere(JSON.parse(historie.stand));
+  if (!wand()) gewaehlt = projekt.waende[0]?.uid || null;
+  geaendert(true, false);
+}
+function knoepfeHistorie() {
+  document.getElementById("btn-undo").disabled = !historie.zurueck.length && JSON.stringify(projekt) === historie.stand;
+  document.getElementById("btn-redo").disabled = !historie.vor.length;
+}
+document.getElementById("btn-undo").onclick = () => historieSchritt(historie.zurueck, historie.vor);
+document.getElementById("btn-redo").onclick = () => historieSchritt(historie.vor, historie.zurueck);
+
+let aenderungGeplant = false;
+function geaendert(formular = true, merken = true) {
+  if (formular) baueFormulare();
+  if (merken) historieMerken();
+  if (aenderungGeplant) return;
+  aenderungGeplant = true;
+  requestAnimationFrame(() => {
+    aenderungGeplant = false;
+    zeichneVorschau();
+    sichern();
+    knoepfeHistorie();
+  });
+}
+
+/* ---------- Meldungen ---------- */
+
+let meldungTimer = 0;
+function melde(text, art = "") {
+  const m = document.getElementById("meldung");
+  m.textContent = text; m.className = art;
+  clearTimeout(meldungTimer);
+  meldungTimer = setTimeout(() => { m.textContent = ""; m.className = ""; }, 5000);
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+/* ---------- Vorschau ---------- */
+
+const vorschau = document.getElementById("vorschau");
+const vctx = vorschau.getContext("2d");
+const flaeche = document.getElementById("scroller");
+
+function groesseGueltig(g) { return g.b * g.h <= MAX_FLAECHE; }
+
+function zeichneVorschau() {
+  const lw = flaecheGroesse();
+  if (!groesseGueltig(lw)) {
+    melde(`Fläche ${lw.b} × ${lw.h} ist zu groß für den Browser (max. ${Math.round(MAX_FLAECHE / 1e6)} Mio. Pixel).`, "bad");
+    return;
+  }
+  if (vorschau.width !== lw.b || vorschau.height !== lw.h) { vorschau.width = lw.b; vorschau.height = lw.h; }
+  zeichneLeinwand(vctx, ui.ansicht);
+  wendeZoomAn();
+  live.bildAlt = true;
+  document.getElementById("kartenanzeige").textContent =
+    `${kartenName()} · ${{ test: "Testbild", daten: "Datenwege", strom: "Stromkreise" }[ui.ansicht]} · ${lw.b} × ${lw.h} px`;
+}
+
+function einpassZoom() {
+  const lw = flaecheGroesse();
+  const b = flaeche.clientWidth - 48, h = flaeche.clientHeight - 48;
+  return Math.max(0.02, Math.min(b / lw.b, h / lw.h, 4));
+}
+
+function aktuellerZoom() { return zoom ?? einpassZoom(); }
+
+function wendeZoomAn() {
+  const z = aktuellerZoom();
+  const lw = flaecheGroesse();
+  vorschau.style.width = Math.round(lw.b * z) + "px";
+  vorschau.style.height = Math.round(lw.h * z) + "px";
+  vorschau.style.imageRendering = z >= 1 ? "pixelated" : "auto";
+  document.getElementById("zoomanzeige").textContent = Math.round(z * 100) + " %" + (zoom === null ? " · eingepasst" : "");
+  zeigeAuswahl();
+}
+
+function zeigeAuswahl() {
+  const rahmenEl = document.getElementById("auswahl");
+  const w = wand();
+  if (!w) { rahmenEl.style.display = "none"; return; }
+  const r = rechteck(w);
+  const z = aktuellerZoom();
+  const vr = vorschau.getBoundingClientRect();
+  const br = document.getElementById("buehne").getBoundingClientRect();
+  rahmenEl.style.display = "block";
+  rahmenEl.style.left = (vr.left - br.left + r.x * z) + "px";
+  rahmenEl.style.top = (vr.top - br.top + r.y * z) + "px";
+  rahmenEl.style.width = Math.max(2, r.b * z) + "px";
+  rahmenEl.style.height = Math.max(2, r.h * z) + "px";
+}
+
+/* Zoom, optional um einen Punkt (Mauszeiger) herum */
+function setzeZoom(z, um) {
+  const vorher = vorschau.getBoundingClientRect();
+  zoom = z === null ? null : Math.max(0.02, Math.min(16, z));
+  wendeZoomAn();
+  if (um && vorher.width) {
+    const fx = (um.x - vorher.left) / vorher.width, fy = (um.y - vorher.top) / vorher.height;
+    const nachher = vorschau.getBoundingClientRect();
+    flaeche.scrollLeft += nachher.left + fx * nachher.width - um.x;
+    flaeche.scrollTop += nachher.top + fy * nachher.height - um.y;
+    zeigeAuswahl();
+  }
+}
+
+document.getElementById("btn-einpassen").onclick = () => setzeZoom(null);
+document.getElementById("btn-1zu1").onclick = () => setzeZoom(1 / (window.devicePixelRatio || 1));
+document.getElementById("btn-zoom-ein").onclick = () => setzeZoom(aktuellerZoom() * 1.25);
+document.getElementById("btn-zoom-aus").onclick = () => setzeZoom(aktuellerZoom() / 1.25);
+flaeche.addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  setzeZoom(aktuellerZoom() * (e.deltaY < 0 ? 1.1 : 1 / 1.1), { x: e.clientX, y: e.clientY });
+}, { passive: false });
+new ResizeObserver(() => { if (zoom === null) wendeZoomAn(); else zeigeAuswahl(); }).observe(flaeche);
+flaeche.addEventListener("scroll", zeigeAuswahl);
+
+/* Ansicht verschieben: Leertaste gedrückt halten und ziehen */
+const pan = { leertaste: false, aktiv: null };
+function istEingabe(el) { return el && el.matches && el.matches("input, select, textarea, button"); }
+document.addEventListener("keydown", e => {
+  if (e.key === " " && !istEingabe(e.target) && !pan.leertaste) { pan.leertaste = true; flaeche.classList.add("pan"); e.preventDefault(); }
+});
+document.addEventListener("keyup", e => {
+  if (e.key === " ") { pan.leertaste = false; flaeche.classList.remove("pan", "aktiv"); }
+});
+flaeche.addEventListener("pointerdown", e => {
+  if (!pan.leertaste && e.button !== 1) return;
+  e.preventDefault(); e.stopPropagation();
+  pan.aktiv = { x: e.clientX, y: e.clientY, sl: flaeche.scrollLeft, st: flaeche.scrollTop };
+  flaeche.classList.add("pan", "aktiv");
+  flaeche.setPointerCapture(e.pointerId);
+}, true);
+flaeche.addEventListener("pointermove", e => {
+  if (!pan.aktiv) return;
+  flaeche.scrollLeft = pan.aktiv.sl - (e.clientX - pan.aktiv.x);
+  flaeche.scrollTop = pan.aktiv.st - (e.clientY - pan.aktiv.y);
+});
+const panEnde = () => { pan.aktiv = null; flaeche.classList.remove("aktiv"); if (!pan.leertaste) flaeche.classList.remove("pan"); };
+flaeche.addEventListener("pointerup", panEnde);
+flaeche.addEventListener("pointercancel", panEnde);
+
+/* Maus: Wand wählen und ziehen */
+function leinwandPunkt(e) {
+  const r = vorschau.getBoundingClientRect();
+  const lw = flaecheGroesse();
+  return { x: (e.clientX - r.left) * lw.b / r.width, y: (e.clientY - r.top) * lw.h / r.height };
+}
+
+function wandUnter(p) {
+  for (let i = projekt.waende.length - 1; i >= 0; i--) {
+    const r = rechteck(projekt.waende[i]);
+    if (p.x >= r.x && p.x < r.x + r.b && p.y >= r.y && p.y < r.y + r.h) return projekt.waende[i];
+  }
+  return null;
+}
+
+/* Einrasten an Kanten der Fläche und Kanten anderer Wände */
+function einrasten(w, x, y) {
+  const r = rechteck(w);
+  const lw = flaecheGroesse();
+  const toleranz = 10 / aktuellerZoom();
+  const kantenX = [0], kantenY = [0];
+  if (rk === "aus" || !projekt.inhalt.auto) { kantenX.push(lw.b); kantenY.push(lw.h); }
+  for (const a of projekt.waende) {
+    if (a === w) continue;
+    const ra = rechteck(a);
+    kantenX.push(ra.x, ra.x + ra.b); kantenY.push(ra.y, ra.y + ra.h);
+  }
+  const rasten = (v, laenge, kanten) => {
+    let best = v, abstand = toleranz;
+    for (const k of kanten) for (const kandidat of [k, k - laenge]) {
+      const d = Math.abs(v - kandidat);
+      if (d < abstand) { abstand = d; best = kandidat; }
+    }
+    return best;
+  };
+  return { x: rasten(x, r.b, kantenX), y: rasten(y, r.h, kantenY) };
+}
+
+let zug = null;
+vorschau.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  const p = leinwandPunkt(e);
+  const w = wandUnter(p);
+  if (!w) { if (gewaehlt) { gewaehlt = null; baueFormulare(); } return; }
+  if (gewaehlt !== w.uid) { gewaehlt = w.uid; baueFormulare(); }
+  const wp = pos(w);
+  zug = { uid: w.uid, dx: p.x - wp.x, dy: p.y - wp.y, bewegt: false };
+  vorschau.setPointerCapture(e.pointerId);
+  vorschau.classList.add("ziehen");
+});
+vorschau.addEventListener("pointermove", e => {
+  const p = leinwandPunkt(e);
+  if (!zug) { vorschau.classList.toggle("greifen", !!wandUnter(p)); return; }
+  const w = wand(zug.uid);
+  if (!w) return;
+  let x = Math.round(p.x - zug.dx), y = Math.round(p.y - zug.dy);
+  if (!e.altKey) ({ x, y } = einrasten(w, x, y));
+  if (rk === "ein" && projekt.inhalt.auto) { x = Math.max(0, x); y = Math.max(0, y); }
+  const wp = pos(w);
+  if (x !== wp.x || y !== wp.y) { setzePos(w, x, y); zug.bewegt = true; geaendert(false); aktualisiereWerte(); }
+});
+function zugEnde(e) {
+  if (!zug) return;
+  const bewegt = zug.bewegt;
+  zug = null;
+  vorschau.classList.remove("ziehen");
+  if (vorschau.hasPointerCapture?.(e.pointerId)) vorschau.releasePointerCapture(e.pointerId);
+  if (bewegt) baueFormulare();
+}
+vorschau.addEventListener("pointerup", zugEnde);
+vorschau.addEventListener("pointercancel", zugEnde);
+
+document.addEventListener("keydown", e => {
+  const ziel = e.target;
+  if ((e.ctrlKey || e.metaKey) && !ziel.matches("input, textarea")) {
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) { e.preventDefault(); document.getElementById("btn-undo").click(); }
+    else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); document.getElementById("btn-redo").click(); }
+    return;
+  }
+  if (ziel.matches("input, select, textarea") || e.altKey) return;
+  const w = wand();
+  if (!w) return;
+  const schritte = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (schritte[e.key]) {
+    e.preventDefault();
+    const [sx, sy] = schritte[e.key];
+    const wp = pos(w);
+    setzePos(w, wp.x + sx * (e.shiftKey ? w.kb : 1), wp.y + sy * (e.shiftKey ? w.kh : 1));
+    geaendert();
+  } else if (e.key === "Delete") {
+    e.preventDefault();
+    wandLoeschen(w);
+  }
+});
+
+/* Karte und Ansicht umschalten */
+function setzeKarte(k) {
+  ui.karte = k; rk = k;
+  zoom = null;
+  for (const b of document.querySelectorAll("[data-karte]")) b.setAttribute("aria-pressed", b.dataset.karte === k);
+  geaendert(true, false);
+}
+function setzeAnsicht(a) {
+  ui.ansicht = a;
+  for (const b of document.querySelectorAll("[data-ansicht]")) b.setAttribute("aria-pressed", b.dataset.ansicht === a);
+  geaendert(true, false);
+}
+for (const b of document.querySelectorAll("[data-karte]")) b.onclick = () => setzeKarte(b.dataset.karte);
+for (const b of document.querySelectorAll("[data-ansicht]")) b.onclick = () => setzeAnsicht(b.dataset.ansicht);
+
+/* ---------- Formulare ---------- */
+
+const lwB = document.getElementById("lw-b"), lwH = document.getElementById("lw-h");
+const lwVorlage = document.getElementById("lw-vorlage"), lwName = document.getElementById("lw-name");
+const inAuto = document.getElementById("in-auto"), inB = document.getElementById("in-b"), inH = document.getElementById("in-h");
+
+function baueLeinwandFormular() {
+  const lw = projekt.leinwand;
+  if (document.activeElement !== lwB) lwB.value = lw.b;
+  if (document.activeElement !== lwH) lwH.value = lw.h;
+  if (document.activeElement !== lwName) lwName.value = projekt.name;
+  const key = lw.b + "x" + lw.h;
+  lwVorlage.value = [...lwVorlage.options].some(o => o.value === key) ? key : "";
+  const ig = inhaltGroesse();
+  inAuto.checked = projekt.inhalt.auto;
+  inB.disabled = inH.disabled = projekt.inhalt.auto;
+  if (document.activeElement !== inB) inB.value = ig.b;
+  if (document.activeElement !== inH) inH.value = ig.h;
+  aktualisiereWerte();
+}
+
+function summen() {
+  const s = { m2: 0, kg: 0, wMax: 0, wAvg: 0, stueck: 0, halbe: 0, ports: 0, kreise: 0, px: 0 };
+  for (const w of projekt.waende) {
+    const p = physik(w), g = geometrie(w);
+    s.m2 += p.m2; s.kg += p.kg; s.wMax += p.wMax; s.wAvg += p.wAvg; s.stueck += p.stueck; s.halbe += p.halbe;
+    s.px += g.b * g.h;
+    s.ports += routen(w, "daten").zuleitungen;
+    s.kreise += routen(w, "strom").zuleitungen;
+  }
+  return s;
+}
+
+function aktualisiereWerte() {
+  const lw = projekt.leinwand;
+  let belegt = 0;
+  for (const w of projekt.waende) {
+    const g = geometrie(w);
+    const x0 = Math.max(0, w.x), y0 = Math.max(0, w.y);
+    const x1 = Math.min(lw.b, w.x + g.b), y1 = Math.min(lw.h, w.y + g.h);
+    if (x1 > x0 && y1 > y0) belegt += (x1 - x0) * (y1 - y0);
+  }
+  document.getElementById("lw-werte").innerHTML =
+    `<b>${fmt(lw.b * lw.h / 1e6, 2)}</b> Mio. Pixel · belegt ca. <b>${fmt(Math.min(100, belegt / (lw.b * lw.h) * 100), 1)} %</b>`;
+
+  const s = summen();
+  document.getElementById("summen").innerHTML = projekt.waende.length ? `
+    <tr><td>Kabinette</td><td>${fmt(s.stueck)}${s.halbe ? ` (davon ${fmt(s.halbe)} halbe)` : ""}</td></tr>
+    <tr><td>Fläche</td><td>${fmt(s.m2, 2)} m²</td></tr>
+    <tr><td>Pixel</td><td>${fmtPx(s.px)}</td></tr>
+    <tr><td>Gewicht</td><td>${fmt(s.kg, 1)} kg</td></tr>
+    <tr><td>Leistung max. / Ø</td><td>${fmt(s.wMax / 1000, 2)} / ${fmt(s.wAvg / 1000, 2)} kW</td></tr>
+    <tr><td>Datenports</td><td>${fmt(s.ports)}</td></tr>
+    <tr><td>Stromkreise</td><td>${fmt(s.kreise)}</td></tr>` : `<tr><td>keine Wände</td><td></td></tr>`;
+
+  const w = wand();
+  const ew = document.getElementById("ew-werte");
+  if (ew && w) {
+    const g = geometrie(w), p = pos(w), ph = physik(w);
+    const d = routen(w, "daten"), st = routen(w, "strom");
+    const aus = r => fmt(Math.max(0, ...r.segmente.map(x => x.auslastung)) * 100);
+    ew.innerHTML = `Größe <b>${g.b} × ${g.h} px</b> · <b>${ph.stueck}</b> Kabinette<br>` +
+      `${kartenName()}: <b>${p.x}, ${p.y}</b> bis <b>${p.x + g.b - 1}, ${p.y + g.h - 1}</b><br>` +
+      `<b>${fmt(ph.bM, 2)} × ${fmt(ph.hM, 2)} m</b> = <b>${fmt(ph.m2, 2)} m²</b> · <b>${pitchText(ph)}</b><br>` +
+      `<b>${fmt(ph.kg, 1)} kg</b> · <b>${fmt(ph.wMax)} W</b> max. (<b>${fmt(ph.ampere, 1)} A</b>) · Ø ${fmt(ph.wAvg)} W`;
+    document.getElementById("ew-daten").innerHTML =
+      `<b>${d.zuleitungen}</b> Port${d.zuleitungen === 1 ? "" : "s"} (max. ${aus(d)} %) · <b>${d.bruecken}</b> Brücken`;
+    document.getElementById("ew-strom").innerHTML =
+      `<b>${st.zuleitungen}</b> Kreis${st.zuleitungen === 1 ? "" : "e"} à ${fmt(st.kap)} W (max. ${aus(st)} %) · <b>${st.bruecken}</b> Brücken`;
+    document.getElementById("ew-warn").innerHTML = warnungen(w).map(t => "⚠ " + esc(t)).join("<br>");
+  }
+}
+
+function setzeLeinwand(b, h) {
+  projekt.leinwand.b = zahl(b, projekt.leinwand.b, 16, MAX_SEITE);
+  projekt.leinwand.h = zahl(h, projekt.leinwand.h, 16, MAX_SEITE);
+  geaendert();
+}
+
+lwVorlage.onchange = () => {
+  if (!lwVorlage.value) return;
+  const [b, h] = lwVorlage.value.split("x");
+  setzeLeinwand(b, h);
+};
+lwB.onchange = () => { if (lwB.checkValidity()) setzeLeinwand(lwB.value, projekt.leinwand.h); else melde("Breite: 16 bis 16384 px", "bad"); };
+lwH.onchange = () => { if (lwH.checkValidity()) setzeLeinwand(projekt.leinwand.b, lwH.value); else melde("Höhe: 16 bis 16384 px", "bad"); };
+lwName.oninput = () => { projekt.name = lwName.value; sichern(); historieMerken(); };
+inAuto.onchange = () => {
+  const ig = inhaltGroesse();
+  projekt.inhalt.auto = inAuto.checked;
+  if (!inAuto.checked) { projekt.inhalt.b = ig.b; projekt.inhalt.h = ig.h; }
+  geaendert();
+};
+inB.onchange = inH.onchange = e => {
+  if (!e.target.checkValidity()) return melde("Inhalt: 16 bis 16384 px", "bad");
+  projekt.inhalt.b = zahl(inB.value, projekt.inhalt.b, 16, MAX_SEITE);
+  projekt.inhalt.h = zahl(inH.value, projekt.inhalt.h, 16, MAX_SEITE);
+  geaendert();
+};
+
+function baueListe() {
+  const liste = document.getElementById("screen-liste");
+  if (!projekt.waende.length) {
+    liste.innerHTML = `<div class="leer">Noch keine LED-Wand.<br>Mit „+ Wand“ die erste anlegen.</div>`;
+  } else {
+    liste.innerHTML = projekt.waende.map(w => {
+      const g = geometrie(w);
+      const warn = warnungen(w);
+      return `<button class="screen-item${w.uid === gewaehlt ? " sel" : ""}" data-uid="${w.uid}" aria-pressed="${w.uid === gewaehlt}">
+        <span class="farbe" style="background:${wandFarbe(w)}"></span>
+        <span class="name">${esc(w.name || "ohne Namen")}</span>
+        ${warn.length ? `<span class="badge warn" title="${esc(warn.join(", "))}">⚠</span>` : ""}
+        <span class="badge">${g.b}×${g.h}</span>
+      </button>`;
+    }).join("");
+  }
+  document.getElementById("btn-screen-dup").disabled = !wand();
+  document.getElementById("btn-png-wand").disabled = !wand();
+}
+
+document.getElementById("screen-liste").addEventListener("click", e => {
+  const b = e.target.closest("[data-uid]");
+  if (!b) return;
+  gewaehlt = b.dataset.uid;
+  baueFormulare();
+});
+
+function eckenOptionen(wert) {
+  return Object.entries(STARTECKEN).map(([k, t]) => `<option value="${k}"${k === wert ? " selected" : ""}>${t}</option>`).join("");
+}
+
+function baueEigenschaften() {
+  const el = document.getElementById("eigenschaften");
+  const w = wand();
+  if (!w) {
+    el.innerHTML = `<h2>Wand</h2><div class="leer">Keine Wand gewählt.<br>In der Vorschau oder Liste anklicken.</div>`;
+    return;
+  }
+  const f = PALETTEN[projekt.optionen.palette].farben;
+  const p = pos(w);
+  const vorlage = KABINETTE.find(k => k.kb === w.kb && k.kh === w.kh && k.mmB === w.kab.mmB && k.mmH === w.kab.mmH);
+  const sel = (a, b) => a === b ? " selected" : "";
+  el.innerHTML = `
+    <h2>Wand</h2>
+    <div class="info-block">
+      <h3><span class="farbe" style="background:${wandFarbe(w)}"></span>${esc(w.name || "ohne Namen")}</h3>
+      <div class="formgitter">
+        <label class="breit">Name<input data-w="name" value="${esc(w.name)}" maxlength="60"></label>
+        <label class="breit">Farbe
+          <select data-w="farbe">
+            ${f.map((h, i) => `<option value="${i}"${sel(w.farbe % f.length, i)}>Farbe ${i + 1} · ${h}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      <h4>Kabinett</h4>
+      <div class="formgitter">
+        <label class="breit">Vorlage (Richtwerte)
+          <select data-w="vorlage">
+            <option value="">– eigene Werte –</option>
+            ${KABINETTE.map(k => `<option value="${k.id}"${sel(vorlage?.id, k.id)}>${k.name}</option>`).join("")}
+          </select>
+        </label>
+        <label>Pixel Breite<input data-w="kb" type="number" min="1" max="4096" value="${w.kb}" required></label>
+        <label>Pixel Höhe<input data-w="kh" type="number" min="1" max="4096" value="${w.kh}" required></label>
+        <label>Breite (mm)<input data-w="kab.mmB" data-dez type="number" min="1" max="10000" step="0.1" value="${w.kab.mmB}" required></label>
+        <label>Höhe (mm)<input data-w="kab.mmH" data-dez type="number" min="1" max="10000" step="0.1" value="${w.kab.mmH}" required></label>
+        <label>Gewicht (kg)<input data-w="kab.kg" data-dez type="number" min="0" max="1000" step="0.1" value="${w.kab.kg}" required></label>
+        <label>Leistung max. (W)<input data-w="kab.wMax" data-dez type="number" min="0" max="100000" step="1" value="${w.kab.wMax}" required></label>
+        <label>Leistung Ø (W)<input data-w="kab.wAvg" data-dez type="number" min="0" max="100000" step="1" value="${w.kab.wAvg}" required></label>
+      </div>
+
+      <h4>Raster</h4>
+      <div class="formgitter">
+        <label>Spalten<input data-w="spalten" type="number" min="0" max="500" value="${w.spalten}" required></label>
+        <label>Zeilen<input data-w="zeilen" type="number" min="0" max="500" value="${w.zeilen}" required></label>
+        <label>Halbe Spalte
+          <select data-w="halbeSpalte">
+            <option value="keine">keine</option><option value="links"${sel(w.halbeSpalte, "links")}>links</option><option value="rechts"${sel(w.halbeSpalte, "rechts")}>rechts</option>
+          </select>
+        </label>
+        <label>Halbe Zeile
+          <select data-w="halbeZeile">
+            <option value="keine">keine</option><option value="oben"${sel(w.halbeZeile, "oben")}>oben</option><option value="unten"${sel(w.halbeZeile, "unten")}>unten</option>
+          </select>
+        </label>
+        <label>${kartenName()} X (px)<input data-w="pos.x" type="number" min="-16384" max="16384" value="${p.x}" required></label>
+        <label>${kartenName()} Y (px)<input data-w="pos.y" type="number" min="-16384" max="16384" value="${p.y}" required></label>
+      </div>
+      <p class="werte" id="ew-werte"></p>
+      <p class="warnung" id="ew-warn"></p>
+
+      <h4>Daten</h4>
+      <div class="formgitter">
+        <label>Verlauf
+          <select data-w="daten.richtung"><option value="h">zeilenweise ↔</option><option value="v"${sel(w.daten.richtung, "v")}>spaltenweise ↕</option></select>
+        </label>
+        <label>Start<select data-w="daten.start">${eckenOptionen(w.daten.start)}</select></label>
+        <label title="z.B. 655.360 px für einen 1-Gbit-Port">Pixel je Port<input data-w="daten.pxProPort" type="number" min="1" max="100000000" step="1" value="${w.daten.pxProPort}" required></label>
+        <label>Zuleitung (m)<input data-w="daten.zuleitung" data-dez type="number" min="0" max="10000" step="0.5" value="${w.daten.zuleitung}" required></label>
+      </div>
+      <p class="werte" id="ew-daten"></p>
+
+      <h4>Strom</h4>
+      <div class="formgitter">
+        <label>Verlauf
+          <select data-w="strom.richtung"><option value="h">zeilenweise ↔</option><option value="v"${sel(w.strom.richtung, "v")}>spaltenweise ↕</option></select>
+        </label>
+        <label>Start<select data-w="strom.start">${eckenOptionen(w.strom.start)}</select></label>
+        <label>Absicherung (A)<input data-w="strom.ampere" data-dez type="number" min="0.1" max="1000" step="0.1" value="${w.strom.ampere}" required></label>
+        <label>Spannung (V)<input data-w="strom.spannung" data-dez type="number" min="1" max="1000" step="1" value="${w.strom.spannung}" required></label>
+        <label>Reserve (%)<input data-w="strom.reserve" data-dez type="number" min="0" max="90" step="1" value="${w.strom.reserve}" required></label>
+        <label>Zuleitung (m)<input data-w="strom.zuleitung" data-dez type="number" min="0" max="10000" step="0.5" value="${w.strom.zuleitung}" required></label>
+      </div>
+      <p class="werte" id="ew-strom"></p>
+
+      <div class="knopfzeile">
+        <button data-aktion="zentrieren" title="Wand mittig auf die aktuelle Karte setzen">Zentrieren</button>
+        <button data-aktion="loeschen" class="gefahr">Löschen</button>
+      </div>
+    </div>`;
+  aktualisiereWerte();
+}
+
+document.getElementById("eigenschaften").addEventListener("change", e => {
+  const w = wand();
+  const feld = e.target.dataset.w;
+  if (!w || !feld || feld === "name") return;
+  if (feld === "vorlage") {
+    const k = KABINETTE.find(k => k.id === e.target.value);
+    if (!k) return;
+    w.kb = k.kb; w.kh = k.kh;
+    Object.assign(w.kab, { mmB: k.mmB, mmH: k.mmH, kg: k.kg, wMax: k.wMax, wAvg: k.wAvg });
+  } else if (e.target.tagName === "SELECT" && feld !== "farbe") {
+    const [a, b] = feld.split(".");
+    if (b) w[a][b] = e.target.value; else w[a] = e.target.value;
+  } else {
+    if (!e.target.checkValidity()) { melde(`Ungültiger Wert: ${e.target.min} bis ${e.target.max}`, "bad"); e.target.reportValidity(); return; }
+    const v = "dez" in e.target.dataset ? Number(e.target.value) : Math.round(Number(e.target.value));
+    const [a, b] = feld.split(".");
+    if (a === "pos") { const p = pos(w); setzePos(w, b === "x" ? v : p.x, b === "y" ? v : p.y); }
+    else if (b) w[a][b] = v;
+    else w[a] = v;
+  }
+  geaendert();
+});
+document.getElementById("eigenschaften").addEventListener("input", e => {
+  const w = wand();
+  if (!w || e.target.dataset.w !== "name") return;
+  w.name = e.target.value;
+  document.querySelector("#eigenschaften h3").lastChild.textContent = w.name || "ohne Namen";
+  baueListe();
+  geaendert(false);
+});
+document.getElementById("eigenschaften").addEventListener("click", e => {
+  const a = e.target.closest("[data-aktion]")?.dataset.aktion;
+  const w = wand();
+  if (!a || !w) return;
+  if (a === "loeschen") wandLoeschen(w);
+  if (a === "zentrieren") {
+    const r = rechteck(w), lw = flaecheGroesse();
+    setzePos(w, Math.max(rk === "ein" ? 0 : -Infinity, Math.floor((lw.b - r.b) / 2)), Math.max(rk === "ein" ? 0 : -Infinity, Math.floor((lw.h - r.h) / 2)));
+    geaendert();
+  }
+});
+
+function baueOptionen() {
+  const sel = document.querySelector('[data-opt="palette"]');
+  if (!sel.options.length) sel.innerHTML = Object.entries(PALETTEN).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join("");
+  for (const el of document.querySelectorAll("[data-opt]")) {
+    const v = holeOpt(el.dataset.opt);
+    if (el.type === "checkbox") el.checked = !!v; else if (document.activeElement !== el) el.value = v;
+  }
+}
+function holeOpt(pfad) { return pfad.split(".").reduce((o, k) => o[k], projekt.optionen); }
+function setzeOpt(pfad, v) {
+  const teile = pfad.split(".");
+  const letzter = teile.pop();
+  teile.reduce((o, k) => o[k], projekt.optionen)[letzter] = v;
+}
+document.getElementById("rechts").addEventListener("change", e => {
+  const el = e.target;
+  if (!el.dataset.opt) return;
+  let v;
+  if (el.type === "checkbox") v = el.checked;
+  else if (el.type === "number") {
+    if (!el.checkValidity()) { melde(`Ungültiger Wert: ${el.min} bis ${el.max}`, "bad"); return; }
+    v = Number(el.value);
+  } else v = el.value;
+  setzeOpt(el.dataset.opt, v);
+  geaendert();
+});
+
+function baueFormulare() {
+  if (gewaehlt && !wand()) gewaehlt = null;
+  baueLeinwandFormular();
+  baueListe();
+  baueEigenschaften();
+  baueOptionen();
+  zeigeAuswahl();
+}
+
+/* ---------- Wände anlegen / löschen ---------- */
+
+/* Erste freie Stelle rechts neben oder unter den vorhandenen Wänden – in beiden Karten */
+function freiePosition(w) {
+  const g = geometrie(w);
+  const lw = flaecheGroesse();
+  const kandidaten = [{ x: 0, y: 0 }];
+  for (const a of projekt.waende) { const ra = rechteck(a); kandidaten.push({ x: ra.x + ra.b, y: ra.y }, { x: ra.x, y: ra.y + ra.h }); }
+  for (const k of kandidaten) {
+    const neu = { x: k.x, y: k.y, b: g.b, h: g.h };
+    if (k.x + g.b <= lw.b && k.y + g.h <= lw.h && !projekt.waende.some(a => schneiden(neu, rechteck(a)))) return k;
+  }
+  return kandidaten[kandidaten.length - 1];
+}
+
+document.getElementById("btn-screen-neu").onclick = () => {
+  const v = wand();
+  const w = neueWand({
+    name: "Wand " + (projekt.waende.length + 1),
+    kb: v?.kb ?? 128, kh: v?.kh ?? 128, kab: v?.kab, daten: v?.daten, strom: v?.strom,
+    spalten: 4, zeilen: 3, farbe: projekt.waende.length,
+  });
+  mitKarte("aus", () => { const p = freiePosition(w); setzePos(w, p.x, p.y); });
+  // Im Inhalt möglichst dieselbe Lage wie am Ausgang – nur wenn dort schon etwas liegt, frei suchen
+  mitKarte("ein", () => {
+    const g = geometrie(w);
+    const gleich = { x: w.x, y: w.y, b: g.b, h: g.h };
+    const frei = w.x >= 0 && w.y >= 0 && !projekt.waende.some(a => schneiden(gleich, rechteck(a)));
+    const p = frei ? { x: w.x, y: w.y } : freiePosition(w);
+    setzePos(w, p.x, p.y);
+  });
+  projekt.waende.push(w);
+  gewaehlt = w.uid;
+  geaendert();
+};
+
+document.getElementById("btn-screen-dup").onclick = () => {
+  const v = wand();
+  if (!v) return;
+  const w = neueWand({ ...JSON.parse(JSON.stringify(v)), uid: null, name: v.name + " (Kopie)", farbe: v.farbe + 1 });
+  const g = geometrie(v);
+  w.x = v.x + g.b; w.ix = v.ix + g.b;
+  projekt.waende.push(w);
+  gewaehlt = w.uid;
+  geaendert();
+};
+
+function wandLoeschen(w) {
+  if (!confirm(`Wand „${w.name || "ohne Namen"}“ löschen?`)) return;
+  projekt.waende = projekt.waende.filter(a => a !== w);
+  gewaehlt = projekt.waende[projekt.waende.length - 1]?.uid || null;
+  geaendert();
+}
+
+/* ---------- Projekt / Standard ---------- */
+
+function exportDaten() {
+  return { format: "rex-ledraster", version: 2, gespeichert: new Date().toISOString(), projekt };
+}
+
+function dateiname(endung, zusatz = "") {
+  // Nur ASCII: manche Browser verwerfen sonst den Dateinamen und speichern als „download“
+  const ascii = t => String(t).trim()
+    .replace(/[äÄöÖüÜß]/g, c => ({ ä: "ae", Ä: "Ae", ö: "oe", Ö: "Oe", ü: "ue", Ü: "Ue", ß: "ss" }[c]))
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  const basis = ascii(projekt.name) || "ledraster";
+  return basis + (zusatz ? "_" + ascii(zusatz) : "") + endung;
+}
+
+function herunterladen(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function uebernehmen(neu, text) {
+  projekt = neu;
+  gewaehlt = projekt.waende[0]?.uid || null;
+  zoom = null;
+  geaendert();
+  melde(text, "ok");
+}
+
+document.getElementById("btn-speichern").onclick = () => {
+  herunterladen(new Blob([JSON.stringify(exportDaten(), null, 2)], { type: "application/json" }), dateiname(".ledraster.json"));
+  melde("Projekt gespeichert.", "ok");
+};
+document.getElementById("btn-laden").onclick = () => document.getElementById("datei").click();
+document.getElementById("datei").onchange = async e => {
+  const datei = e.target.files[0];
+  e.target.value = "";
+  if (!datei) return;
+  try {
+    const daten = JSON.parse(await datei.text());
+    if (daten.format && daten.format !== "rex-ledraster") throw new Error("Falsches Format: " + daten.format);
+    uebernehmen(normalisiere(daten), `„${datei.name}“ geladen.`);
+  } catch (err) {
+    melde("Datei konnte nicht geladen werden: " + err.message, "bad");
+  }
+};
+document.getElementById("btn-neu").onclick = () => {
+  if (!confirm("Aktuelle Planung verwerfen und den Standard laden?")) return;
+  uebernehmen(standard(), "Standard geladen.");
+};
+document.getElementById("btn-std-setzen").onclick = () => {
+  try {
+    localStorage.setItem(SPEICHER_STANDARD, JSON.stringify(projekt));
+    melde("Als Standard gespeichert – wird bei „Neu“ geladen.", "ok");
+  } catch (e) { melde("Standard konnte nicht gespeichert werden (Browser-Speicher gesperrt).", "bad"); }
+};
+document.getElementById("btn-std-reset").onclick = () => {
+  try { localStorage.removeItem(SPEICHER_STANDARD); } catch (e) { /* egal */ }
+  melde("Gespeicherter Standard gelöscht.", "ok");
+};
+
+/* ---------- Export ---------- */
+
+function canvasZuPng(canvas, name) {
+  return new Promise(res => canvas.toBlob(blob => {
+    if (!blob) { melde("PNG konnte nicht erzeugt werden (Bild zu groß?).", "bad"); return res(false); }
+    herunterladen(blob, name);
+    res(true);
+  }, "image/png"));
+}
+
+/* Rendert eine Karte/Ansicht in eine eigene Canvas */
+function rendere(karte, ansicht) {
+  return mitKarte(karte, () => {
+    const lw = flaecheGroesse();
+    if (!groesseGueltig(lw)) return null;
+    const c = document.createElement("canvas");
+    c.width = lw.b; c.height = lw.h;
+    zeichneLeinwand(c.getContext("2d"), ansicht);
+    return c;
+  });
+}
+
+const ANSICHT_DATEI = { test: "testbild", daten: "datenwege", strom: "stromkreise" };
+
+document.getElementById("btn-png").onclick = async () => {
+  const lw = flaecheGroesse();
+  if (!groesseGueltig(lw)) return melde("Fläche zu groß für den Export.", "bad");
+  zeichneVorschau();
+  const zusatz = `${kartenName().toLowerCase()}_${ANSICHT_DATEI[ui.ansicht]}_${lw.b}x${lw.h}`;
+  if (await canvasZuPng(vorschau, dateiname(".png", zusatz))) melde(`PNG ${lw.b} × ${lw.h} exportiert.`, "ok");
+};
+
+document.getElementById("btn-png-wand").onclick = async () => {
+  const w = wand();
+  if (!w) return;
+  const g = geometrie(w);
+  if (!g.b || !g.h) return melde("Die Wand hat keine Fläche.", "bad");
+  const c = document.createElement("canvas");
+  c.width = g.b; c.height = g.h;
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  const p = pos(w);
+  ctx.translate(-p.x, -p.y);
+  if (ui.ansicht === "test") zeichneWand(ctx, w); else zeichneKabel(ctx, w, ui.ansicht);
+  if (await canvasZuPng(c, dateiname(".png", `${w.name || "wand"}_${ANSICHT_DATEI[ui.ansicht]}_${g.b}x${g.h}`))) melde(`PNG „${w.name}“ ${g.b} × ${g.h} exportiert.`, "ok");
+};
+
+document.getElementById("btn-png-maske").onclick = async () => {
+  const lw = flaecheGroesse();
+  if (!groesseGueltig(lw)) return melde("Fläche zu groß für den Export.", "bad");
+  const c = document.createElement("canvas");
+  c.width = lw.b; c.height = lw.h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, lw.b, lw.h);
+  ctx.fillStyle = "#ffffff";
+  for (const w of projekt.waende) { const r = rechteck(w); ctx.fillRect(r.x, r.y, r.b, r.h); }
+  if (await canvasZuPng(c, dateiname(".png", `maske_${kartenName().toLowerCase()}_${lw.b}x${lw.h}`))) melde("Masken-PNG exportiert.", "ok");
+};
+
+function slices() {
+  return projekt.waende.map(w => {
+    const g = geometrie(w), ph = physik(w);
+    return {
+      name: w.name, inhaltX: w.ix, inhaltY: w.iy, ausgangX: w.x, ausgangY: w.y, breite: g.b, hoehe: g.h,
+      kachelBreite: w.kb, kachelHoehe: w.kh, spalten: w.spalten, zeilen: w.zeilen,
+      halbeSpalte: w.halbeSpalte, halbeZeile: w.halbeZeile,
+      breiteM: +ph.bM.toFixed(3), hoeheM: +ph.hM.toFixed(3),
+    };
+  });
+}
+
+function csvText(kopf, zeilen) {
+  const feld = v => { const s = typeof v === "number" ? String(v).replace(".", ",") : String(v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  return "﻿" + [kopf.join(";"), ...zeilen.map(z => z.map(feld).join(";"))].join("\r\n") + "\r\n";
+}
+
+document.getElementById("btn-csv").onclick = () => {
+  const ig = inhaltGroesse();
+  const text = csvText(
+    ["Name", "Inhalt X", "Inhalt Y", "Ausgang X", "Ausgang Y", "Breite px", "Höhe px", "Kachel Breite", "Kachel Höhe", "Spalten", "Zeilen", "Halbe Spalte", "Halbe Zeile", "Breite m", "Höhe m"],
+    [["# Inhalt", "", "", "", "", ig.b, ig.h], ["# Ausgang", "", "", "", "", projekt.leinwand.b, projekt.leinwand.h],
+     ...slices().map(s => [s.name, s.inhaltX, s.inhaltY, s.ausgangX, s.ausgangY, s.breite, s.hoehe, s.kachelBreite, s.kachelHoehe, s.spalten, s.zeilen, s.halbeSpalte, s.halbeZeile, s.breiteM, s.hoeheM])]);
+  herunterladen(new Blob([text], { type: "text/csv;charset=utf-8" }), dateiname(".csv", "slices"));
+  melde("Slice-Liste (CSV) exportiert.", "ok");
+};
+
+document.getElementById("btn-json").onclick = () => {
+  const daten = { format: "rex-ledraster-slices", version: 2, inhalt: inhaltGroesse(), ausgang: { ...projekt.leinwand }, slices: slices() };
+  herunterladen(new Blob([JSON.stringify(daten, null, 2)], { type: "application/json" }), dateiname(".json", "slices"));
+  melde("Slice-Liste (JSON) exportiert.", "ok");
+};
+
+function kabelZeilen() {
+  const zeilen = [];
+  for (const w of projekt.waende) for (const art of ["daten", "strom"]) {
+    const r = routen(w, art);
+    const cfg = art === "daten" ? w.daten : w.strom;
+    r.segmente.forEach((s, i) => zeilen.push({
+      wand: w.name, art: art === "daten" ? "Daten" : "Strom", nr: (art === "daten" ? "D" : "S") + (i + 1),
+      kabinette: s.kab.length, last: Math.round(s.last), kap: Math.round(r.kap), auslastung: Math.round(s.auslastung * 100),
+      zuleitung: cfg.zuleitung, bruecken: Math.max(0, s.kab.length - 1),
+      erstes: spaltenBuchstabe(s.kab[0].c) + (s.kab[0].r + 1),
+    }));
+  }
+  return zeilen;
+}
+
+document.getElementById("btn-kabel-csv").onclick = () => {
+  if (!projekt.waende.length) return melde("Keine Wand vorhanden.", "bad");
+  const text = csvText(
+    ["Wand", "Art", "Port/Kreis", "Erstes Kabinett", "Kabinette", "Last (px bzw. W)", "Kapazität", "Auslastung %", "Zuleitung m", "Brücken"],
+    kabelZeilen().map(z => [z.wand, z.art, z.nr, z.erstes, z.kabinette, z.last, z.kap, z.auslastung, z.zuleitung, z.bruecken]));
+  herunterladen(new Blob([text], { type: "text/csv;charset=utf-8" }), dateiname(".csv", "kabelliste"));
+  melde("Kabelliste (CSV) exportiert.", "ok");
+};
+
+/* After-Effects-ExtendScript: Inhalts-Komposition mit je einer Unterkomposition pro Wand */
+function aeSkript() {
+  const ig = inhaltGroesse();
+  const js = s => JSON.stringify(String(s));
+  const titel = projekt.name || "LED-Inhalt";
+  const waende = projekt.waende.map(w => {
+    const g = geometrie(w);
+    const [r, gr, b] = hexZuRgb(wandFarbe(w)).map(v => +(v / 255).toFixed(4));
+    return `  { name: ${js(w.name || "Wand")}, x: ${w.ix}, y: ${w.iy}, b: ${g.b}, h: ${g.h}, farbe: [${r}, ${gr}, ${b}] }`;
+  }).join(",\n");
+  return `// LED-Raster-Generator – After-Effects-Skript
+// Datei > Skripten > Skriptdatei ausführen …
+// Legt einen Ordner mit einer Inhalts-Komposition (${ig.b} × ${ig.h}) und je
+// einer Unterkomposition pro LED-Wand an, exakt an ihrer Position im Inhalt.
+(function () {
+  var INHALT = { name: ${js(titel)}, b: ${ig.b}, h: ${ig.h} };
+  var WAENDE = [
+${waende}
+  ];
+  var FPS = 25, DAUER = 60;
+  app.beginUndoGroup("LED-Raster anlegen");
+  var ordner = app.project.items.addFolder(INHALT.name + " – LED");
+  var haupt = app.project.items.addComp(INHALT.name, INHALT.b, INHALT.h, 1, DAUER, FPS);
+  haupt.parentFolder = ordner;
+  haupt.bgColor = [0, 0, 0];
+  for (var i = WAENDE.length - 1; i >= 0; i--) {
+    var w = WAENDE[i];
+    var comp = app.project.items.addComp(w.name + " (" + w.b + "x" + w.h + ")", w.b, w.h, 1, DAUER, FPS);
+    comp.parentFolder = ordner;
+    var platzhalter = comp.layers.addSolid(w.farbe, "Platzhalter " + w.name, w.b, w.h, 1, DAUER);
+    platzhalter.guideLayer = true;
+    var ebene = haupt.layers.add(comp);
+    ebene.property("Transform").property("Anchor Point").setValue([0, 0]);
+    ebene.property("Transform").property("Position").setValue([w.x, w.y]);
+  }
+  app.endUndoGroup();
+  alert("LED-Raster: " + WAENDE.length + " Wand/Wände angelegt.");
+})();
+`;
+}
+
+document.getElementById("btn-ae").onclick = () => {
+  if (!projekt.waende.length) return melde("Keine Wand vorhanden.", "bad");
+  herunterladen(new Blob(["﻿" + aeSkript()], { type: "text/plain;charset=utf-8" }), dateiname(".jsx", "aftereffects"));
+  melde("After-Effects-Skript exportiert.", "ok");
+};
+
+/* ---------- Bericht (Drucken / PDF) ---------- */
+
+function bildFuerBericht(karte, ansicht) {
+  const c = rendere(karte, ansicht);
+  if (!c) return "";
+  const max = 1800;
+  const f = Math.min(1, max / c.width);
+  const k = document.createElement("canvas");
+  k.width = Math.round(c.width * f); k.height = Math.round(c.height * f);
+  const ctx = k.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(c, 0, 0, k.width, k.height);
+  return k.toDataURL("image/png");
+}
+
+function berichtHtml() {
+  const s = summen();
+  const ig = inhaltGroesse();
+  const titel = projekt.name || "LED-Planung";
+  const heute = new Date().toLocaleDateString("de-DE");
+  const bilder = [
+    ["Ausgang · Testbild", bildFuerBericht("aus", "test"), `${projekt.leinwand.b} × ${projekt.leinwand.h} px`],
+    ["Inhalt · Testbild", bildFuerBericht("ein", "test"), `${ig.b} × ${ig.h} px`],
+    ["Datenwege", bildFuerBericht("ein", "daten"), "Lage wie im Inhalt"],
+    ["Stromkreise", bildFuerBericht("ein", "strom"), "Lage wie im Inhalt"],
+  ];
+  const waendeZeilen = projekt.waende.map(w => {
+    const g = geometrie(w), ph = physik(w);
+    return `<tr><td>${esc(w.name)}</td><td>${w.spalten}${w.halbeSpalte !== "keine" ? "½" : ""} × ${w.zeilen}${w.halbeZeile !== "keine" ? "½" : ""}</td>
+      <td>${w.kb} × ${w.kh}</td><td>${g.b} × ${g.h}</td><td>${fmt(ph.bM, 2)} × ${fmt(ph.hM, 2)}</td><td>${fmt(ph.m2, 2)}</td>
+      <td>${pitchText(ph)}</td><td>${fmt(ph.kg, 1)}</td><td>${fmt(ph.wMax)}</td><td>${fmt(ph.ampere, 1)}</td>
+      <td>${w.ix}, ${w.iy}</td><td>${w.x}, ${w.y}</td></tr>`;
+  }).join("");
+  const kabel = kabelZeilen();
+  const kabelZeilenHtml = kabel.map(z => `<tr><td>${esc(z.wand)}</td><td>${z.nr}</td><td>${z.erstes}</td><td>${z.kabinette}</td>
+    <td>${z.art === "Daten" ? fmtPx(z.last) + " px" : fmt(z.last) + " W"}</td><td>${z.auslastung} %</td><td>${fmt(z.zuleitung, 1)} m</td><td>${z.bruecken}</td></tr>`).join("");
+  // Zuleitungen nach Art und Länge zusammengefasst
+  const gruppen = {};
+  for (const z of kabel) {
+    const k = z.art + "|" + z.zuleitung;
+    gruppen[k] = gruppen[k] || { art: z.art, laenge: z.zuleitung, anzahl: 0, bruecken: 0 };
+    gruppen[k].anzahl++; gruppen[k].bruecken += z.bruecken;
+  }
+  const brueckenDaten = kabel.filter(z => z.art === "Daten").reduce((a, z) => a + z.bruecken, 0);
+  const brueckenStrom = kabel.filter(z => z.art === "Strom").reduce((a, z) => a + z.bruecken, 0);
+  const material = Object.values(gruppen).sort((a, b) => a.art.localeCompare(b.art) || a.laenge - b.laenge)
+    .map(g => `<tr><td>${g.art}-Zuleitung</td><td>${fmt(g.laenge, 1)} m</td><td>${g.anzahl}</td></tr>`).join("") +
+    `<tr><td>Daten-Brücke (Kabinett zu Kabinett)</td><td>–</td><td>${brueckenDaten}</td></tr>` +
+    `<tr><td>Strom-Brücke (Kabinett zu Kabinett)</td><td>–</td><td>${brueckenStrom}</td></tr>`;
+
+  return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc(titel)} – Bericht</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  body { font: 11px/1.4 system-ui, "Segoe UI", sans-serif; color: #1f2328; margin: 0; padding: 16px; background: #fff; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 14px; margin: 18px 0 6px; }
+  .kopf { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1f2328; padding-bottom: 6px; margin-bottom: 10px; }
+  .kopf small { color: #68717b; }
+  .bilder { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  figure { margin: 0; break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #d5d9de; background: #000; }
+  figcaption { font-size: 10px; color: #68717b; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; break-inside: auto; }
+  th, td { text-align: left; padding: 3px 5px; border-bottom: 1px solid #d5d9de; }
+  th { background: #f1f3f5; font-weight: 600; }
+  tr { break-inside: avoid; }
+  .zahlen td, .zahlen th { font-variant-numeric: tabular-nums; }
+  .summen { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 6px 0 4px; }
+  .summen div { background: #f1f3f5; border-radius: 6px; padding: 6px 8px; }
+  .summen b { display: block; font-size: 15px; }
+  .seite { break-before: page; }
+  .hinweis { color: #68717b; font-size: 10px; }
+  .druck { position: fixed; top: 12px; right: 12px; padding: 8px 14px; font: inherit; font-size: 13px; border-radius: 6px; border: 0; background: #1c7ed6; color: #fff; cursor: pointer; }
+  @media print { .druck { display: none; } body { padding: 0; } }
+</style></head><body>
+<button class="druck" onclick="print()">Drucken / als PDF speichern</button>
+<div class="kopf"><div><h1>${esc(titel)}</h1><small>LED-Planung · Rex-System</small></div><small>Stand ${heute}</small></div>
+<div class="summen">
+  <div>Kabinette<b>${fmt(s.stueck)}</b></div><div>Fläche<b>${fmt(s.m2, 2)} m²</b></div><div>Pixel<b>${fmtPx(s.px)}</b></div>
+  <div>Gewicht<b>${fmt(s.kg, 1)} kg</b></div><div>Leistung max.<b>${fmt(s.wMax / 1000, 2)} kW</b></div>
+  <div>Datenports<b>${fmt(s.ports)}</b></div><div>Stromkreise<b>${fmt(s.kreise)}</b></div>
+</div>
+<div class="bilder">${bilder.map(([t, src, u]) => `<figure>${src ? `<img src="${src}" alt="${esc(t)}">` : "<p>(zu groß für die Vorschau)</p>"}<figcaption><b>${esc(t)}</b> · ${esc(u)}</figcaption></figure>`).join("")}</div>
+<div class="seite"></div>
+<h2>Wände</h2>
+<table class="zahlen"><thead><tr><th>Wand</th><th>Kabinette</th><th>px je Kabinett</th><th>Pixel</th><th>Maße m</th><th>m²</th><th>Pitch</th><th>kg</th><th>W max.</th><th>A</th><th>Inhalt X, Y</th><th>Ausgang X, Y</th></tr></thead>
+<tbody>${waendeZeilen}</tbody></table>
+<h2>Material Verkabelung</h2>
+<table class="zahlen"><thead><tr><th>Kabel</th><th>Länge</th><th>Anzahl</th></tr></thead><tbody>${material}</tbody></table>
+<h2>Datenports und Stromkreise</h2>
+<table class="zahlen"><thead><tr><th>Wand</th><th>Port/Kreis</th><th>Erstes Kabinett</th><th>Kabinette</th><th>Last</th><th>Auslastung</th><th>Zuleitung</th><th>Brücken</th></tr></thead>
+<tbody>${kabelZeilenHtml}</tbody></table>
+<p class="hinweis">Gewicht, Leistung und Stromstärke sind Richtwerte aus den eingegebenen Kabinettdaten. Kapazitäten (Pixel je Port, Watt je Kreis)
+sind Planungswerte – Herstellerangaben, Netzform und Vorschriften (z.B. DIN VDE) gehen vor. Ersatzteile und Redundanz sind nicht enthalten.
+Kabinett-Bezeichnung „C2“ = Spalte C, Zeile 2 von oben.</p>
+</body></html>`;
+}
+
+document.getElementById("btn-bericht").onclick = () => {
+  if (!projekt.waende.length) return melde("Keine Wand vorhanden.", "bad");
+  const f = window.open("", "rex-ledraster-bericht");
+  if (!f) return melde("Popup wurde blockiert – bitte Popups für diese Seite erlauben.", "bad");
+  f.document.open();
+  f.document.write(berichtHtml());
+  f.document.close();
+  melde("Bericht geöffnet – dort „Drucken / als PDF speichern“.", "ok");
+};
+
+/* ---------- Live-Ausgabe ---------- */
+
+const live = { fenster: null, ctx: null, start: 0, pause: false, pausenZeit: 0, neuZeichnen: true, bild: null, bildAlt: true };
+let bildschirme = null;
+
+async function bildschirmeErmitteln() {
+  if (!("getScreenDetails" in window)) return;
+  document.getElementById("bildschirm-zeile").hidden = false;
+  try {
+    const status = await navigator.permissions.query({ name: "window-management" });
+    if (status.state === "denied") return;
+    if (status.state === "granted") await bildschirmListe();
+  } catch (e) { /* API nicht verfügbar */ }
+}
+
+async function bildschirmListe() {
+  bildschirme = await window.getScreenDetails();
+  const sel = document.getElementById("bildschirm-wahl");
+  const fuellen = () => {
+    sel.innerHTML = bildschirme.screens.map((s, i) =>
+      `<option value="${i}"${!s.isPrimary && sel.value === "" ? " selected" : ""}>Ausgabe auf ${esc(s.label || "Bildschirm " + (i + 1))} · ${s.width * (s.devicePixelRatio || 1)} × ${s.height * (s.devicePixelRatio || 1)}${s.isPrimary ? " (Haupt)" : ""}</option>`).join("");
+    sel.hidden = bildschirme.screens.length < 2;
+    document.getElementById("btn-bildschirme").hidden = true;
+    if (bildschirme.screens.length < 2) melde("Nur ein Bildschirm erkannt – Ausgabe öffnet als Fenster.");
+  };
+  bildschirme.addEventListener("screenschange", fuellen);
+  fuellen();
+}
+
+function liveOeffnen() {
+  if (live.fenster && !live.fenster.closed) { live.fenster.focus(); return; }
+  if (!groesseGueltig(projekt.leinwand)) return melde("Leinwand zu groß für die Live-Ausgabe.", "bad");
+
+  let lage = "";
+  let ziel = null;
+  if (bildschirme && bildschirme.screens.length > 1) {
+    ziel = bildschirme.screens[Number(document.getElementById("bildschirm-wahl").value)] || null;
+    if (ziel) lage = `,left=${ziel.availLeft},top=${ziel.availTop},width=${ziel.availWidth},height=${ziel.availHeight}`;
+  }
+  const f = window.open("", "rex-ledraster-ausgabe", "popup" + (lage || ",width=1280,height=720"));
+  if (!f) return melde("Popup wurde blockiert – bitte Popups für diese Seite erlauben.", "bad");
+
+  f.document.open();
+  f.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>LED-Ausgabe</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  body.verstecken{cursor:none}
+  canvas{position:absolute;left:0;top:0;image-rendering:pixelated}
+  #hilfe{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 14px;border-radius:8px;background:rgba(20,22,25,.9);color:#fff;font:13px/1.5 system-ui,"Segoe UI",sans-serif;transition:opacity .4s}
+  #hilfe.weg{opacity:0;pointer-events:none}
+  kbd{background:#444;border-radius:3px;padding:0 5px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hilfe"><b>LED-Ausgabe</b> – Ausgabe 1:1, oben links beginnend.<br>
+<kbd>F</kbd> / Doppelklick: Vollbild · <kbd>Leertaste</kbd>: Cursor anhalten<br>
+<kbd>E</kbd>: ins Fenster einpassen (nur zur Kontrolle) · <kbd>H</kbd>: Hilfe</div>
+</body></html>`);
+  f.document.close();
+
+  const canvas = f.document.getElementById("c");
+  const hilfe = f.document.getElementById("hilfe");
+  live.fenster = f;
+  live.ctx = canvas.getContext("2d");
+  live.canvas = canvas;
+  live.start = performance.now();
+  live.pause = false;
+  live.einpassen = false;
+  live.neuZeichnen = true;
+  live.bildAlt = true;
+
+  let hilfeTimer = 0;
+  const zeigeHilfe = () => {
+    hilfe.classList.remove("weg");
+    f.document.body.classList.remove("verstecken");
+    clearTimeout(hilfeTimer);
+    hilfeTimer = setTimeout(() => { hilfe.classList.add("weg"); f.document.body.classList.add("verstecken"); }, 3500);
+  };
+  const vollbild = () => {
+    if (f.document.fullscreenElement) f.document.exitFullscreen();
+    else f.document.documentElement.requestFullscreen(ziel ? { screen: ziel } : {}).catch(() => {});
+  };
+  f.addEventListener("dblclick", vollbild);
+  f.addEventListener("mousemove", zeigeHilfe);
+  f.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (k === "f") vollbild();
+    else if (k === " ") {
+      e.preventDefault();
+      live.pause = !live.pause;
+      if (live.pause) live.pausenZeit = performance.now();
+      else live.start += performance.now() - live.pausenZeit;
+    }
+    else if (k === "e") { live.einpassen = !live.einpassen; live.neuZeichnen = true; }
+    else if (k === "h") zeigeHilfe();
+  });
+  f.addEventListener("resize", () => { live.neuZeichnen = true; });
+  zeigeHilfe();
+  f.requestAnimationFrame(liveSchleife);
+  melde("Live-Ausgabe geöffnet – Fenster auf den LED-Ausgang ziehen und mit F auf Vollbild.", "ok");
+}
+
+function liveSchleife() {
+  const jetzt = performance.now(); // Uhr des Hauptfensters – die des Popups hat einen anderen Nullpunkt
+  const f = live.fenster;
+  if (!f || f.closed) { live.fenster = null; return; }
+  const lw = projekt.leinwand;
+  const c = live.canvas;
+  if (c.width !== lw.b || c.height !== lw.h) { c.width = lw.b; c.height = lw.h; live.neuZeichnen = true; }
+  if (live.bildAlt) {
+    // Live zeigt immer das Testbild des Ausgangs, unabhängig von Karte/Ansicht der Oberfläche
+    live.bild = rendere("aus", "test");
+    live.bildAlt = false;
+  }
+  if (live.neuZeichnen) {
+    if (live.einpassen) {
+      const z = Math.min(f.innerWidth / lw.b, f.innerHeight / lw.h);
+      c.style.width = lw.b * z + "px"; c.style.height = lw.h * z + "px";
+    } else {
+      // 1 Leinwandpixel = 1 Gerätepixel, auch bei Windows-Skalierung
+      const dpr = f.devicePixelRatio || 1;
+      c.style.width = lw.b / dpr + "px"; c.style.height = lw.h / dpr + "px";
+    }
+    live.neuZeichnen = false;
+  }
+  const zeit = ((live.pause ? live.pausenZeit : jetzt) - live.start) / 1000;
+  live.ctx.imageSmoothingEnabled = false;
+  if (live.bild) live.ctx.drawImage(live.bild, 0, 0);
+  zeichneCursor(live.ctx, zeit);
+  f.requestAnimationFrame(liveSchleife);
+}
+
+document.getElementById("btn-live").onclick = liveOeffnen;
+document.getElementById("btn-bildschirme").onclick = async () => {
+  try { await bildschirmListe(); } catch (e) { melde("Bildschirme konnten nicht abgefragt werden (Erlaubnis verweigert?).", "bad"); }
+};
+window.addEventListener("beforeunload", () => { if (live.fenster && !live.fenster.closed) live.fenster.close(); });
+
+/* ---------- Start ---------- */
+
+for (const b of document.querySelectorAll("[data-karte]")) b.setAttribute("aria-pressed", b.dataset.karte === ui.karte);
+for (const b of document.querySelectorAll("[data-ansicht]")) b.setAttribute("aria-pressed", b.dataset.ansicht === ui.ansicht);
+baueFormulare();
+zeichneVorschau();
+knoepfeHistorie();
+bildschirmeErmitteln();
+</script>
+</body>
+</html>

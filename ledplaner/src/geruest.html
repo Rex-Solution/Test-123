@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED-Planer – Rex</title>
+<link rel="icon" href="rex-symbol.png">
+<style>
+/*CSS*/
+</style>
+</head>
+<body>
+
+<header class="kopfleiste">
+  <h1 class="marke"><span class="zeichen" title="Platzhalter – rex-zeichen-weiss.png (30 px) einsetzen">Rex-<br>Zeichen</span>LED-Planer</h1>
+  <nav class="hauptreiter" role="tablist">
+    <button role="tab" data-haupt="planen">Planen</button>
+    <button role="tab" data-haupt="library">Library</button>
+    <button role="tab" data-haupt="einstellungen">Einstellungen</button>
+  </nav>
+  <div class="status">
+    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version __STAND__</span>
+    <span id="status-name"></span>
+    <span id="status-gespeichert" class="leise"></span>
+  </div>
+</header>
+
+<div class="unterleiste" id="unterleiste">
+  <button class="nur-schmal" data-spalte="links" title="Projekt und Library ein-/ausblenden">☰</button>
+  <div class="umschalter" role="tablist" id="reiterleiste">
+    <button data-reiter="aufbau"><span class="ampel"></span>Aufbau</button>
+    <button data-reiter="strom"><span class="ampel"></span>Strom</button>
+    <button data-reiter="signal"><span class="ampel"></span>Signal</button>
+    <button data-reiter="ausgabe"><span class="ampel"></span>Ausgabe</button>
+    <button data-reiter="kabel"><span class="ampel"></span>Kabel</button>
+  </div>
+  <span class="fueller"></span>
+  <div class="knopfreihe">
+    <button id="btn-undo" title="Rückgängig (Strg+Z)">↶</button>
+    <button id="btn-redo" title="Wiederholen (Strg+Y)">↷</button>
+    <button id="btn-drucken" title="Bericht A4 hoch, Großformat oder Kundenansicht">Drucken …</button>
+    <button id="btn-live" title="Testbild des gewählten Screens 1:1 in eigenem Fenster">▶ Live-Ausgabe</button>
+    <button id="btn-speichern" class="primaer" title="Projekt speichern (Strg+S)">Speichern</button>
+    <button class="nur-schmal" data-spalte="rechts" title="Details und Prüfhinweise ein-/ausblenden">ⓘ</button>
+  </div>
+</div>
+
+<main class="ansicht" id="planen">
+  <aside class="spalte links">
+    <div class="label">Projekt</div>
+    <ul class="baum" id="baum"></ul>
+    <div class="label" id="palette-titel">Library</div>
+    <div id="palette"></div>
+  </aside>
+  <section class="mitte">
+    <div class="werkzeuge" id="werkzeuge"></div>
+    <div class="zeichnung" id="zeichnung"></div>
+    <div class="liste-unten" id="liste"></div>
+  </section>
+  <aside class="spalte rechts" id="rechts"></aside>
+</main>
+
+<main class="ansicht" id="library">
+  <aside class="manager-liste" id="lib-liste"></aside>
+  <section class="formular" id="lib-formular"></section>
+</main>
+
+<main class="ansicht" id="einstellungen">
+  <aside class="manager-liste">
+    <h2>Einstellungen</h2>
+    <ul class="untermenue" id="einst-menue">
+      <li data-einst="datei">Speichern / Laden</li>
+      <li data-einst="projekt">Projektdaten</li>
+      <li data-einst="regeln">Hausregeln</li>
+      <li data-einst="material">Materialliste</li>
+      <li data-einst="verknuepfung">Rex-System</li>
+    </ul>
+  </aside>
+  <section class="formular" id="einst-inhalt"></section>
+</main>
+
+<dialog id="dialog"></dialog>
+<div id="toasts"></div>
+<input type="file" id="datei-projekt" accept=".json,application/json" hidden>
+<input type="file" id="datei-library" accept=".json,application/json" hidden>
+
+<script>
+/*JS*/
+</script>
+</body>
+</html>
