@@ -311,7 +311,8 @@ const DEMO_SIGNALTYPEN = [
   { id: 'DMX',      name: 'DMX',               farbe: '#0ca678' },
   { id: 'Intercom', name: 'Intercom',          farbe: '#d6336c' },
   { id: 'CEE',      name: 'Strom CEE (Starkstrom)', farbe: '#e03131' },
-  { id: 'Laka',     name: 'Strom Laka',        farbe: '#343a40' },
+  { id: 'Laka',     name: 'Strom Laka (Lastkabel)', farbe: '#343a40' },
+  { id: 'Powercon', name: 'Strom Powercon True1', farbe: '#f59f00' },
 ];
 
 const a = (name, typ, richtung) => ({ name, typ, richtung });
@@ -389,9 +390,9 @@ const DEMO_MATERIAL = [
   { id: '1539', name: "LedTek P4+ WH V3", kategorie: 'Video · LED',
     attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "LedTek", warengruppe: "Videotechnik/LED/LedTek/P4+/" } },
   { id: '1563', name: "Frameled Vanish 3.9-7.8", kategorie: 'Video · LED',
-    attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out')], hersteller: "Frameled", warengruppe: "Videotechnik/LED/Frameled/Vanish/" } },
+    attribute: { anschluesse: [a('Data In','LAN','in'), a('Data Out','LAN','out'), a('Power In','Powercon','in'), a('Power Out','Powercon','out')], gewicht: 16.8, stromverbrauch: 316, hersteller: "Frameled", warengruppe: "Videotechnik/LED/Frameled/Vanish/" } },
   { id: '1553', name: "Novastar MX2000 Pro", kategorie: 'Video · LED',
-    attribute: { anschluesse: [...reihe('HDMI 2.0 In','HDMI','in',4), ...reihe('DP 1.2 In','DP','in',4), ...reihe('Fiber Out','Fiber','out',8), a('LAN','LAN','bidi'), a('USB Control','USB','bidi')], gewicht: 8.2, hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
+    attribute: { anschluesse: [a('HDMI In','HDMI','in'), a('DP In','DP','in'), ...reihe('Fiber Out','Fiber','out',4), a('LAN','LAN','bidi'), a('USB Control','USB','bidi')], gewicht: 8.2, hersteller: "Novastar", warengruppe: "Videotechnik/LED/Novastar/" } },
   { id: '1466', name: "Yamaha CL5", kategorie: 'Ton · Mischpult',
     attribute: { anschluesse: [...reihe('Omni In','Audio','in',8), ...reihe('Omni Out','Audio','out',8), a('Dante Primary','LAN','bidi'), a('Dante Secondary','LAN','bidi'), a('Network','LAN','bidi')], hersteller: "Yamaha", warengruppe: "Tontechnik/Pulte/Digital/Yamaha/" } },
   { id: '1470', name: "Yamaha QL1", kategorie: 'Ton · Mischpult',

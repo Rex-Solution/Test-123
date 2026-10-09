@@ -79,7 +79,8 @@ Datenbank kommen.
 | DMX | DMX | #0ca678 |
 | Intercom | Intercom | #d6336c |
 | CEE | Strom CEE (Starkstrom) | #e03131 |
-| Laka | Strom Laka | #343a40 |
+| Laka | Strom Laka (Lastkabel) | #343a40 |
+| Powercon | Strom Powercon True1 | #f59f00 |
 
 ### Verbindungsregeln
 
