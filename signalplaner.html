@@ -457,6 +457,8 @@ const DEMO_MATERIAL = [
     attribute: { anschluesse: [a('DMX In','DMX','in'), a('DMX Out','DMX','out')], gewicht: 10, stromverbrauch: 135, hersteller: "Elation", warengruppe: "Lichttechnik/Scheinwerfer/MovingHead/Bar/" } },
   { id: '1570', name: "Stromverteiler 125A CEE auf 6x Laka", kategorie: 'Strom · Verteiler',
     attribute: { anschluesse: [a('CEE 125A In','CEE','in'), ...reihe('Laka Out','Laka','out',6)], hersteller: "", warengruppe: "Stromtechnik/Verteiler/" } },
+  { id: '1571', name: "Laka-Spinne 1x Laka auf 6x Powercon", kategorie: 'Strom · Verteiler',
+    attribute: { anschluesse: [a('Laka In','Laka','in'), ...[0.5,1.5,2.5,3.5,4.5,5.5].map((m, i) => a(`Powercon Out ${i + 1} (${String(m).replace('.', ',')} m)`,'Powercon','out'))], hersteller: "", warengruppe: "Stromtechnik/Verteiler/" } },
   { id: '1884', name: "GigaCore 10i", kategorie: 'Netzwerk · Switch',
     attribute: { anschluesse: [...reihe('LAN','LAN','bidi',8), ...reihe('SFP+','Fiber','bidi',2)], gewicht: 2.2, stromverbrauch: 13.5, hersteller: "Luminex", warengruppe: "Netzwerktechnik/Switch/Luminex/" } },
   { id: '1886', name: "GigaCore 16i", kategorie: 'Netzwerk · Switch',
