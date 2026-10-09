@@ -453,6 +453,23 @@ pruefe("Kontextmenü: Escape schließt", await p.locator("#kontextmenue").count(
   pruefe("MX2000 Pro: nutzbar, Layer als offenes Prüffeld", r.nutzbar && r.layerOffen, JSON.stringify(r));
 }
 
+/* MX2000 Pro im Projekt mit älterer Library-Kopie: Hinweis + „Projektkopie aktualisieren“ schaltet die Ports frei */
+{
+  await ev(() => {
+    window.confirm = () => true; beispielProjektLaden(); ui.reiter = "signal"; ui.modus.signal = "wand";
+    const g = prozessorAnlegen("beispiel-novastar-mx2000-pro");
+    delete P.library["beispiel-novastar-mx2000-pro"].attribute.led.portsUeberStagebox;   // alter Stand
+    wegAnlegen("stagebox", "beispiel-novastar-cvt10", g.id); ui.sel.prozessor = g.id; render();
+  });
+  pruefe("MX2000 Pro (alte Kopie): keine Ports, Hinweis mit Knopf sichtbar", await ev(() => prozessorPorts(geraetById(ui.sel.prozessor)).length === 0) && await p.locator("#rechts [data-d='prozessor-aktualisieren']").count() === 1);
+  await p.click("#rechts [data-d='prozessor-aktualisieren']"); await p.waitForTimeout(80);
+  pruefe("MX2000 Pro: nach „Projektkopie aktualisieren“ Port 1–10 anklickbar", await p.locator("#rechts [data-zuweisen]").count() === 10);
+  await p.click("#rechts [data-zuweisen]"); await p.waitForTimeout(80);
+  pruefe("MX2000 Pro: Port per Klick der Wand zugewiesen", await ev(() => zugewiesenePorts(aktuellerScreen()).some(x => x.g.id === ui.sel.prozessor && x.nr === 1)));
+  await ev(() => { P.geraete = P.geraete.filter(d => d.art !== "stagebox"); aenderung(); });
+  pruefe("MX2000 Pro ohne CVT: Hinweis „CVT10 anklicken“", (await p.locator("#rechts").innerText()).includes("keine eigenen Ports"));
+}
+
 /* ---------- Spinne und Stagebox als Symbol in der Wand ---------- */
 {
   await ev(() => { window.confirm = () => true; beispielProjektLaden(); ui.reiter = "strom"; ui.modus.strom = "wand"; ui.werkzeug = "auswahl"; $("#toasts").innerHTML = ""; render(); });

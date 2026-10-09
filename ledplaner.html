@@ -252,7 +252,7 @@ body.touch .werkzeuge .knopfreihe { flex-wrap:nowrap; }
     <button role="tab" data-haupt="einstellungen">Einstellungen</button>
   </nav>
   <div class="status">
-    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version b637c6e</span>
+    <span class="leise klein" title="Versionsstempel dieser Datei – bei Rückmeldungen bitte mit angeben">Version e0f7288</span>
     <span id="status-name"></span>
     <span id="status-gespeichert" class="leise"></span>
   </div>
@@ -3892,6 +3892,17 @@ function wegText(k) {
 
 function strangLoeschen(id) { P.straenge = P.straenge.filter(k => k.id !== id); ui.sel.strang = null; aenderung(); }
 
+/* Hinweise an der Prozessor-Karte: ältere Projektkopie, Prozessor ohne eigene Ports */
+function prozessorHinweisHtml(g) {
+  const aktuell = LIB.eintraege.get(g.lib), kopie = P.library[g.lib];
+  let h = "";
+  if (aktuell && kopie && JSON.stringify(aktuell) !== JSON.stringify(kopie))
+    h += `<div class="hinweis info">Das Projekt nutzt eine ältere Kopie von „${esc(aktuell.name)}“. <button data-d="prozessor-aktualisieren">Projektkopie aktualisieren</button></div>`;
+  if (prozessorLed(g).portsUeberStagebox && !wegGeraete(g.id).some(d => d.art === "stagebox"))
+    h += `<div class="hinweis info">Dieser Prozessor hat keine eigenen Ports. Links unter „Stageboxen“ die NovaStar CVT10 anklicken – sie stellt die Ports 1–10 bereit (jede weitere CVT zehn mehr).</div>`;
+  return h;
+}
+
 function signalRechts() {
   let html = "";
   const k = P.straenge.find(x => x.id === ui.sel.strang);
@@ -3909,6 +3920,7 @@ function signalRechts() {
     const px = P.straenge.filter(x => x.prozessor === g.id).reduce((a, x) => a + strangPixel(x), 0);
     const kabel = libListe("kabel").filter(e => e.attribute.led.gewerk === "signal");
     html += `<div class="karte"><div class="label">${esc(g.name)} · ${esc(eintrag(g.lib)?.name || "")}</div>
+      ${prozessorHinweisHtml(g)}
       <label class="feld"><span>Name *</span><input data-p-feld="name" value="${esc(g.name)}"></label>
       <label class="feld"><span>Standort</span><input data-p-feld="standort" value="${esc(g.standort || "")}"></label>
       <div class="zwei"><label class="feld"><span>Port-Kabel (direkt)</span><select data-p-feld="portKabel"><option value="">—</option>${kabel.map(e => `<option value="${e.id}"${g.portKabel === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("")}</select></label>
@@ -4076,6 +4088,7 @@ function signalEreignisse() {
       aenderung();
     }
     if (a === "geraet-loeschen") { const g = geraetById(ui.sel.prozessor); if (g) geraetLoeschen(g); }
+    if (a === "prozessor-aktualisieren") { const g = geraetById(ui.sel.prozessor); if (g && LIB.eintraege.has(g.lib)) { P.library[g.lib] = klon(LIB.eintraege.get(g.lib)); aenderung(); toast("Projektkopie aktualisiert.", "ok"); } }
   });
   $("#rechts").addEventListener("change", e => {
     if (ui.reiter !== "signal") return;
